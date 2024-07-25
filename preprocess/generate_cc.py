@@ -105,6 +105,8 @@ def get_edges(tetrahedra):
 
 
 def create_cc(pos, feat):
+    global NUMEDGES, NUMTETRA 
+    
     # 1. Get Tetrahedra
     tetrahedra, scaled_volumes = get_tetrahedra(pos, feat)
 
