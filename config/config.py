@@ -14,6 +14,7 @@ args = Namespace(
     test_interval=10,
     #batch_size=32,
     learning_rate=0.001,
-    test_size=0.3,
+    val_size=0.15,
+    test_size=0.15,
     device=torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 )

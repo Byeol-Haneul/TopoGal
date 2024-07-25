@@ -44,9 +44,10 @@ def load_tensors(num_list, output_save_dir, label_filename):
         n0_to_0_list, n1_to_1_list, n2_to_2_list, n0_to_1_list, n1_to_2_list
     )
 
-def split_data(*lists, test_size=0.3):
-    train_test_lists = []
+def split_data(*lists, test_size=0.15, val_size=0.15):
+    train_val_test_lists = []
     for lst in lists:
-        train, test = train_test_split(lst, test_size=test_size, shuffle=False)
-        train_test_lists.append((train, test))
-    return train_test_lists
+        train, temp = train_test_split(lst, test_size=test_size + val_size, shuffle=False)
+        val, test = train_test_split(temp, test_size=test_size / (test_size + val_size), shuffle=False)
+        train_val_test_lists.append((train, val, test))
+    return train_val_test_lists
