@@ -1,4 +1,4 @@
 training.log
-preprocess/stdout
-preprocess/stderr
 preprocess/*.o*
+preprocess/stderr
+preprocess/stdout
