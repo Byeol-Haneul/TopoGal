@@ -5,7 +5,7 @@ from sklearn.model_selection import train_test_split
 from tqdm import tqdm
 
 def load_tensors(num_list, output_save_dir, label_filename):
-    label_file = pd.read_csv(label_filename, delim_whitespace=True)
+    label_file = pd.read_csv(label_filename, sep='\s+')
 
     y_list, x_0_list, x_1_list, x_2_list, x_3_list = [], [], [], [], []
     n0_to_0_list, n1_to_1_list, n2_to_2_list, n0_to_1_list, n1_to_2_list = [], [], [], [], []

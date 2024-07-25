@@ -63,14 +63,14 @@ def train(model, train_dataset, val_dataset, test_dataset, loss_fn, opt, num_epo
             loss.backward()
             opt.step()
             epoch_loss.append(loss.item())
-            logging.debug(f"Iteration: {i}, Loss: {loss.item():.4f}")
+            logging.debug(f"Epoch: {epoch_i}, Train Iteration: {i}, Loss: {loss.item():.4f}")
         
         avg_train_loss = np.mean(epoch_loss)
         logging.info(f"Epoch: {epoch_i}, Train Loss: {avg_train_loss:.4f}")
         train_losses.append(avg_train_loss)
         
         # Validate the model
-        val_loss = validate(model, val_dataset, loss_fn, device)
+        val_loss = validate(model, val_dataset, loss_fn, device, epoch_i)
         logging.info(f"Epoch: {epoch_i}, Validation Loss: {val_loss:.4f}")
         val_losses.append(val_loss)
         
@@ -79,15 +79,15 @@ def train(model, train_dataset, val_dataset, test_dataset, loss_fn, opt, num_epo
             best_loss = val_loss
             save_checkpoint(model, opt, epoch_i, best_loss, checkpoint_path)
         
+        # Save the train and validation losses after each epoch
+        loss_dir = os.path.dirname(checkpoint_path)
+        pd.DataFrame({"train_loss": train_losses}).to_csv(os.path.join(loss_dir, "train_losses.csv"), index=False)
+        pd.DataFrame({"val_loss": val_losses}).to_csv(os.path.join(loss_dir, "val_losses.csv"), index=False)
+        
         if epoch_i % test_interval == 0:
             evaluate(model, test_dataset, device, os.path.join(os.path.dirname(checkpoint_path), "pred.txt"))
-    
-    # Save the train and validation losses
-    loss_dir = os.path.dirname(checkpoint_path)
-    pd.DataFrame({"train_loss": train_losses}).to_csv(os.path.join(loss_dir, "train_losses.csv"), index=False)
-    pd.DataFrame({"val_loss": val_losses}).to_csv(os.path.join(loss_dir, "val_losses.csv"), index=False)
 
-def validate(model, val_dataset, loss_fn, device):
+def validate(model, val_dataset, loss_fn, device, epoch_i):
     model.eval()
     val_loss = []
     with torch.no_grad():
@@ -107,6 +107,7 @@ def validate(model, val_dataset, loss_fn, device):
             y_hat = model(x_0, x_1, x_2, n0_to_0, n1_to_1, n2_to_2, n0_to_1, n1_to_2)
             loss = loss_fn(y_hat, y)
             val_loss.append(loss.item())
+            logging.debug(f"Epoch: {epoch_i}, Validation Iteration: {i}, Loss: {loss.item():.4f}")
     
     return np.mean(val_loss)
 
@@ -129,7 +130,7 @@ def evaluate(model, test_dataset, device, pred_filename):
             
             y_hat = model(x_0, x_1, x_2, n0_to_0, n1_to_1, n2_to_2, n0_to_1, n1_to_2)
             predictions.append((y.cpu().numpy(), y_hat.cpu().numpy()))
-            logging.debug(f"y: {y}, y_hat: {y_hat}")
+            logging.debug(f"Test Iteration: {i}, Real: {y.cpu().numpy()}, Pred: {y_hat.cpu().numpy()}")
     
     # Save predictions
     pred_df = pd.DataFrame(predictions, columns=["real", "pred"])

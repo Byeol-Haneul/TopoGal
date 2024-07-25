@@ -16,13 +16,19 @@ from toponetx.readwrite.serialization import to_pickle
 from toponetx.readwrite.serialization import load_from_pickle
 
 
-# --- CONSTANTS ---#
+# --- CONSTANTS --- #
 BOXSIZE = 25e3
-NUMPOINTS = -1
-NUMEDGES = 5000
-NUMTETRA = 5000
 DIM = 3
-# -----------------#
+
+# NUMBER OF x-CELLS #
+# NUMPOINTS [0-cell] : Number of points. Use -1 for all points.
+# NUMEDGES  [1-cell] : Number of edges. Use -1 for all edges.
+# NUMTETRA  [2-cell] : Number of tetrahedra. Use -1 for all tetrahedra.
+# NUMCLUSTER currently not defined #
+NUMPOINTS = -1
+NUMEDGES = -1
+NUMTETRA = -1
+# ------------------ #
 
 def load_catalog(directory, filename):
     f = h5py.File(directory+filename,'r')
@@ -107,6 +113,11 @@ def create_cc(pos, feat):
 
     # 3. Clustering on Tetrahedra
     clusters = clustering(tetrahedra, scaled_volumes)
+
+    if NUMEDGES == -1:
+        NUMEDGES = len(all_edges)
+    if NUMTETRA == -1:
+        NUMTETRA = len(tetrahedra)
 
     # 4. Generate Combinatorial Complex
     print(f"""[LOG] We will select {NUMEDGES} edges and {NUMTETRA} tetra""", file=sys.stderr)
@@ -204,7 +215,7 @@ def main():
     size = comm.Get_size()
 
     in_dir = "/data2/jylee/topology/IllustrisTNG/data/"
-    out_dir = "/data2/jylee/topology/IllustrisTNG/combinatorial/"
+    out_dir = "/data2/jylee/topology/IllustrisTNG/combinatorial/cc_extended/"
 
     # Distribute the tasks
     total_jobs = 1000
