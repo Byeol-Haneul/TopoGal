@@ -24,11 +24,8 @@ class Network(nn.Module):
         # Compute the penultimate layer output size
         penultimate_layer = channels_per_layer[-1][-1][0]
         
-        # Adaptive max pooling to ensure the output is of fixed size
-        self.global_max_pool = nn.AdaptiveMaxPool2d((1, penultimate_layer))
-        
         # Define fully connected layers with LeakyReLU activations
-        self.fc1 = nn.Linear(penultimate_layer * 3, 512)
+        self.fc1 = nn.Linear(penultimate_layer * 3 * 3, 512)  # Adjust input size for concatenated features
         self.leaky_relu1 = nn.LeakyReLU(negative_slope=0.01)
         self.fc2 = nn.Linear(512, 256)
         self.leaky_relu2 = nn.LeakyReLU(negative_slope=0.01)
@@ -49,10 +46,18 @@ class Network(nn.Module):
             neighborhood_0_to_1, neighborhood_1_to_2
         )
         
-        # Global max pooling
-        x_0 = self.global_max_pool(x_0.unsqueeze(0)).squeeze(0)
-        x_1 = self.global_max_pool(x_1.unsqueeze(0)).squeeze(0)
-        x_2 = self.global_max_pool(x_2.unsqueeze(0)).squeeze(0)
+        def global_aggregations(x):
+            #x_sum = torch.sum(x, dim=0, keepdim=True)
+            x_avg = torch.mean(x, dim=0, keepdim=True)
+            x_max, _ = torch.max(x, dim=0, keepdim=True)
+            x_min, _ = torch.min(x, dim=0, keepdim=True)
+            x = torch.cat((x_avg, x_max, x_min), dim=1)
+            return x
+        
+        # Apply global aggregations to each feature set
+        x_0 = global_aggregations(x_0)
+        x_1 = global_aggregations(x_1)
+        x_2 = global_aggregations(x_2)
         
         # Concatenate features from different inputs
         x = torch.cat((x_0, x_1, x_2), dim=1)
