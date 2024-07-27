@@ -3,7 +3,7 @@
 #PBS -v LD_LIBRARY_PATH=$LD_LIBRARY_PATH  
 #PBS -q workq
 #PBS -N corrected_SHAM2
-#PBS -l nodes=1:ppn=12
+#PBS -l nodes=1:ppn=48
 #PBS -l walltime=100:00:00
 #PBS -m abe
 #PBS -M toti010@naver.com
@@ -25,8 +25,8 @@ echo
 
 source ~/.bashrc
 conda activate topo
-mpiexec -n 12 python3 generate_cc.py 1> stdout 2> stderr
-mpiexec -n 12 python3 precalc_data.py 1>> stdout 2>> stderr
+mpiexec -n 48 python3 generate_cc.py 1> stdout 2> stderr
+mpiexec -n 48 python3 precalc_data.py 1>> stdout 2>> stderr
 exit 0
 
 

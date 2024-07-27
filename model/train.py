@@ -6,6 +6,9 @@ import logging
 import os
 import pandas as pd
 
+from config.param_config import PARAM_STATS, PARAM_ORDER, denormalize_params
+
+
 def save_checkpoint(model, optimizer, epoch, loss, path):
     state = {
         'model': model.state_dict(),
@@ -59,6 +62,7 @@ def train(model, train_dataset, val_dataset, test_dataset, loss_fn, opt, num_epo
             
             opt.zero_grad()
             y_hat = model(x_0, x_1, x_2, n0_to_0, n1_to_1, n2_to_2, n0_to_1, n1_to_2)
+
             loss = loss_fn(y_hat, y)
             loss.backward()
             opt.step()
@@ -85,6 +89,7 @@ def train(model, train_dataset, val_dataset, test_dataset, loss_fn, opt, num_epo
         pd.DataFrame({"val_loss": val_losses}).to_csv(os.path.join(loss_dir, "val_losses.csv"), index=False)
         
         if epoch_i % test_interval == 0:
+            logging.info(f"Starting evaluation for epoch {epoch_i}")
             evaluate(model, test_dataset, device, os.path.join(os.path.dirname(checkpoint_path), "pred.txt"))
 
 def validate(model, val_dataset, loss_fn, device, epoch_i):
@@ -114,6 +119,7 @@ def validate(model, val_dataset, loss_fn, device, epoch_i):
 def evaluate(model, test_dataset, device, pred_filename):
     model.eval()
     predictions = []
+    real_values = []
     with torch.no_grad():
         for i in range(len(test_dataset)):
             sample = test_dataset[i]
@@ -127,11 +133,22 @@ def evaluate(model, test_dataset, device, pred_filename):
             n0_to_1 = sample['n0_to_1'].float().to(device)
             n1_to_2 = sample['n1_to_2'].float().to(device)
             y = sample['y'].float().to(device)
-            
+
             y_hat = model(x_0, x_1, x_2, n0_to_0, n1_to_1, n2_to_2, n0_to_1, n1_to_2)
-            predictions.append((y.cpu().numpy(), y_hat.cpu().numpy()))
+            predictions.extend(y_hat.cpu().numpy())
+            real_values.append(y.cpu().numpy())
             logging.debug(f"Test Iteration: {i}, Real: {y.cpu().numpy()}, Pred: {y_hat.cpu().numpy()}")
     
-    # Save predictions
-    pred_df = pd.DataFrame(predictions, columns=["real", "pred"])
+    # Denormalize predictions and real values
+    denormalized_predictions = denormalize_params(np.array(predictions))
+    denormalized_real_values = denormalize_params(np.array(real_values))
+
+    # Save denormalized predictions and real values
+    pred_df = pd.DataFrame({
+        "real": list(denormalized_real_values),
+        "pred": list(denormalized_predictions)
+    })
     pred_df.to_csv(pred_filename, index=False)
+
+    logging.info(f"Predictions saved to {pred_filename}")
+

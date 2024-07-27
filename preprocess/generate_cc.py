@@ -21,9 +21,12 @@ DIM = 3
 
 # NUMBER OF x-CELLS #
 NUMPOINTS = -1
-NUMEDGES = 5000
-NUMTETRA = 5000
+NUMEDGES = 20000
+NUMTETRA = 20000
 # ------------------ #
+
+in_dir = "/data2/jylee/topology/IllustrisTNG/data/"
+out_dir = "/data2/jylee/topology/IllustrisTNG/combinatorial/cc_extended/"
 
 def load_catalog(directory, filename):
     f = h5py.File(directory + filename, 'r')
@@ -258,9 +261,6 @@ def main():
     comm = MPI.COMM_WORLD
     rank = comm.Get_rank()
     size = comm.Get_size()
-
-    in_dir = "/data2/jylee/topology/IllustrisTNG/data/"
-    out_dir = "/data2/jylee/topology/IllustrisTNG/combinatorial/cc/"
 
     # Distribute the tasks
     total_jobs = 1000

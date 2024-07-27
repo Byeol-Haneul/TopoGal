@@ -6,8 +6,10 @@ from model.network import Network
 from model.train import train, evaluate, save_checkpoint, load_checkpoint
 from utils.dataset import CustomDataset
 from config.config import args
+from config.param_config import PARAM_STATS, PARAM_ORDER, normalize_params, denormalize_params
 import os
 import pandas as pd
+import numpy as np
 
 # Configure logging
 logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(levelname)s - %(message)s', 
@@ -20,6 +22,9 @@ def load_and_prepare_data(num_list, data_dir, label_filename, test_size, val_siz
     n0_to_0_list, n1_to_1_list, n2_to_2_list, n0_to_1_list, n1_to_2_list = load_tensors(
         num_list, data_dir, label_filename
     )
+    
+    logging.info("Normalizing target parameters")
+    y_list = normalize_params(y_list)
     
     logging.info("Splitting data into train, validation, and test sets")
     (y_train, y_val, y_test), (x_0_train, x_0_val, x_0_test), (x_1_train, x_1_val, x_1_test), \
@@ -40,7 +45,7 @@ def load_and_prepare_data(num_list, data_dir, label_filename, test_size, val_siz
     logging.info(f"Created train dataset with {len(train_data)} samples")
     logging.info(f"Created validation dataset with {len(val_data)} samples")
     logging.info(f"Created test dataset with {len(test_data)} samples")
-    
+
     train_dataset = CustomDataset(train_data)
     val_dataset = CustomDataset(val_data)
     test_dataset = CustomDataset(test_data)
@@ -85,8 +90,7 @@ def main(args):
     
     # Evaluate the model
     logging.info("Starting evaluation")
-    pred_filename = os.path.join(args.checkpoint_dir, 'pred.txt')
-    evaluate(model, test_dataset, args.device, pred_filename)
+    evaluate(model, test_dataset, args.device, os.path.join(os.path.dirname(checkpoint_path), "pred.txt"))
 
 if __name__ == "__main__":
     main(args)
