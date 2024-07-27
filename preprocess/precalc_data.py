@@ -17,7 +17,7 @@ os.makedirs(output_save_dir, exist_ok=True)
 
 def process_num(num):
     results = {}
-    label_file = pd.read_csv(label_filename, delim_whitespace=True)
+    label_file = pd.read_csv(label_filename, sep='\s+')
     
     try:
         in_filename = "data_" + str(num) + ".pickle"
@@ -49,19 +49,25 @@ def process_num(num):
         results['x_3'] = x_3
         
         print(f"[LOG] Processing adjacency and incidence matrices for num {num}", file=sys.stderr)
+        
         # Compute adjacency and incidence matrices
+        print(f"[LOG] Computing n0_to_0 for num {num}", file=sys.stderr)
         n0_to_0 = cc.adjacency_matrix(rank=0, via_rank=1)
         results['n0_to_0'] = torch.from_numpy(n0_to_0.todense()).to_sparse()
 
+        print(f"[LOG] Computing n1_to_1 for num {num}", file=sys.stderr)
         n1_to_1 = cc.adjacency_matrix(rank=1, via_rank=2)
         results['n1_to_1'] = torch.from_numpy(n1_to_1.todense()).to_sparse()
 
-        n2_to_2 = cc.coadjacency_matrix(rank=2, via_rank=1) #coadj
+        print(f"[LOG] Computing n2_to_2 (coadjacency) for num {num}", file=sys.stderr)
+        n2_to_2 = cc.coadjacency_matrix(rank=2, via_rank=1)
         results['n2_to_2'] = torch.from_numpy(n2_to_2.todense()).to_sparse()
 
+        print(f"[LOG] Computing n0_to_1 for num {num}", file=sys.stderr)
         n0_to_1 = cc.incidence_matrix(rank=0, to_rank=1)
         results['n0_to_1'] = torch.from_numpy(n0_to_1.todense()).to_sparse()
 
+        print(f"[LOG] Computing n1_to_2 for num {num}", file=sys.stderr)
         n1_to_2 = cc.incidence_matrix(rank=1, to_rank=2)
         results['n1_to_2'] = torch.from_numpy(n1_to_2.todense()).to_sparse()
         

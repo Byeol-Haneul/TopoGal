@@ -21,8 +21,8 @@ DIM = 3
 
 # NUMBER OF x-CELLS #
 NUMPOINTS = -1
-NUMEDGES = 20000
-NUMTETRA = 20000
+NUMEDGES = 30000
+NUMTETRA = 30000
 # ------------------ #
 
 in_dir = "/data2/jylee/topology/IllustrisTNG/data/"
@@ -67,6 +67,12 @@ class Edge:
 
     def __repr__(self):
         return f"Edge(nodes={self.nodes}, pos={self.pos}, features={self.features})"
+
+    def __hash__(self):
+        return hash(self.nodes)
+
+    def __eq__(self, other):
+        return self.nodes == other.nodes
 
 class Tetrahedron:
     def __init__(self, index, nodes, pos):
@@ -163,13 +169,13 @@ def get_single_tetra_edges(tetra):
     return edge_objects
 
 def get_all_tetra_edges(tetrahedra):
-    edge_objects = []
+    edge_objects = set() # important to make this as a set!!!
     for tetra in tetrahedra:
-        edge_objects.extend(get_single_tetra_edges(tetra))
+        edge_objects.update(get_single_tetra_edges(tetra))
 
     # Sort edges by distance (which is the first element in features)
-    edge_objects.sort(key=lambda e: e.features[0] if e.features else float('inf'))
-    return edge_objects
+    sorted_edge_objects = sorted(edge_objects, key=lambda e: e.features[0] if e.features else float('inf'))
+    return sorted_edge_objects
 
 def create_cc(pos, feat):
     global NUMEDGES, NUMTETRA
@@ -225,7 +231,6 @@ def create_cc(pos, feat):
     cc.set_cell_attributes(edge_data, name="edge_feat")
     cc.set_cell_attributes(tetra_data, name="tetra_feat")
     cc.set_cell_attributes(cluster_data, name="cluster_feat")
-    print(edge_data)
     return cc
 
 def clustering(tetrahedra, scaled_volumes):
