@@ -148,17 +148,9 @@ class AugmentedHMCLayer(torch.nn.Module):
 
     def forward(
         self,
-        x_0,
-        x_1,
-        x_2,
-        x_3,
-        adjacency_0,
-        adjacency_1,
-        coadjacency_2,
-        coadjacency_3,
-        incidence_1,
-        incidence_2,
-        incidence_3,
+        x_0, x_1, x_2, x_3,
+        adjacency_0, adjacency_1, coadjacency_2, coadjacency_3,
+        incidence_1, incidence_2, incidence_3,
     ):
         # Computing messages from Higher Order Attention Blocks Level 1
         x_0_to_0 = self.hbs_0_level1(x_0, adjacency_0)
@@ -225,31 +217,15 @@ class AugmentedHMC(torch.nn.Module):
 
     def forward(
         self,
-        x_0,
-        x_1,
-        x_2,
-        x_3,
-        neighborhood_0_to_0,
-        neighborhood_1_to_1,
-        neighborhood_2_to_2,
-        neighborhood_3_to_3,
-        neighborhood_0_to_1,
-        neighborhood_1_to_2,
-        neighborhood_2_to_3,
+        x_0, x_1, x_2, x_3,
+        neighborhood_0_to_0, neighborhood_1_to_1, neighborhood_2_to_2, neighborhood_3_to_3,
+        neighborhood_0_to_1, neighborhood_1_to_2, neighborhood_2_to_3,
     ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
         for layer in self.layers:
             x_0, x_1, x_2, x_3 = layer(
-                x_0,
-                x_1,
-                x_2,
-                x_3,
-                neighborhood_0_to_0,
-                neighborhood_1_to_1,
-                neighborhood_2_to_2,
-                neighborhood_3_to_3,
-                neighborhood_0_to_1,
-                neighborhood_1_to_2,
-                neighborhood_2_to_3,
+                x_0, x_1, x_2, x_3,
+                neighborhood_0_to_0, neighborhood_1_to_1, neighborhood_2_to_2, neighborhood_3_to_3,
+                neighborhood_0_to_1, neighborhood_1_to_2, neighborhood_2_to_3,
             )
 
         return x_0, x_1, x_2, x_3
