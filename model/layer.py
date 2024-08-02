@@ -154,7 +154,7 @@ class AugmentedHMCLayer(torch.nn.Module):
         x_3,
         adjacency_0,
         adjacency_1,
-        adjacency_2,
+        coadjacency_2,
         coadjacency_3,
         incidence_1,
         incidence_2,
@@ -174,7 +174,7 @@ class AugmentedHMCLayer(torch.nn.Module):
         # Computing messages from Higher Order Attention Blocks Level 2
         x_0_to_0 = self.hbs_0_level2(x_0_level1, adjacency_0)
         x_1_to_1 = self.hbs_1_level2(x_1_level1, adjacency_1)
-        x_2_to_2 = self.hbs_2_level2(x_2_level1, adjacency_2)
+        x_2_to_2 = self.hbs_2_level2(x_2_level1, coadjacency_2)
         x_3_to_3 = self.hbs_3_level2(x_3_level1, coadjacency_3)
 
         x_0_to_1, _ = self.hbns_0_1_level2(x_1_level1, x_0_level1, incidence_1)
@@ -187,12 +187,6 @@ class AugmentedHMCLayer(torch.nn.Module):
         x_3_level2 = self.aggr([x_2_to_3, x_3_to_3])
 
         return x_0_level2, x_1_level2, x_2_level2, x_3_level2
-
-
-        '''
-        TODO: fix the naming of adjacency matrices accordingly. 
-        '''
-
 
 class AugmentedHMC(torch.nn.Module):
     def __init__(

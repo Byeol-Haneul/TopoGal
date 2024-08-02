@@ -63,11 +63,10 @@ class Network(nn.Module):
         x_1 = global_aggregations(x_1)
         x_2 = global_aggregations(x_2)
         x_3 = global_aggregations(x_3)
-
         
         # Concatenate features from different inputs
         x = torch.cat((x_0, x_1, x_2, x_3), dim=1)
-        print(x.shape)
+
         # Forward pass through fully connected layers with LeakyReLU activations
         x = self.fc1(x)
         x = self.leaky_relu1(x)
