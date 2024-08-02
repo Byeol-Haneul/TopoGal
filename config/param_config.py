@@ -25,5 +25,7 @@ def normalize_params(y_list: list[torch.tensor]) -> list[torch.tensor]:
 def denormalize_params(norm_y: np.ndarray) -> np.ndarray:
     y = np.zeros_like(norm_y)
     for i, param in enumerate(PARAM_ORDER):
-        y[:, i] = norm_y[:, i] * (PARAM_STATS[param]["max"] - PARAM_STATS[param]["min"]) + PARAM_STATS[param]["min"]
+        y[:, i] = norm_y[:, i] * (PARAM_STATS[param]["max"] - PARAM_STATS[param]["min"]) + PARAM_STATS[param]["min"]          # for params
+        if y.shape[1] == len(PARAM_ORDER) * 2:
+            y[:, i + len(PARAM_ORDER)] = norm_y[:, i+ len(PARAM_ORDER)] * (PARAM_STATS[param]["max"] - PARAM_STATS[param]["min"]) # for errors
     return y

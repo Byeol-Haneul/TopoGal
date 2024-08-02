@@ -11,9 +11,17 @@ import os
 import pandas as pd
 import numpy as np
 
-# Configure logging
-logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(levelname)s - %(message)s', 
-                    handlers=[logging.FileHandler('training.log'), logging.StreamHandler()])
+def implicit_likelihood_loss(output, target, num_params=6):
+    y_out, err_out = output[:,:num_params], output[:,num_params:]
+    loss_mse = torch.mean((y_out - target)**2 , axis=0)
+    loss_ili = torch.mean(((y_out - target)**2 - err_out**2)**2, axis=0)
+    loss = torch.log(loss_mse) + torch.log(loss_ili)
+    '''
+    print("Target: ", target.clone().detach().cpu().numpy())
+    print("Output: ", y_out.clone().detach().cpu().numpy())
+    print("Errors: ", err_out.clone().detach().cpu().numpy())
+    '''
+    return torch.mean(loss)
 
 def load_and_prepare_data(num_list, data_dir, label_filename, test_size, val_size):
     logging.info(f"Loading tensors for {len(num_list)} samples from {data_dir}")
@@ -66,6 +74,10 @@ def initialize_model(channels_per_layer, final_output_layer, device):
     return model
 
 def main(args):
+    # Configure logging
+    logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(levelname)s - %(message)s', 
+                        handlers=[logging.FileHandler(args.checkpoint_dir + '/' + 'training.log'), logging.StreamHandler()])
+
     num_list = [i for i in range(1000)]
     
     # Load and prepare data
@@ -83,10 +95,11 @@ def main(args):
     logging.info(f"Model architecture: {channels_per_layer}")
     
     # Initialize model
-    model = initialize_model(channels_per_layer, args.final_output_layer, args.device)
+    model = initialize_model(channels_per_layer, args.final_output_layer * 2, args.device) # double the output vector length to store errors. 
     
     # Define loss function and optimizer
-    loss_fn = torch.nn.MSELoss()
+    loss_fn = implicit_likelihood_loss
+    #loss_fn = torch.nn.MSELoss()
     opt = torch.optim.Adam(model.parameters(), lr=args.learning_rate)
     
     # Define checkpoint path
