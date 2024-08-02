@@ -19,7 +19,8 @@ def load_and_prepare_data(num_list, data_dir, label_filename, test_size, val_siz
     logging.info(f"Loading tensors for {len(num_list)} samples from {data_dir}")
     
     y_list, x_0_list, x_1_list, x_2_list, x_3_list, \
-    n0_to_0_list, n1_to_1_list, n2_to_2_list, n0_to_1_list, n1_to_2_list = load_tensors(
+    n0_to_0_list, n1_to_1_list, n2_to_2_list, n3_to_3_list, \
+    n0_to_1_list, n1_to_2_list, n2_to_3_list = load_tensors(
         num_list, data_dir, label_filename
     )
     
@@ -28,19 +29,26 @@ def load_and_prepare_data(num_list, data_dir, label_filename, test_size, val_siz
     
     logging.info("Splitting data into train, validation, and test sets")
     (y_train, y_val, y_test), (x_0_train, x_0_val, x_0_test), (x_1_train, x_1_val, x_1_test), \
-    (x_2_train, x_2_val, x_2_test), (x_3_train, x_3_val, x_3_test), (n0_to_0_train, n0_to_0_val, n0_to_0_test), \
-    (n1_to_1_train, n1_to_1_val, n1_to_1_test), (n2_to_2_train, n2_to_2_val, n2_to_2_test), \
-    (n0_to_1_train, n0_to_1_val, n0_to_1_test), (n1_to_2_train, n1_to_2_val, n1_to_2_test) = split_data(
-        y_list, x_0_list, x_1_list, x_2_list, x_3_list, n0_to_0_list, n1_to_1_list, n2_to_2_list, 
-        n0_to_1_list, n1_to_2_list, test_size=test_size, val_size=val_size
+    (x_2_train, x_2_val, x_2_test), (x_3_train, x_3_val, x_3_test), \
+    (n0_to_0_train, n0_to_0_val, n0_to_0_test), (n1_to_1_train, n1_to_1_val, n1_to_1_test), \
+    (n2_to_2_train, n2_to_2_val, n2_to_2_test), (n3_to_3_train, n3_to_3_val, n3_to_3_test), \
+    (n0_to_1_train, n0_to_1_val, n0_to_1_test), (n1_to_2_train, n1_to_2_val, n1_to_2_test), \
+    (n2_to_3_train, n2_to_3_val, n2_to_3_test) = split_data(
+        y_list, x_0_list, x_1_list, x_2_list, x_3_list, 
+        n0_to_0_list, n1_to_1_list, n2_to_2_list, n3_to_3_list, 
+        n0_to_1_list, n1_to_2_list, n2_to_3_list, 
+        test_size=test_size, val_size=val_size
     )
     
     train_data = list(zip(y_train, x_0_train, x_1_train, x_2_train, x_3_train, 
-                          n0_to_0_train, n1_to_1_train, n2_to_2_train, n0_to_1_train, n1_to_2_train))
+                          n0_to_0_train, n1_to_1_train, n2_to_2_train, n3_to_3_train, 
+                          n0_to_1_train, n1_to_2_train, n2_to_3_train))
     val_data = list(zip(y_val, x_0_val, x_1_val, x_2_val, x_3_val, 
-                        n0_to_0_val, n1_to_1_val, n2_to_2_val, n0_to_1_val, n1_to_2_val))
+                        n0_to_0_val, n1_to_1_val, n2_to_2_val, n3_to_3_val, 
+                        n0_to_1_val, n1_to_2_val, n2_to_3_val))
     test_data = list(zip(y_test, x_0_test, x_1_test, x_2_test, x_3_test, 
-                         n0_to_0_test, n1_to_1_test, n2_to_2_test, n0_to_1_test, n1_to_2_test))
+                         n0_to_0_test, n1_to_1_test, n2_to_2_test, n3_to_3_test, 
+                         n0_to_1_test, n1_to_2_test, n2_to_3_test))
     
     logging.info(f"Created train dataset with {len(train_data)} samples")
     logging.info(f"Created validation dataset with {len(val_data)} samples")
@@ -67,7 +75,7 @@ def main(args):
     
     # Define the channels per layer
     channels_per_layer = [
-        [args.in_channels[:3], args.intermediate_channels, args.inout_channels],
+        [args.in_channels, args.intermediate_channels, args.inout_channels],
         [args.inout_channels, args.intermediate_channels, args.inout_channels],
         [args.inout_channels, args.intermediate_channels, args.inout_channels]
     ]

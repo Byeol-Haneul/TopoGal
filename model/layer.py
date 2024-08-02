@@ -4,7 +4,7 @@ from torch.nn.parameter import Parameter
 from topomodelx.nn.combinatorial.hmc_layer import sparse_row_norm, HBS, HBNS
 from topomodelx.base.aggregation import Aggregation
 
-class AugmentedLayer(torch.nn.Module):
+class AugmentedHMCLayer(torch.nn.Module):
     def __init__(
         self,
         in_channels: list[int],
@@ -187,3 +187,75 @@ class AugmentedLayer(torch.nn.Module):
         x_3_level2 = self.aggr([x_2_to_3, x_3_to_3])
 
         return x_0_level2, x_1_level2, x_2_level2, x_3_level2
+
+
+        '''
+        TODO: fix the naming of adjacency matrices accordingly. 
+        '''
+
+
+class AugmentedHMC(torch.nn.Module):
+    def __init__(
+        self,
+        channels_per_layer,
+        negative_slope=0.2,
+        update_func_attention="relu",
+        update_func_aggregation="relu",
+    ) -> None:
+        def check_channels_consistency():
+            """Check that the number of input, intermediate, and output channels is consistent."""
+            assert len(channels_per_layer) > 0
+            for i in range(len(channels_per_layer) - 1):
+                assert channels_per_layer[i][2][0] == channels_per_layer[i + 1][0][0]
+                assert channels_per_layer[i][2][1] == channels_per_layer[i + 1][0][1]
+                assert channels_per_layer[i][2][2] == channels_per_layer[i + 1][0][2]
+                assert channels_per_layer[i][2][3] == channels_per_layer[i + 1][0][3]
+
+
+        super().__init__()
+        check_channels_consistency()
+        self.layers = torch.nn.ModuleList(
+            [
+                AugmentedHMCLayer(
+                    in_channels=in_channels,
+                    intermediate_channels=intermediate_channels,
+                    out_channels=out_channels,
+                    negative_slope=negative_slope,
+                    softmax_attention=True,
+                    update_func_attention=update_func_attention,
+                    update_func_aggregation=update_func_aggregation,
+                )
+                for in_channels, intermediate_channels, out_channels in channels_per_layer
+            ]
+        )
+
+    def forward(
+        self,
+        x_0,
+        x_1,
+        x_2,
+        x_3,
+        neighborhood_0_to_0,
+        neighborhood_1_to_1,
+        neighborhood_2_to_2,
+        neighborhood_3_to_3,
+        neighborhood_0_to_1,
+        neighborhood_1_to_2,
+        neighborhood_2_to_3,
+    ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
+        for layer in self.layers:
+            x_0, x_1, x_2, x_3 = layer(
+                x_0,
+                x_1,
+                x_2,
+                x_3,
+                neighborhood_0_to_0,
+                neighborhood_1_to_1,
+                neighborhood_2_to_2,
+                neighborhood_3_to_3,
+                neighborhood_0_to_1,
+                neighborhood_1_to_2,
+                neighborhood_2_to_3,
+            )
+
+        return x_0, x_1, x_2, x_3

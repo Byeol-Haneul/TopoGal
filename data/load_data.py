@@ -8,10 +8,13 @@ def load_tensors(num_list, output_save_dir, label_filename):
     label_file = pd.read_csv(label_filename, sep='\s+')
 
     y_list, x_0_list, x_1_list, x_2_list, x_3_list = [], [], [], [], []
-    n0_to_0_list, n1_to_1_list, n2_to_2_list, n0_to_1_list, n1_to_2_list = [], [], [], [], []
+    n0_to_0_list, n1_to_1_list, n2_to_2_list, n3_to_3_list = [], [], [], []
+    n0_to_1_list, n1_to_2_list, n2_to_3_list, = [], [], []
 
     for num in tqdm(num_list):
         try:
+            y = torch.Tensor(label_file.loc[num].to_numpy()[1:-1].astype(float))
+
             x_0 = torch.load(os.path.join(output_save_dir, f"x_0_{num}.pt"))
             x_1 = torch.load(os.path.join(output_save_dir, f"x_1_{num}.pt"))
             x_2 = torch.load(os.path.join(output_save_dir, f"x_2_{num}.pt"))
@@ -20,28 +23,33 @@ def load_tensors(num_list, output_save_dir, label_filename):
             n0_to_0 = torch.load(os.path.join(output_save_dir, f"n0_to_0_{num}.pt"))
             n1_to_1 = torch.load(os.path.join(output_save_dir, f"n1_to_1_{num}.pt"))
             n2_to_2 = torch.load(os.path.join(output_save_dir, f"n2_to_2_{num}.pt"))
+            n3_to_3 = torch.load(os.path.join(output_save_dir, f"n3_to_3_{num}.pt"))
+
             n0_to_1 = torch.load(os.path.join(output_save_dir, f"n0_to_1_{num}.pt"))
             n1_to_2 = torch.load(os.path.join(output_save_dir, f"n1_to_2_{num}.pt"))
-
-            y = torch.Tensor(label_file.loc[num].to_numpy()[1:-1].astype(float))
+            n2_to_3 = torch.load(os.path.join(output_save_dir, f"n2_to_3_{num}.pt"))
             
+            y_list.append(y)
             x_0_list.append(x_0)
             x_1_list.append(x_1)
             x_2_list.append(x_2)
             x_3_list.append(x_3)
-            y_list.append(y)
             n0_to_0_list.append(n0_to_0)
             n1_to_1_list.append(n1_to_1)
             n2_to_2_list.append(n2_to_2)
+            n3_to_3_list.append(n3_to_3)
             n0_to_1_list.append(n0_to_1)
             n1_to_2_list.append(n1_to_2)
+            n2_to_3_list.append(n2_to_3)
+
 
         except Exception as e:
             print(f"Error loading tensors for num {num}: {e}")
 
     return (
         y_list, x_0_list, x_1_list, x_2_list, x_3_list,
-        n0_to_0_list, n1_to_1_list, n2_to_2_list, n0_to_1_list, n1_to_2_list
+        n0_to_0_list, n1_to_1_list, n2_to_2_list, n3_to_3_list, 
+        n0_to_1_list, n1_to_2_list, n2_to_3_list
     )
 
 def split_data(*lists, test_size=0.15, val_size=0.15):
