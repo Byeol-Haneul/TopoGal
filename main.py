@@ -13,14 +13,9 @@ import numpy as np
 
 def implicit_likelihood_loss(output, target, num_params=6):
     y_out, err_out = output[:,:num_params], output[:,num_params:]
-    loss_mse = torch.mean((y_out - target)**2 , axis=0)
-    loss_ili = torch.mean(((y_out - target)**2 - err_out**2)**2, axis=0)
+    loss_mse = torch.sum((y_out - target)**2 , axis=1)
+    loss_ili = torch.sum(((y_out - target)**2 - err_out**2)**2, axis=1)
     loss = torch.log(loss_mse) + torch.log(loss_ili)
-    '''
-    print("Target: ", target.clone().detach().cpu().numpy())
-    print("Output: ", y_out.clone().detach().cpu().numpy())
-    print("Errors: ", err_out.clone().detach().cpu().numpy())
-    '''
     return torch.mean(loss)
 
 def load_and_prepare_data(num_list, data_dir, label_filename, test_size, val_size):

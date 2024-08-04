@@ -1,7 +1,5 @@
 import torch
 import numpy as np
-from torch.utils.data import DataLoader
-from tqdm import tqdm
 import logging
 import os
 import pandas as pd
@@ -35,10 +33,11 @@ def load_checkpoint(model, optimizer, path, device):
 def train(model, train_dataset, val_dataset, test_dataset, loss_fn, opt, num_epochs, test_interval, device, checkpoint_path):
     start_epoch = 1
     best_loss = float('inf')
-    
+    best_checkpoint_path = os.path.join(os.path.dirname(checkpoint_path), "best_checkpoint.pth")
+
     # Load checkpoint if exists
     if os.path.isfile(checkpoint_path):
-        model, opt, start_epoch, best_loss = load_checkpoint(model, opt, checkpoint_path, device)
+        model, opt, start_epoch, _ = load_checkpoint(model, opt, checkpoint_path, device)
     
     train_losses = []
     val_losses = []
@@ -80,10 +79,13 @@ def train(model, train_dataset, val_dataset, test_dataset, loss_fn, opt, num_epo
         logging.info(f"Epoch: {epoch_i}, Validation Loss: {val_loss:.4f}")
         val_losses.append(val_loss)
         
-        # Save checkpoint
+        # Save current checkpoint
+        save_checkpoint(model, opt, epoch_i, val_loss, checkpoint_path)
+        
+        # Save the best model if validation loss has improved
         if val_loss < best_loss:
             best_loss = val_loss
-            save_checkpoint(model, opt, epoch_i, best_loss, checkpoint_path)
+            save_checkpoint(model, opt, epoch_i, best_loss, best_checkpoint_path)
         
         # Save the train and validation losses after each epoch
         loss_dir = os.path.dirname(checkpoint_path)
@@ -92,7 +94,14 @@ def train(model, train_dataset, val_dataset, test_dataset, loss_fn, opt, num_epo
         
         if epoch_i % test_interval == 0:
             logging.info(f"Starting evaluation for epoch {epoch_i}")
-            evaluate(model, test_dataset, device, os.path.join(os.path.dirname(checkpoint_path), "pred.txt"))
+            # Temporarily load the best checkpoint for evaluation
+            current_model_state = model.state_dict()
+            current_opt_state = opt.state_dict()
+            model, opt, _, _ = load_checkpoint(model, opt, best_checkpoint_path, device)
+            evaluate(model, test_dataset, device, os.path.join(os.path.dirname(best_checkpoint_path), "pred.txt"))
+            # Restore the current training state
+            model.load_state_dict(current_model_state)
+            opt.load_state_dict(current_opt_state)
 
 def validate(model, val_dataset, loss_fn, device, epoch_i):
     model.eval()
@@ -157,4 +166,3 @@ def evaluate(model, test_dataset, device, pred_filename):
     pred_df.to_csv(pred_filename, index=False)
 
     logging.info(f"Predictions saved to {pred_filename}")
-
