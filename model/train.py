@@ -3,9 +3,8 @@ import numpy as np
 import logging
 import os
 import pandas as pd
-
+from torch.utils.data import DataLoader
 from config.param_config import PARAM_STATS, PARAM_ORDER, denormalize_params
-
 
 def save_checkpoint(model, optimizer, epoch, loss, path):
     state = {
@@ -30,7 +29,11 @@ def load_checkpoint(model, optimizer, path, device):
         logging.error(f"No checkpoint found at {path}")
         return model, optimizer, 0, float('inf')
 
-def train(model, train_dataset, val_dataset, test_dataset, loss_fn, opt, num_epochs, test_interval, device, checkpoint_path):
+def train(model, train_loader, val_loader, test_loader, loss_fn, opt, args, checkpoint_path):
+    # args setting
+    num_epochs, test_interval, device = args.num_epochs, args.test_interval, args.device,
+
+    # checkpoint setting
     start_epoch = 1
     best_loss = float('inf')
     best_checkpoint_path = os.path.join(os.path.dirname(checkpoint_path), "best_checkpoint.pth")
@@ -46,20 +49,19 @@ def train(model, train_dataset, val_dataset, test_dataset, loss_fn, opt, num_epo
         epoch_loss = []
         model.train()
         
-        for i in range(len(train_dataset)):
-            sample = train_dataset[i]
-            x_0 = sample['x_0'].float().to(device)
-            x_1 = sample['x_1'].float().to(device)
-            x_2 = sample['x_2'].float().to(device)
-            x_3 = sample['x_3'].float().to(device)
-            n0_to_0 = sample['n0_to_0'].float().to(device)
-            n1_to_1 = sample['n1_to_1'].float().to(device)
-            n2_to_2 = sample['n2_to_2'].float().to(device)
-            n3_to_3 = sample['n3_to_3'].float().to(device)
-            n0_to_1 = sample['n0_to_1'].float().to(device)
-            n1_to_2 = sample['n1_to_2'].float().to(device)
-            n2_to_3 = sample['n2_to_3'].float().to(device)
-            y = sample['y'].float().to(device)
+        for batch_idx, batch in enumerate(train_loader):
+            x_0 = batch['x_0'].float().to(device)
+            x_1 = batch['x_1'].float().to(device)
+            x_2 = batch['x_2'].float().to(device)
+            x_3 = batch['x_3'].float().to(device)
+            n0_to_0 = batch['n0_to_0'].float().to(device)
+            n1_to_1 = batch['n1_to_1'].float().to(device)
+            n2_to_2 = batch['n2_to_2'].float().to(device)
+            n3_to_3 = batch['n3_to_3'].float().to(device)
+            n0_to_1 = batch['n0_to_1'].float().to(device)
+            n1_to_2 = batch['n1_to_2'].float().to(device)
+            n2_to_3 = batch['n2_to_3'].float().to(device)
+            y = batch['y'].float().to(device)
             
             opt.zero_grad()
             y_hat = model(x_0, x_1, x_2, x_3, n0_to_0, n1_to_1, n2_to_2, n3_to_3, n0_to_1, n1_to_2, n2_to_3)
@@ -68,14 +70,14 @@ def train(model, train_dataset, val_dataset, test_dataset, loss_fn, opt, num_epo
             loss.backward()
             opt.step()
             epoch_loss.append(loss.item())
-            logging.debug(f"Epoch: {epoch_i}, Train Iteration: {i}, Loss: {loss.item():.4f}")
+            logging.debug(f"Epoch: {epoch_i}, Train Iteration: {batch_idx + 1}, Loss: {loss.item():.4f}")
         
         avg_train_loss = np.mean(epoch_loss)
         logging.info(f"Epoch: {epoch_i}, Train Loss: {avg_train_loss:.4f}")
         train_losses.append(avg_train_loss)
         
         # Validate the model
-        val_loss = validate(model, val_dataset, loss_fn, device, epoch_i)
+        val_loss = validate(model, val_loader, loss_fn, device, epoch_i)
         logging.info(f"Epoch: {epoch_i}, Validation Loss: {val_loss:.4f}")
         val_losses.append(val_loss)
         
@@ -98,61 +100,59 @@ def train(model, train_dataset, val_dataset, test_dataset, loss_fn, opt, num_epo
             current_model_state = model.state_dict()
             current_opt_state = opt.state_dict()
             model, opt, _, _ = load_checkpoint(model, opt, best_checkpoint_path, device)
-            evaluate(model, test_dataset, device, os.path.join(os.path.dirname(best_checkpoint_path), "pred.txt"))
+            evaluate(model, test_loader, device, os.path.join(os.path.dirname(best_checkpoint_path), "pred.txt"))
             # Restore the current training state
             model.load_state_dict(current_model_state)
             opt.load_state_dict(current_opt_state)
 
-def validate(model, val_dataset, loss_fn, device, epoch_i):
+def validate(model, val_loader, loss_fn, device, epoch_i):
     model.eval()
     val_loss = []
     with torch.no_grad():
-        for i in range(len(val_dataset)):
-            sample = val_dataset[i]
-            x_0 = sample['x_0'].float().to(device)
-            x_1 = sample['x_1'].float().to(device)
-            x_2 = sample['x_2'].float().to(device)
-            x_3 = sample['x_3'].float().to(device)
-            n0_to_0 = sample['n0_to_0'].float().to(device)
-            n1_to_1 = sample['n1_to_1'].float().to(device)
-            n2_to_2 = sample['n2_to_2'].float().to(device)
-            n3_to_3 = sample['n3_to_3'].float().to(device)
-            n0_to_1 = sample['n0_to_1'].float().to(device)
-            n1_to_2 = sample['n1_to_2'].float().to(device)
-            n2_to_3 = sample['n2_to_3'].float().to(device)
-            y = sample['y'].float().to(device)
+        for batch_idx, batch in enumerate(val_loader):
+            x_0 = batch['x_0'].float().to(device)
+            x_1 = batch['x_1'].float().to(device)
+            x_2 = batch['x_2'].float().to(device)
+            x_3 = batch['x_3'].float().to(device)
+            n0_to_0 = batch['n0_to_0'].float().to(device)
+            n1_to_1 = batch['n1_to_1'].float().to(device)
+            n2_to_2 = batch['n2_to_2'].float().to(device)
+            n3_to_3 = batch['n3_to_3'].float().to(device)
+            n0_to_1 = batch['n0_to_1'].float().to(device)
+            n1_to_2 = batch['n1_to_2'].float().to(device)
+            n2_to_3 = batch['n2_to_3'].float().to(device)
+            y = batch['y'].float().to(device)
             
             y_hat = model(x_0, x_1, x_2, x_3, n0_to_0, n1_to_1, n2_to_2, n3_to_3, n0_to_1, n1_to_2, n2_to_3)
             loss = loss_fn(y_hat, y)
             val_loss.append(loss.item())
-            logging.debug(f"Epoch: {epoch_i}, Validation Iteration: {i}, Loss: {loss.item():.4f}")
+            logging.debug(f"Epoch: {epoch_i}, Validation Iteration: {batch_idx + 1}, Loss: {loss.item():.4f}")
     
     return np.mean(val_loss)
 
-def evaluate(model, test_dataset, device, pred_filename):
+def evaluate(model, test_loader, device, pred_filename):
     model.eval()
     predictions = []
     real_values = []
     with torch.no_grad():
-        for i in range(len(test_dataset)):
-            sample = test_dataset[i]
-            x_0 = sample['x_0'].float().to(device)
-            x_1 = sample['x_1'].float().to(device)
-            x_2 = sample['x_2'].float().to(device)
-            x_3 = sample['x_3'].float().to(device)
-            n0_to_0 = sample['n0_to_0'].float().to(device)
-            n1_to_1 = sample['n1_to_1'].float().to(device)
-            n2_to_2 = sample['n2_to_2'].float().to(device)
-            n3_to_3 = sample['n3_to_3'].float().to(device)
-            n0_to_1 = sample['n0_to_1'].float().to(device)
-            n1_to_2 = sample['n1_to_2'].float().to(device)
-            n2_to_3 = sample['n2_to_3'].float().to(device)
-            y = sample['y'].float().to(device)
+        for batch_idx, batch in enumerate(test_loader):
+            x_0 = batch['x_0'].float().to(device)
+            x_1 = batch['x_1'].float().to(device)
+            x_2 = batch['x_2'].float().to(device)
+            x_3 = batch['x_3'].float().to(device)
+            n0_to_0 = batch['n0_to_0'].float().to(device)
+            n1_to_1 = batch['n1_to_1'].float().to(device)
+            n2_to_2 = batch['n2_to_2'].float().to(device)
+            n3_to_3 = batch['n3_to_3'].float().to(device)
+            n0_to_1 = batch['n0_to_1'].float().to(device)
+            n1_to_2 = batch['n1_to_2'].float().to(device)
+            n2_to_3 = batch['n2_to_3'].float().to(device)
+            y = batch['y'].float().to(device)
 
             y_hat = model(x_0, x_1, x_2, x_3, n0_to_0, n1_to_1, n2_to_2, n3_to_3, n0_to_1, n1_to_2, n2_to_3)
             predictions.extend(y_hat.cpu().numpy())
             real_values.append(y.cpu().numpy())
-            logging.debug(f"Test Iteration: {i}, Real: {y.cpu().numpy()}, Pred: {y_hat.cpu().numpy()}")
+            logging.debug(f"Test Iteration: {batch_idx + 1}, Real: {y.cpu().numpy()}, Pred: {y_hat.cpu().numpy()}")
     
     # Denormalize predictions and real values
     denormalized_predictions = denormalize_params(np.array(predictions))

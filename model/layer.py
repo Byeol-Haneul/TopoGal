@@ -220,7 +220,7 @@ class AugmentedHMC(torch.nn.Module):
         x_0, x_1, x_2, x_3,
         neighborhood_0_to_0, neighborhood_1_to_1, neighborhood_2_to_2, neighborhood_3_to_3,
         neighborhood_0_to_1, neighborhood_1_to_2, neighborhood_2_to_3,
-    ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
+    ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:
         for layer in self.layers:
             x_0, x_1, x_2, x_3 = layer(
                 x_0, x_1, x_2, x_3,

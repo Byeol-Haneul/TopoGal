@@ -4,7 +4,7 @@ from torch.utils.data import DataLoader
 from data.load_data import load_tensors, split_data
 from model.network import Network
 from model.train import train, evaluate, save_checkpoint, load_checkpoint
-from utils.dataset import CustomDataset
+from utils.dataset import CustomDataset, custom_collate_fn
 from config.config import args
 from config.param_config import PARAM_STATS, PARAM_ORDER, normalize_params, denormalize_params
 import os
@@ -80,6 +80,12 @@ def main(args):
         num_list, args.data_dir, args.label_filename, args.test_size, args.val_size
     )
     
+    '''
+    # We currently do not support batching
+    train_loader = DataLoader(train_dataset, batch_size=args.batch_size, collate_fn=custom_collate_fn)
+    val_loader = DataLoader(val_dataset, batch_size=args.batch_size, collate_fn=custom_collate_fn)
+    test_loader = DataLoader(test_dataset, batch_size=args.batch_size, collate_fn=custom_collate_fn)
+    '''
     # Define the channels per layer
     channels_per_layer = [
         [args.in_channels, args.intermediate_channels, args.inout_channels],
@@ -88,6 +94,8 @@ def main(args):
     ]
 
     logging.info(f"Model architecture: {channels_per_layer}")
+    logging.info(f"Batch Size: {args.batch_size}")
+
     
     # Initialize model
     model = initialize_model(channels_per_layer, args.final_output_layer * 2, args.device) # double the output vector length to store errors. 
@@ -102,7 +110,7 @@ def main(args):
 
     # Train the model
     logging.info("Starting training")
-    train(model, train_dataset, val_dataset, test_dataset, loss_fn, opt, args.num_epochs, args.test_interval, args.device, checkpoint_path)
+    train(model, train_dataset, val_dataset, test_dataset, loss_fn, opt, args, checkpoint_path)
     
     # Evaluate the model
     logging.info("Starting evaluation")
