@@ -25,7 +25,7 @@ echo
 
 source ~/.bashrc
 conda activate topo
-#mpiexec -n 90 python3 generate_cc.py 1> stdout 2> stderr
+mpiexec -n 48 python3 generate_cc.py 1> stdout 2> stderr
 mpiexec -n 48 python3 precalc_data.py 1>> stdout 2>> stderr
 exit 0
 

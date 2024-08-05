@@ -23,10 +23,16 @@ DIM = 3
 NUMPOINTS = -1
 NUMEDGES = 30000
 NUMTETRA = 30000
+
+# FEATURES
+# NODES: 5 (x, y, z, Mstar, Rstar)
+# EDGES: 4 (distance, mid[x,y,z])
+# TETRA: 4 (log_volume, mid[x,y,z])
+# CLUSTERS: 8 (avg_volume, std_volume, centroid[x,y,z], std_pos[x,y,z])
 # ------------------ #
 
 in_dir = "/data2/jylee/topology/IllustrisTNG/data/"
-out_dir = "/data2/jylee/topology/IllustrisTNG/combinatorial/cc_extended/"
+out_dir = "/data2/jylee/topology/IllustrisTNG/combinatorial/cc_extended_fix/"
 
 def load_catalog(directory, filename):
     f = h5py.File(directory + filename, 'r')

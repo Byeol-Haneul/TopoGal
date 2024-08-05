@@ -8,9 +8,9 @@ import sys
 
 # Define your in_channels and file paths
 in_channels = [-1, -1, -1, -1]
-in_dir = "/data2/jylee/topology/IllustrisTNG/combinatorial/cc_extended/"
+in_dir = "/data2/jylee/topology/IllustrisTNG/combinatorial/cc_extended_fixed/"
 label_filename = "/data2/jylee/topology/CosmoAstroSeed_IllustrisTNG_L25n256_LH.txt"
-output_save_dir = "/data2/jylee/topology/IllustrisTNG/combinatorial/tensors_extended_add/"
+output_save_dir = "/data2/jylee/topology/IllustrisTNG/combinatorial/tensors_extended_fixed/"
 
 # Create the directory if it doesn't exist
 os.makedirs(output_save_dir, exist_ok=True)
