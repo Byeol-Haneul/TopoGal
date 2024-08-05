@@ -2,7 +2,7 @@
 #PBS -V                                    
 #PBS -v LD_LIBRARY_PATH=$LD_LIBRARY_PATH  
 #PBS -q workq
-#PBS -N corrected_SHAM2
+#PBS -N preprocessing
 #PBS -l nodes=1:ppn=48
 #PBS -l walltime=100:00:00
 #PBS -m abe
