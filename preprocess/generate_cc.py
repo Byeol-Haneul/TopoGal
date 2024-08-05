@@ -45,25 +45,24 @@ def load_catalog(directory, filename):
 class Edge:
     def __init__(self, nodes, pos=None):
         self.nodes = tuple(sorted(nodes))
-        self.pos = pos  # Position array for the nodes
+        self.pos = pos  
+        self.distance = 0
+        self.midpoint = [0,0,0]
+        
         self.features = []
-        self.add_feature()  # Calculate features on initialization
+        self.add_feature() 
 
     def add_feature(self):
-        if self.pos is not None and len(self.pos) == 2:
-            distance = np.linalg.norm(np.array(self.pos[0]) - np.array(self.pos[1]))
-            self.features.insert(0, distance)
-            # Add midpoint as additional feature
-            self.add_midpoint()
-        else:
-            raise ValueError("Position array must be provided with exactly two positions to calculate distance.")
+        self.calculate_distance()
+        self.calculate_midpoint()
+        self.features.insert(0, self.distance)
+        self.features.extend(self.midpoint)
 
-    def add_midpoint(self):
-        if self.pos is not None and len(self.pos) == 2:
-            midpoint = np.mean(np.array(self.pos), axis=0)
-            self.features.extend(midpoint)
-        else:
-            raise ValueError("Position array must be provided with exactly two positions to calculate the midpoint.")
+    def calculate_distance(self):
+        self.distance = np.linalg.norm(np.array(self.pos[0]) - np.array(self.pos[1]))
+
+    def calculate_midpoint(self):
+        self.midpoint = np.mean(np.array(self.pos), axis=0)
 
     def __repr__(self):
         return f"Edge(nodes={self.nodes}, pos={self.pos}, features={self.features})"
@@ -80,24 +79,27 @@ class Tetrahedron:
         self.nodes = nodes
         self.pos = np.array([pos[node] for node in nodes])
         self.features = []
+
+        self.volume = 0
+        self.log_volume = 0
+        self.midpoint = [0,0,0]
+
         self.add_features() 
 
     def calculate_volume(self):
         mat = np.zeros([4, 4])
         mat[:, :3] = self.pos
         mat[:, 3] = 1.0
-        return np.abs(np.linalg.det(mat)) / 6
+        self.volume = np.abs(np.linalg.det(mat)) / 6
+        self.log_volume = np.log10(self.volume + 1e-20)
 
     def calculate_midpoint(self):
         return np.mean(self.pos, axis=0)
 
     def add_features(self):
-        # Calculate the volume
-        self.volume = self.calculate_volume()
-        self.features.append(self.volume)
-        
-        # Add midpoint as additional feature
-        self.midpoint = self.calculate_midpoint()
+        self.calculate_volume()
+        self.calculate_midpoint()
+        self.features.append(self.log_volume)
         self.features.extend(self.midpoint)
         
     def __repr__(self):
@@ -108,31 +110,45 @@ class Cluster:
         self.label = label
         self.tetrahedra = tetrahedra
         self.scaled_volumes = scaled_volumes
+        
+        self.volumes = []
         self.node_set = set()
-        self.merged_volume = 0
+        self.avg_volume = 0
+        self.std_volume = 0
+        self.centroid = [0,0,0]
+        self.std_pos = [0,0,0]
+        
         self.features = []
-        self.calculate_properties()
         self.add_features()
 
-    def calculate_properties(self):
+
+    def calculate_volumes(self):
         for tetra in self.tetrahedra:
-            self.merged_volume += tetra.features[0]  # Using volume as merged volume
+            self.volumes.append(tetra.volume)
             self.node_set.update(tetra.nodes)
+
+        self.avg_volume = np.log10(np.mean(self.volumes) + 1e-20)
+        self.std_volume = np.log10( np.std(self.volumes) + 1e-20)
 
     def calculate_centroid(self):
         if self.node_set:
-            # Collect all positions for the nodes in the cluster
-            tetra_positions = np.array([tetra.midpoint for tetra in self.tetrahedra])
-            if len(tetra_positions) > 0:
-                centroid = np.mean(tetra_positions, axis=0)
-                return centroid
-        return np.zeros(DIM)
+            node_positions = []
+            for tetra in self.tetrahedra:
+                node_positions.extend(tetra.pos)
+            
+            node_positions = np.array(node_positions)
+            if len(node_positions) > 0:
+                self.centroid = np.mean(node_positions, axis=0)
+                self.std_pos = np.std(node_positions, axis=0)
 
     def add_features(self):
-        # Add centroid as an additional feature
-        centroid = self.calculate_centroid()
-        self.features.append(self.merged_volume)
-        self.features.extend(list(centroid))
+        self.calculate_volumes()
+        self.calculate_centroid()
+        
+        self.features.append(self.avg_volume)
+        self.features.append(self.std_volume)
+        self.features.extend(self.centroid)
+        self.features.extend(self.std_pos)
         
     def __repr__(self):
         return f"Cluster(label={self.label}, merged_volume={self.merged_volume}, features={self.features})"
@@ -148,11 +164,10 @@ def get_tetrahedra(pos, feat):
         tetrahedra.append(tetra)
 
     # Sort tetrahedra by volume (which is the first element in features)
-    tetrahedra.sort(key=lambda x: x.features[0])  # Sorting by volume
+    tetrahedra.sort(key=lambda x: x.volume)  # Sorting by volume
 
     # Scale the volumes to make an embedding
-    volumes = np.array([tetra.features[0] for tetra in tetrahedra])
-    log_volumes = np.log10(volumes + 1e-20)  # Add small value to avoid log(0)
+    log_volumes = np.array([tetra.log_volume for tetra in tetrahedra])
     volume_scaler = StandardScaler()
     scaled_volumes = volume_scaler.fit_transform(log_volumes.reshape(-1, 1)).flatten()
     
