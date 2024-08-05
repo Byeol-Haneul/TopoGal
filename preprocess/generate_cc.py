@@ -169,7 +169,6 @@ def get_tetrahedra(pos, feat):
         tetra = Tetrahedron(i, simplex, pos)
         tetrahedra.append(tetra)
 
-    # Sort tetrahedra by volume (which is the first element in features)
     tetrahedra.sort(key=lambda x: x.volume)  # Sorting by volume
 
     # Scale the volumes to make an embedding
@@ -194,8 +193,7 @@ def get_all_tetra_edges(tetrahedra):
     for tetra in tetrahedra:
         edge_objects.update(get_single_tetra_edges(tetra))
 
-    # Sort edges by distance (which is the first element in features)
-    sorted_edge_objects = sorted(edge_objects, key=lambda e: e.features[0] if e.features else float('inf'))
+    sorted_edge_objects = sorted(edge_objects, key=lambda e: e.distance if e.features else float('inf'))
     return sorted_edge_objects
 
 def create_cc(pos, feat):
@@ -255,10 +253,8 @@ def create_cc(pos, feat):
     return cc
 
 def clustering(tetrahedra, scaled_volumes):
-    # Perform DBSCAN clustering on the midpoints
+    # Perform DBSCAN clustering on the midpoints & scaled volumes
     embeddings = np.array([np.append(tetra.calculate_midpoint(), scaled_volumes[i]) for i, tetra in enumerate(tetrahedra)])
-
-    # Add a Dimension of volume (to combine similar scales)
     db = DBSCAN(eps=0.05, min_samples=2).fit(embeddings)
     labels = db.labels_
 
@@ -283,12 +279,10 @@ def clustering(tetrahedra, scaled_volumes):
     return clusters
 
 def main():
-    # MPI Initialization
     comm = MPI.COMM_WORLD
     rank = comm.Get_rank()
     size = comm.Get_size()
 
-    # Distribute the tasks
     total_jobs = 1000
     jobs_per_process = total_jobs // size
     extra_jobs = total_jobs % size
@@ -310,7 +304,6 @@ def main():
         print(f"""[LOG] Process {rank}: Created combinatorial complex for file {in_filename}""", file=sys.stderr)
         to_pickle(cc, out_dir + out_filename)
 
-    # Finalize MPI
     comm.Barrier()
     MPI.Finalize()
 
