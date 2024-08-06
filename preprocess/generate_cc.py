@@ -18,11 +18,13 @@ from toponetx.readwrite.serialization import load_from_pickle
 # --- CONSTANTS --- #
 BOXSIZE = 25e3
 DIM = 3
+MASS_UNIT = 1e10
+Nstar_th = 0
 
 # NUMBER OF x-CELLS #
 NUMPOINTS = -1
-NUMEDGES = 30000
-NUMTETRA = 30000
+NUMEDGES = -1
+NUMTETRA = -1
 
 # FEATURES
 # NODES: 5 (x, y, z, Mstar, Rstar)
@@ -32,20 +34,35 @@ NUMTETRA = 30000
 # ------------------ #
 
 in_dir = "/data2/jylee/topology/IllustrisTNG/data/"
-out_dir = "/data2/jylee/topology/IllustrisTNG/combinatorial/cc_extended_fix/"
+out_dir = "/data2/jylee/topology/IllustrisTNG/combinatorial/cc/"
 
 def load_catalog(directory, filename):
     f = h5py.File(directory + filename, 'r')
-    pos = f['/Subhalo/SubhaloPos'][:] / BOXSIZE
-    Mstar = f['/Subhalo/SubhaloMassType'][:, 4]  # Msun/h
-    Rstar = f["Subhalo/SubhaloHalfmassRadType"][:, 4]
+    pos   = f['/Subhalo/SubhaloPos'][:]/BOXSIZE
+    Mstar = f['/Subhalo/SubhaloMassType'][:,4] * MASS_UNIT
+    Rstar = f["Subhalo/SubhaloHalfmassRadType"][:,4]
+    Nstar = f['/Subhalo/SubhaloLenType'][:,4] 
+    f.close()
+    
+    # Some simulations are slightly outside the box, correct it
+    pos[np.where(pos<0.0)]+=1.0
+    pos[np.where(pos>1.0)]-=1.0
+
+    # Select only galaxies with more than Nstar_th star particles
+    indexes = np.where(Nstar>Nstar_th)[0]
+    pos     = pos[indexes]
+    Mstar   = Mstar[indexes]
+    Rstar   = Rstar[indexes]
+
+    #Normalization
+    Mstar = np.log10(1.+ Mstar)
+    Rstar = np.log10(1.+ Rstar)
+    
     feat = np.vstack((Mstar, Rstar)).T
     feat = np.hstack((pos, feat))
 
     global NUMPOINTS
     NUMPOINTS = pos.shape[0]
-    pos = pos[:, :DIM]
-
     return pos, feat
 
 class Edge:
@@ -307,6 +324,43 @@ def main():
     comm.Barrier()
     MPI.Finalize()
 
+def main2():
+    comm = MPI.COMM_WORLD
+    rank = comm.Get_rank()
+    size = comm.Get_size()
+
+    # Array to be processed
+    array = [218, 219, 220, 221, 222, 223, 224, 225, 226, 227, 228, 229, 230, 390, 391, 392, 393, 394, 395, 396, 397, 398, 473, 474, 475, 476, 477, 478, 479, 480, 481, 482, 655, 656, 657, 658, 659, 660, 661, 662, 663, 664, 665, 666, 667, 668, 669, 670, 671]
+
+    total_elements = len(array)
+    jobs_per_process = total_elements // size
+    extra_jobs = total_elements % size
+
+    # Calculate start and end indices for this process
+    if rank < extra_jobs:
+        start_idx = rank * (jobs_per_process + 1)
+        end_idx = start_idx + jobs_per_process + 1
+    else:
+        start_idx = rank * jobs_per_process + extra_jobs
+        end_idx = start_idx + jobs_per_process
+
+    # Slice the array for this process
+    slice_array = array[start_idx:end_idx]
+    
+    for num in slice_array:
+        in_filename = f"data_{num}.hdf5"
+        out_filename = f"data_{num}.pickle"
+
+        pos, feat = load_catalog(in_dir, in_filename)
+        cc = create_cc(pos, feat)
+
+        print(f"[LOG] Process {rank}: Created combinatorial complex for file {in_filename}", file=sys.stderr)
+        to_pickle(cc, out_dir + out_filename)
+
+    comm.Barrier()
+    MPI.Finalize()
+
+
 if __name__ == "__main__":
-    main()
+    main2()
 

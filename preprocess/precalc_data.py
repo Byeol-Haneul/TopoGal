@@ -8,9 +8,9 @@ import sys
 
 # Define your in_channels and file paths
 in_channels = [-1, -1, -1, -1]
-in_dir = "/data2/jylee/topology/IllustrisTNG/combinatorial/cc_extended_fix/"
+in_dir = "/data2/jylee/topology/IllustrisTNG/combinatorial/cc/"
 label_filename = "/data2/jylee/topology/CosmoAstroSeed_IllustrisTNG_L25n256_LH.txt"
-output_save_dir = "/data2/jylee/topology/IllustrisTNG/combinatorial/tensors_extended_fix/"
+output_save_dir = "/data2/jylee/topology/IllustrisTNG/combinatorial/tensors/"
 
 # Create the directory if it doesn't exist
 os.makedirs(output_save_dir, exist_ok=True)
@@ -52,7 +52,7 @@ def process_num(num):
         
         # Compute adjacency and incidence matrices
         print(f"[LOG] Computing n0_to_0 for num {num}", file=sys.stderr)
-        n0_to_0 = cc.adjacency_matrix(rank=0, via_rank=1)
+        n0_to_0 = cc.adjacency_matrix(rank=0, via_rank=3) # nodes in the same cluster
         results['n0_to_0'] = torch.from_numpy(n0_to_0.todense()).to_sparse()
 
         print(f"[LOG] Computing n1_to_1 for num {num}", file=sys.stderr)
@@ -71,30 +71,12 @@ def process_num(num):
         n1_to_2 = cc.incidence_matrix(rank=1, to_rank=2)
         results['n1_to_2'] = torch.from_numpy(n1_to_2.todense()).to_sparse()
         
-        # Save results
-        for key, tensor in results.items():
-            print(f"[LOG] Saving tensor {key}_{num}.pt", file=sys.stderr)
-            torch.save(tensor, os.path.join(output_save_dir, f"{key}_{num}.pt"))
-
-    except Exception as e:
-        print(f"[LOG] Error processing num {num}: {e}", file=sys.stderr)
-
-def add_neighborhoods(num):
-    try:
-        in_filename = "data_" + str(num) + ".pickle"
-        print(f"[LOG] Loading pickle file {in_filename}", file=sys.stderr)
-        cc = load_from_pickle(in_dir + in_filename)
-        
-        results = {}
-
-        print(f"[LOG] Processing neighborhoods for num {num}", file=sys.stderr)
-        
         print(f"[LOG] Computing n2_to_3 for num {num}", file=sys.stderr)
         n2_to_3 = cc.incidence_matrix(rank=2, to_rank=3)
         results['n2_to_3'] = torch.from_numpy(n2_to_3.todense()).to_sparse()
 
         print(f"[LOG] Computing n3_to_3 (coadjacency) for num {num}", file=sys.stderr)
-        n3_to_3 = cc.coadjacency_matrix(rank=3, via_rank=2)
+        n3_to_3 = cc.coadjacency_matrix(rank=3, via_rank=1) # Clusters sharing edges
         results['n3_to_3'] = torch.from_numpy(n3_to_3.todense()).to_sparse()
 
         # Save results
@@ -103,7 +85,7 @@ def add_neighborhoods(num):
             torch.save(tensor, os.path.join(output_save_dir, f"{key}_{num}.pt"))
 
     except Exception as e:
-        print(f"[LOG] Error processing neighborhoods for num {num}: {e}", file=sys.stderr)
+        print(f"[LOG] Error processing num {num}: {e}", file=sys.stderr)
 
 
 def main():
@@ -129,8 +111,7 @@ def main():
     # Process the numbers assigned to this rank
     for num in range(start_num, end_num):
         print(f"[LOG] Rank {rank} processing num {num}", file=sys.stderr)
-        #process_num(num)
-        add_neighborhoods(num)
+        process_num(num)
 
     print(f"[LOG] Rank {rank} completed processing", file=sys.stderr)
 
