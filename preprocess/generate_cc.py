@@ -5,7 +5,7 @@ import random
 from itertools import product, combinations
 import sys
 
-from scipy.spatial import Delaunay, distance
+from scipy.spatial import Delaunay, distance, KDTree
 from sklearn.cluster import DBSCAN
 from sklearn.preprocessing import StandardScaler
 
@@ -19,12 +19,12 @@ from toponetx.readwrite.serialization import load_from_pickle
 BOXSIZE = 25e3
 DIM = 3
 MASS_UNIT = 1e10
-Nstar_th = 0
+Nstar_th = 20 # not used
+MASS_CUT = 1e8
 
-# NUMBER OF x-CELLS #
-NUMPOINTS = -1
-NUMEDGES = -1
-NUMTETRA = -1
+# --- HYPERPARAMS --- #
+r_link = 0.015
+
 
 # FEATURES
 # NODES: 5 (x, y, z, Mstar, Rstar)
@@ -49,7 +49,8 @@ def load_catalog(directory, filename):
     pos[np.where(pos>1.0)]-=1.0
 
     # Select only galaxies with more than Nstar_th star particles
-    indexes = np.where(Nstar>Nstar_th)[0]
+    #indexes = np.where(Nstar>Nstar_th)[0]
+    indexes = np.where(Mstar>MASS_CUT)[0]
     pos     = pos[indexes]
     Mstar   = Mstar[indexes]
     Rstar   = Rstar[indexes]
@@ -60,15 +61,12 @@ def load_catalog(directory, filename):
     
     feat = np.vstack((Mstar, Rstar)).T
     feat = np.hstack((pos, feat))
-
-    global NUMPOINTS
-    NUMPOINTS = pos.shape[0]
     return pos, feat
 
 class Edge:
     def __init__(self, nodes, pos=None):
         self.nodes = tuple(sorted(nodes))
-        self.pos = pos  
+        self.pos = np.array([pos[node] for node in self.nodes])
         self.distance = 0
         self.midpoint = [0,0,0]
         
@@ -100,7 +98,7 @@ class Tetrahedron:
     def __init__(self, index, nodes, pos):
         self.index = index
         self.nodes = nodes
-        self.pos = np.array([pos[node] for node in nodes])
+        self.pos = np.array([pos[node] for node in self.nodes])
         self.features = []
 
         self.volume = 0
@@ -117,7 +115,7 @@ class Tetrahedron:
         self.log_volume = np.log10(self.volume + 1e-20)
 
     def calculate_midpoint(self):
-        return np.mean(self.pos, axis=0)
+        self.midpoint = np.mean(self.pos, axis=0)
 
     def add_features(self):
         self.calculate_volume()
@@ -196,42 +194,57 @@ def get_tetrahedra(pos, feat):
     print("[LOG] GENERATED TETRA", file=sys.stderr)
     return tetrahedra, scaled_volumes
 
-def get_single_tetra_edges(tetra):
+def get_single_tetra_edges(pos, tetra):
     edge_objects = []
     for (i, j) in combinations(range(4), 2):
         edge = tuple(sorted((tetra.nodes[i], tetra.nodes[j])))
-        pos = [tetra.pos[i], tetra.pos[j]]
         edge_obj = Edge(nodes=edge, pos=pos)
         edge_objects.append(edge_obj)
     return edge_objects
 
-def get_all_tetra_edges(tetrahedra):
-    edge_objects = set() # important to make this as a set!!!
+def get_all_tetra_edges(pos, tetrahedra):
+    tetra_edge_set = set() # important to make this as a set!!!
     for tetra in tetrahedra:
-        edge_objects.update(get_single_tetra_edges(tetra))
+        tetra_edge_set.update(get_single_tetra_edges(pos, tetra))
 
-    sorted_edge_objects = sorted(edge_objects, key=lambda e: e.distance if e.features else float('inf'))
-    return sorted_edge_objects
+    return tetra_edge_set
 
-def create_cc(pos, feat):
-    global NUMEDGES, NUMTETRA
-    
+def get_kdtree_edges(pos, r_link=0.015):
+    '''
+    Modified from CosmoGraphNet
+    arXiv:2204.13713
+    https://github.com/PabloVD/CosmoGraphNet/
+    '''
+    kd_tree = KDTree(pos, leafsize=16, boxsize=1.0001)
+    edge_index = kd_tree.query_pairs(r=r_link, output_type="ndarray")
+
+    kdtree_edge_set = set()
+    for src, dst in edge_index:
+        edge_obj = Edge([src, dst],pos)
+        kdtree_edge_set.add(edge_obj)
+
+    return kdtree_edge_set
+
+def create_cc(pos, feat):    
     # 1. Get Tetrahedra
     tetrahedra, scaled_volumes = get_tetrahedra(pos, feat)
     
     # 2. Get edges
-    edge_objects = get_all_tetra_edges(tetrahedra)
+    tetra_edge_set = get_all_tetra_edges(pos, tetrahedra)
+    kdtree_edge_set = get_kdtree_edges(pos, r_link)
+    edge_set = tetra_edge_set | kdtree_edge_set # union
     
     # 3. Clustering on Tetrahedra
     clusters = clustering(tetrahedra, scaled_volumes)
     
-    if NUMEDGES == -1 or NUMEDGES > len(edge_objects):
-        NUMEDGES = len(edge_objects)
-    if NUMTETRA == -1 or NUMTETRA > len(tetrahedra):
-        NUMTETRA = len(tetrahedra)
+    NUMPOINTS = pos.shape[0]
+    NUMEDGES = len(edge_set)
+    NUMTETRA = len(tetrahedra)
     
     # 4. Generate Combinatorial Complex
     print(f"""[LOG] We will select {NUMEDGES} edges and {NUMTETRA} tetra""", file=sys.stderr)
+    print(f"""[LOG] Edges from tetra {len(tetra_edge_set)} and KDTree {len(kdtree_edge_set)} with {len(tetra_edge_set & kdtree_edge_set)} edges in common.""", file=sys.stderr)
+
     cc = CombinatorialComplex()
 
     ## 4-1 ADD NODES ##
@@ -241,7 +254,8 @@ def create_cc(pos, feat):
     node_data = {num: feat[num] for num in range(NUMPOINTS)}
 
     ## 4-2 ADD EDGES ##
-    sorted_edges = edge_objects[:NUMEDGES]
+    sorted_edge_objects = sorted(list(edge_set), key=lambda e: e.distance if e.features else float('inf'))
+    sorted_edges = sorted_edge_objects[:NUMEDGES]
 
     for edge in sorted_edges:
         cc.add_cell(edge.nodes, rank=1)
@@ -271,7 +285,7 @@ def create_cc(pos, feat):
 
 def clustering(tetrahedra, scaled_volumes):
     # Perform DBSCAN clustering on the midpoints & scaled volumes
-    embeddings = np.array([np.append(tetra.calculate_midpoint(), scaled_volumes[i]) for i, tetra in enumerate(tetrahedra)])
+    embeddings = np.array([np.append(tetra.midpoint, scaled_volumes[i]) for i, tetra in enumerate(tetrahedra)])
     db = DBSCAN(eps=0.05, min_samples=2).fit(embeddings)
     labels = db.labels_
 
@@ -330,7 +344,7 @@ def main2():
     size = comm.Get_size()
 
     # Array to be processed
-    array = [218, 219, 220, 221, 222, 223, 224, 225, 226, 227, 228, 229, 230, 390, 391, 392, 393, 394, 395, 396, 397, 398, 473, 474, 475, 476, 477, 478, 479, 480, 481, 482, 655, 656, 657, 658, 659, 660, 661, 662, 663, 664, 665, 666, 667, 668, 669, 670, 671]
+    array = [34, 35, 36, 37, 38, 39, 40, 41, 57, 58, 59, 60, 61, 62, 91, 92, 93, 94, 95, 96, 97, 98, 99, 100, 101, 102, 103, 104, 155, 156, 157, 158, 159, 160, 161, 162, 163, 164, 165, 166, 167, 191, 192, 193, 194, 195, 196, 197, 198, 199, 200, 201, 202, 203, 204, 205, 206, 207, 208, 209, 240, 241, 242, 243, 244, 245, 246, 247, 248, 249, 250, 251, 259, 260, 261, 262, 263, 264, 265, 266, 267, 268, 269, 270, 271, 272, 280, 281, 282, 283, 284, 285, 286, 287, 288, 289, 290, 291, 292, 293, 328, 329, 330, 331, 332, 333, 334, 335, 366, 367, 368, 369, 370, 371, 372, 373, 374, 375, 376, 377, 386, 387, 388, 389, 390, 391, 392, 393, 394, 395, 396, 397, 398, 452, 453, 454, 455, 456, 457, 458, 459, 460, 461, 527, 528, 529, 530, 531, 532, 533, 534, 535, 536, 537, 538, 539, 540, 541, 542, 543, 544, 545, 562, 563, 564, 565, 566, 596, 597, 598, 599, 600, 601, 602, 603, 604, 605, 606, 607, 608, 611, 612, 613, 614, 615, 616, 617, 618, 619, 620, 621, 622, 623, 624, 625, 626, 627, 628, 629, 721, 722, 723, 724, 725, 726, 727, 728, 729, 730, 731, 732, 733, 734, 755, 764, 765, 766, 767, 768, 769, 770, 771, 772, 773, 774, 775, 776, 893, 894, 895, 896, 897, 898, 899, 907, 908, 909, 910, 911, 912, 913, 914, 915, 916, 917, 918, 919, 962, 963, 964, 965, 966, 967, 968, 969, 970, 971, 972, 973, 974, 975, 976, 977, 978, 979, 993, 994, 995, 996, 997, 998, 999]
 
     total_elements = len(array)
     jobs_per_process = total_elements // size
@@ -362,5 +376,5 @@ def main2():
 
 
 if __name__ == "__main__":
-    main2()
+    main()
 
