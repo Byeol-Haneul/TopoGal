@@ -61,10 +61,11 @@ def train(model, train_loader, val_loader, test_loader, loss_fn, opt, args, chec
             n0_to_1 = batch['n0_to_1'].float().to(device)
             n1_to_2 = batch['n1_to_2'].float().to(device)
             n2_to_3 = batch['n2_to_3'].float().to(device)
+            global_feature = batch['global_feature'].float().to(device)
             y = batch['y'].float().to(device)
             
             opt.zero_grad()
-            y_hat = model(x_0, x_1, x_2, x_3, n0_to_0, n1_to_1, n2_to_2, n3_to_3, n0_to_1, n1_to_2, n2_to_3)
+            y_hat = model(x_0, x_1, x_2, x_3, n0_to_0, n1_to_1, n2_to_2, n3_to_3, n0_to_1, n1_to_2, n2_to_3, global_feature)
 
             loss = loss_fn(y_hat, y)
             loss.backward()
@@ -121,9 +122,10 @@ def validate(model, val_loader, loss_fn, device, epoch_i):
             n0_to_1 = batch['n0_to_1'].float().to(device)
             n1_to_2 = batch['n1_to_2'].float().to(device)
             n2_to_3 = batch['n2_to_3'].float().to(device)
+            global_feature = batch['global_feature'].float().to(device)
             y = batch['y'].float().to(device)
             
-            y_hat = model(x_0, x_1, x_2, x_3, n0_to_0, n1_to_1, n2_to_2, n3_to_3, n0_to_1, n1_to_2, n2_to_3)
+            y_hat = model(x_0, x_1, x_2, x_3, n0_to_0, n1_to_1, n2_to_2, n3_to_3, n0_to_1, n1_to_2, n2_to_3, global_feature)
             loss = loss_fn(y_hat, y)
             val_loss.append(loss.item())
             logging.debug(f"Epoch: {epoch_i}, Validation Iteration: {batch_idx + 1}, Loss: {loss.item():.4f}")
@@ -147,9 +149,10 @@ def evaluate(model, test_loader, device, pred_filename):
             n0_to_1 = batch['n0_to_1'].float().to(device)
             n1_to_2 = batch['n1_to_2'].float().to(device)
             n2_to_3 = batch['n2_to_3'].float().to(device)
+            global_feature = batch['global_feature'].float().to(device)
             y = batch['y'].float().to(device)
 
-            y_hat = model(x_0, x_1, x_2, x_3, n0_to_0, n1_to_1, n2_to_2, n3_to_3, n0_to_1, n1_to_2, n2_to_3)
+            y_hat = model(x_0, x_1, x_2, x_3, n0_to_0, n1_to_1, n2_to_2, n3_to_3, n0_to_1, n1_to_2, n2_to_3, global_feature)
             predictions.extend(y_hat.cpu().numpy())
             real_values.append(y.cpu().numpy())
             logging.debug(f"Test Iteration: {batch_idx + 1}, Real: {y.cpu().numpy()}, Pred: {y_hat.cpu().numpy()}")

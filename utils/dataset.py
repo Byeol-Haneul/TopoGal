@@ -12,13 +12,14 @@ class CustomDataset(Dataset):
         sample = self.data[idx]
         y = sample[0]
         x_0, x_1, x_2, x_3 = sample[1:5]
-        n0_to_0, n1_to_1, n2_to_2, n3_to_3, n0_to_1, n1_to_2, n2_to_3 = sample[5:]
+        n0_to_0, n1_to_1, n2_to_2, n3_to_3, n0_to_1, n1_to_2, n2_to_3, global_feature = sample[5:]
         
         return {
             'y': y,
             'x_0': x_0, 'x_1': x_1, 'x_2': x_2, 'x_3': x_3,
             'n0_to_0': n0_to_0, 'n1_to_1': n1_to_1, 'n2_to_2': n2_to_2, 'n3_to_3': n3_to_3,
-            'n0_to_1': n0_to_1, 'n1_to_2': n1_to_2, 'n2_to_3': n2_to_3
+            'n0_to_1': n0_to_1, 'n1_to_2': n1_to_2, 'n2_to_3': n2_to_3, 
+            'global_feature': global_feature
         }
 
 
@@ -49,7 +50,8 @@ def custom_collate_fn(batch):
     n0_to_1_batch = pad_sparse_tensors([item['n0_to_1'] for item in batch])
     n1_to_2_batch = pad_sparse_tensors([item['n1_to_2'] for item in batch])
     n2_to_3_batch = pad_sparse_tensors([item['n2_to_3'] for item in batch])
-    
+
+    global_feature_batch = torch.stack([item['global_feature'] for item in batch])
     y_batch = torch.stack([item['y'] for item in batch])
 
     return {
@@ -64,5 +66,6 @@ def custom_collate_fn(batch):
         'n0_to_1': n0_to_1_batch,
         'n1_to_2': n1_to_2_batch,
         'n2_to_3': n2_to_3_batch,
+        'global_feature': global_feature_batch,
         'y': y_batch
     }

@@ -1,7 +1,7 @@
 import torch
 import torch.nn.functional as F
 from torch.nn.parameter import Parameter
-from topomodelx.nn.combinatorial.hmc_layer import sparse_row_norm, HBS, HBNS
+from topomodelx.nn.combinatorial.hmc_layer import sparse_row_norm, HBNS, HBS
 from topomodelx.base.aggregation import Aggregation
 
 class AugmentedHMCLayer(torch.nn.Module):
@@ -36,6 +36,15 @@ class AugmentedHMCLayer(torch.nn.Module):
         self.hbs_0_level1 = HBS(
             source_in_channels=in_channels_0,
             source_out_channels=intermediate_channels_0,
+            negative_slope=negative_slope,
+            softmax=softmax_attention,
+            update_func=update_func_attention,
+            initialization=initialization,
+        )
+
+        self.hbs_3_level1 = HBS(
+            source_in_channels=in_channels_3,
+            source_out_channels=intermediate_channels_3,
             negative_slope=negative_slope,
             softmax=softmax_attention,
             update_func=update_func_attention,
@@ -78,6 +87,15 @@ class AugmentedHMCLayer(torch.nn.Module):
         self.hbs_0_level2 = HBS(
             source_in_channels=intermediate_channels_0,
             source_out_channels=out_channels_0,
+            negative_slope=negative_slope,
+            softmax=softmax_attention,
+            update_func=update_func_attention,
+            initialization=initialization,
+        )
+
+        self.hbs_3_level2 = HBS(
+            source_in_channels=intermediate_channels_3,
+            source_out_channels=out_channels_3,
             negative_slope=negative_slope,
             softmax=softmax_attention,
             update_func=update_func_attention,
@@ -135,16 +153,7 @@ class AugmentedHMCLayer(torch.nn.Module):
             initialization=initialization,
         )
 
-        self.hbs_3_level2 = HBS(
-            source_in_channels=intermediate_channels_3,
-            source_out_channels=out_channels_3,
-            negative_slope=negative_slope,
-            softmax=softmax_attention,
-            update_func=update_func_attention,
-            initialization=initialization,
-        )
-
-        self.aggr = Aggregation(aggr_func="sum", update_func=update_func_aggregation)
+        self.aggr = Aggregation(aggr_func="mean", update_func=update_func_aggregation)
 
     def forward(
         self,
@@ -154,6 +163,7 @@ class AugmentedHMCLayer(torch.nn.Module):
     ):
         # Computing messages from Higher Order Attention Blocks Level 1
         x_0_to_0 = self.hbs_0_level1(x_0, adjacency_0)
+        x_3_to_3 = self.hbs_3_level1(x_3, coadjacency_3)
         x_0_to_1, x_1_to_0 = self.hbns_0_1_level1(x_1, x_0, incidence_1)
         x_1_to_2, x_2_to_1 = self.hbns_1_2_level1(x_2, x_1, incidence_2)
         x_2_to_3, x_3_to_2 = self.hbns_2_3_level1(x_3, x_2, incidence_3)
@@ -161,7 +171,7 @@ class AugmentedHMCLayer(torch.nn.Module):
         x_0_level1 = self.aggr([x_0_to_0, x_1_to_0])
         x_1_level1 = self.aggr([x_0_to_1, x_2_to_1])
         x_2_level1 = self.aggr([x_1_to_2, x_3_to_2])
-        x_3_level1 = self.aggr([x_2_to_3])
+        x_3_level1 = self.aggr([x_2_to_3, x_3_to_3])
 
         # Computing messages from Higher Order Attention Blocks Level 2
         x_0_to_0 = self.hbs_0_level2(x_0_level1, adjacency_0)
@@ -177,7 +187,7 @@ class AugmentedHMCLayer(torch.nn.Module):
         x_1_level2 = self.aggr([x_0_to_1, x_1_to_1])
         x_2_level2 = self.aggr([x_1_to_2, x_2_to_2])
         x_3_level2 = self.aggr([x_2_to_3, x_3_to_3])
-
+        
         return x_0_level2, x_1_level2, x_2_level2, x_3_level2
 
 class AugmentedHMC(torch.nn.Module):
@@ -227,5 +237,6 @@ class AugmentedHMC(torch.nn.Module):
                 neighborhood_0_to_0, neighborhood_1_to_1, neighborhood_2_to_2, neighborhood_3_to_3,
                 neighborhood_0_to_1, neighborhood_1_to_2, neighborhood_2_to_3,
             )
+
 
         return x_0, x_1, x_2, x_3
