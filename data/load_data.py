@@ -3,6 +3,7 @@ import torch
 import pandas as pd
 from sklearn.model_selection import train_test_split
 from tqdm import tqdm
+from config.param_config import PARAM_STATS, PARAM_ORDER
 
 
 def normalize(tensor):
@@ -22,9 +23,10 @@ def normalize(tensor):
     else:
         max_val = tensor.max()
         return tensor / max_val
+    return tensor
     '''
 
-def load_tensors(num_list, data_dir, label_filename):
+def load_tensors(num_list, data_dir, label_filename, target_labels=None):
     label_file = pd.read_csv(label_filename, sep='\s+')
 
     y_list, x_0_list, x_1_list, x_2_list, x_3_list = [], [], [], [], []
@@ -35,6 +37,10 @@ def load_tensors(num_list, data_dir, label_filename):
     for num in tqdm(num_list):
         try:
             y = torch.Tensor(label_file.loc[num].to_numpy()[1:-1].astype(float))
+
+            if target_labels:
+                indices = [PARAM_ORDER.index(label) for label in target_labels]
+                y = y[indices]
 
             x_0 = normalize(torch.load(os.path.join(data_dir, f"x_0_{num}.pt")))
             x_1 = normalize(torch.load(os.path.join(data_dir, f"x_1_{num}.pt")))

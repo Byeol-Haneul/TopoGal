@@ -101,10 +101,12 @@ def train(model, train_loader, val_loader, test_loader, loss_fn, opt, args, chec
             current_model_state = model.state_dict()
             current_opt_state = opt.state_dict()
             model, opt, _, _ = load_checkpoint(model, opt, best_checkpoint_path, device)
-            evaluate(model, test_loader, device, os.path.join(os.path.dirname(best_checkpoint_path), "pred.txt"))
+            evaluate(model, test_loader, device, os.path.join(os.path.dirname(best_checkpoint_path), "pred.txt"), args.target_labels)
             # Restore the current training state
             model.load_state_dict(current_model_state)
             opt.load_state_dict(current_opt_state)
+    
+    return best_loss
 
 def validate(model, val_loader, loss_fn, device, epoch_i):
     model.eval()
@@ -132,7 +134,7 @@ def validate(model, val_loader, loss_fn, device, epoch_i):
     
     return np.mean(val_loss)
 
-def evaluate(model, test_loader, device, pred_filename):
+def evaluate(model, test_loader, device, pred_filename, target_labels):
     model.eval()
     predictions = []
     real_values = []
@@ -158,8 +160,8 @@ def evaluate(model, test_loader, device, pred_filename):
             logging.debug(f"Test Iteration: {batch_idx + 1}, Real: {y.cpu().numpy()}, Pred: {y_hat.cpu().numpy()}")
     
     # Denormalize predictions and real values
-    denormalized_predictions = denormalize_params(np.array(predictions))
-    denormalized_real_values = denormalize_params(np.array(real_values))
+    denormalized_predictions = denormalize_params(np.array(predictions), target_labels)
+    denormalized_real_values = denormalize_params(np.array(real_values), target_labels)
 
     # Save denormalized predictions and real values
     pred_df = pd.DataFrame({

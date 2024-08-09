@@ -11,25 +11,26 @@ import os
 import pandas as pd
 import numpy as np
 
-def implicit_likelihood_loss(output, target, num_params=6):
+def implicit_likelihood_loss(output, target):
+    num_params = len(target)
     y_out, err_out = output[:,:num_params], output[:,num_params:]
     loss_mse = torch.sum((y_out - target)**2 , axis=1)
     loss_ili = torch.sum(((y_out - target)**2 - err_out**2)**2, axis=1)
     loss = torch.log(loss_mse) + torch.log(loss_ili)
     return torch.mean(loss)
 
-def load_and_prepare_data(num_list, data_dir, label_filename, test_size, val_size):
+def load_and_prepare_data(num_list, data_dir, label_filename, test_size, val_size, target_labels):
     logging.info(f"Loading tensors for {len(num_list)} samples from {data_dir}")
     
     y_list, x_0_list, x_1_list, x_2_list, x_3_list, \
     n0_to_0_list, n1_to_1_list, n2_to_2_list, n3_to_3_list, \
     n0_to_1_list, n1_to_2_list, n2_to_3_list, \
     global_feature_list = load_tensors(
-        num_list, data_dir, label_filename
+        num_list, data_dir, label_filename, target_labels
     )
     
     logging.info("Normalizing target parameters")
-    y_list = normalize_params(y_list)
+    y_list = normalize_params(y_list, target_labels)
     
     logging.info("Splitting data into train, validation, and test sets")
     (y_train, y_val, y_test), (x_0_train, x_0_val, x_0_test), (x_1_train, x_1_val, x_1_test), \
@@ -78,7 +79,8 @@ def initialize_model(args):
 
     logging.info(f"Model architecture: {channels_per_layer}")
     logging.info("Initializing model")
-    model = Network(channels_per_layer, args.final_output_layer).to(args.device) 
+    final_output_layer = len(args.target_labels) * 2
+    model = Network(channels_per_layer, final_output_layer).to(args.device) 
     return model
 
 def main(args):
@@ -86,10 +88,14 @@ def main(args):
                         handlers=[logging.FileHandler(args.checkpoint_dir + '/' + 'training.log'), logging.StreamHandler()])
 
     num_list = [i for i in range(1000)]
+
+    os.environ["CUDA_DEVICE_ORDER"]="PCI_BUS_ID"
+    os.environ["CUDA_VISIBLE_DEVICES"]= str(args.device_num)
+    args.device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
     
     # Load and prepare data
     train_dataset, val_dataset, test_dataset = load_and_prepare_data(
-        num_list, args.data_dir, args.label_filename, args.test_size, args.val_size
+        num_list, args.data_dir, args.label_filename, args.test_size, args.val_size, target_labels=args.target_labels
     )
     
     # Define and Initialize model
@@ -104,11 +110,13 @@ def main(args):
 
     # Training
     logging.info("Starting training")
-    train(model, train_dataset, val_dataset, test_dataset, loss_fn, opt, args, checkpoint_path)
+    best_loss = train(model, train_dataset, val_dataset, test_dataset, loss_fn, opt, args, checkpoint_path)
     
     # Evaluation
     logging.info("Starting evaluation")
-    evaluate(model, test_dataset, args.device, os.path.join(os.path.dirname(checkpoint_path), "pred.txt"))
+    evaluate(model, test_dataset, args.device, os.path.join(os.path.dirname(checkpoint_path), "pred.txt"), args.target_labels)
+
+    return best_loss
 
 if __name__ == "__main__":
     main(args)

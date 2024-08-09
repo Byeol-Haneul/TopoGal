@@ -153,7 +153,7 @@ class AugmentedHMCLayer(torch.nn.Module):
             initialization=initialization,
         )
 
-        self.aggr = Aggregation(aggr_func="mean", update_func=update_func_aggregation)
+        self.aggr = Aggregation(aggr_func="sum", update_func=update_func_aggregation)
 
     def forward(
         self,
@@ -171,7 +171,7 @@ class AugmentedHMCLayer(torch.nn.Module):
         x_0_level1 = self.aggr([x_0_to_0, x_1_to_0])
         x_1_level1 = self.aggr([x_0_to_1, x_2_to_1])
         x_2_level1 = self.aggr([x_1_to_2, x_3_to_2])
-        x_3_level1 = self.aggr([x_2_to_3, x_3_to_3])
+        x_3_level1 = self.aggr([x_2_to_3])
 
         # Computing messages from Higher Order Attention Blocks Level 2
         x_0_to_0 = self.hbs_0_level2(x_0_level1, adjacency_0)
