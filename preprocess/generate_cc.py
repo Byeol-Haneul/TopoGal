@@ -21,20 +21,26 @@ DIM = 3
 MASS_UNIT = 1e10
 Nstar_th = 20 # not used
 MASS_CUT = 1e8
-
+ISVOLUME = True
+ISDISTANCE = False
 # --- HYPERPARAMS --- #
 r_link = 0.015
-
-
 # FEATURES
 # NODES: 5 (x, y, z, Mstar, Rstar)
 # EDGES: 4 (distance, mid[x,y,z])
-# TETRA: 4 (log_volume, mid[x,y,z])
+# TETRA: 4 (volume, mid[x,y,z])
 # CLUSTERS: 8 (avg_volume, std_volume, centroid[x,y,z], std_pos[x,y,z])
 # ------------------ #
 
 in_dir = "/data2/jylee/topology/IllustrisTNG/data/"
 out_dir = "/data2/jylee/topology/IllustrisTNG/combinatorial/cc/"
+
+def normalize(value, isVolume = True):
+    global r_link
+    if isVolume:
+        return value / (r_link**3)
+    else:
+        return value/ (r_link)
 
 def load_catalog(directory, filename):
     f = h5py.File(directory + filename, 'r')
@@ -42,6 +48,8 @@ def load_catalog(directory, filename):
     Mstar = f['/Subhalo/SubhaloMassType'][:,4] * MASS_UNIT
     Rstar = f["Subhalo/SubhaloHalfmassRadType"][:,4]
     Nstar = f['/Subhalo/SubhaloLenType'][:,4] 
+    Metal = f["Subhalo/SubhaloStarMetallicity"][:]
+    Vmax = f["Subhalo/SubhaloVmax"][:]
     f.close()
     
     # Some simulations are slightly outside the box, correct it
@@ -54,12 +62,16 @@ def load_catalog(directory, filename):
     pos     = pos[indexes]
     Mstar   = Mstar[indexes]
     Rstar   = Rstar[indexes]
+    Metal   = Metal[indexes]
+    Vmax    = Vmax[indexes]
 
     #Normalization
     Mstar = np.log10(1.+ Mstar)
     Rstar = np.log10(1.+ Rstar)
-    
-    feat = np.vstack((Mstar, Rstar)).T
+    Metal = np.log10(1.+ Metal)
+    Vmax  = np.log10(1.+ Vmax)
+
+    feat = np.vstack((Mstar, Rstar, Metal, Vmax)).T
     feat = np.hstack((pos, feat))
     return pos, feat
 
@@ -80,10 +92,22 @@ class Edge:
         self.features.extend(self.midpoint)
 
     def calculate_distance(self):
-        self.distance = np.linalg.norm(np.array(self.pos[0]) - np.array(self.pos[1]))
+        diff = self.pos[0] - self.pos[1]
+        for i, coord in enumerate(diff):
+            if coord > 0.5:
+                diff[i] -= 1.0 
+            elif coord < -0.5:
+                diff[i] += 1.0
+        self.distance = np.linalg.norm(diff)
+        self.distance = normalize(self.distance, ISDISTANCE)
 
     def calculate_midpoint(self):
-        self.midpoint = np.mean(np.array(self.pos), axis=0)
+        self.midpoint = np.mean(self.pos, axis=0)
+        for i, coord in enumerate(self.midpoint):
+            if coord > 1.0:
+                self.midpoint[i] -= 1.0
+            elif coord < 0.0:
+                self.midpoint[i] += 1.0
 
     def __repr__(self):
         return f"Edge(nodes={self.nodes}, pos={self.pos}, features={self.features})"
@@ -112,7 +136,7 @@ class Tetrahedron:
         mat[:, :3] = self.pos
         mat[:, 3] = 1.0
         self.volume = np.abs(np.linalg.det(mat)) / 6
-        self.log_volume = np.log10(self.volume + 1e-20)
+        self.normalized_volume = normalize(self.volume, ISVOLUME)
 
     def calculate_midpoint(self):
         self.midpoint = np.mean(self.pos, axis=0)
@@ -120,7 +144,7 @@ class Tetrahedron:
     def add_features(self):
         self.calculate_volume()
         self.calculate_midpoint()
-        self.features.append(self.log_volume)
+        self.features.append(self.normalized_volume)
         self.features.extend(self.midpoint)
         
     def __repr__(self):
@@ -148,8 +172,8 @@ class Cluster:
             self.volumes.append(tetra.volume)
             self.node_set.update(tetra.nodes)
 
-        self.avg_volume = np.log10(np.mean(self.volumes) + 1e-20)
-        self.std_volume = np.log10( np.std(self.volumes) + 1e-20)
+        self.avg_volume = normalize(np.mean(self.volumes), ISVOLUME)
+        self.std_volume = normalize(np.std(self.volumes), ISVOLUME)
 
     def calculate_centroid(self):
         if self.node_set:
@@ -285,8 +309,10 @@ def create_cc(pos, feat):
 
 def clustering(tetrahedra, scaled_volumes):
     # Perform DBSCAN clustering on the midpoints & scaled volumes
-    embeddings = np.array([np.append(tetra.midpoint, scaled_volumes[i]) for i, tetra in enumerate(tetrahedra)])
-    db = DBSCAN(eps=0.05, min_samples=2).fit(embeddings)
+    #embeddings = np.array([np.append(tetra.midpoint, scaled_volumes[i]) for i, tetra in enumerate(tetrahedra)])
+    global r_link
+    embeddings = np.array([tetra.midpoint for i, tetra in enumerate(tetrahedra)])
+    db = DBSCAN(eps=r_link, min_samples=2).fit(embeddings)
     labels = db.labels_
 
     # Merge tetrahedra within each cluster
