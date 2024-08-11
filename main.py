@@ -26,7 +26,7 @@ def load_and_prepare_data(num_list, data_dir, label_filename, test_size, val_siz
     n0_to_0_list, n1_to_1_list, n2_to_2_list, n3_to_3_list, \
     n0_to_1_list, n1_to_2_list, n2_to_3_list, \
     global_feature_list = load_tensors(
-        num_list, data_dir, label_filename, target_labels
+        num_list, data_dir, label_filename, args, target_labels
     )
     
     logging.info("Normalizing target parameters")

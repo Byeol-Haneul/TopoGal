@@ -27,7 +27,7 @@ def normalize(tensor):
     '''
     
 
-def load_tensors(num_list, data_dir, label_filename, target_labels=None):
+def load_tensors(num_list, data_dir, label_filename, args, target_labels=None):
     label_file = pd.read_csv(label_filename, sep='\s+')
 
     y_list, x_0_list, x_1_list, x_2_list, x_3_list = [], [], [], [], []
@@ -47,7 +47,12 @@ def load_tensors(num_list, data_dir, label_filename, target_labels=None):
             x_1 = normalize(torch.load(os.path.join(data_dir, f"x_1_{num}.pt")))
             x_2 = normalize(torch.load(os.path.join(data_dir, f"x_2_{num}.pt")))
             x_3 = normalize(torch.load(os.path.join(data_dir, f"x_3_{num}.pt")))
-            
+
+            x_0 = x_0[:,:args.in_channels[0]]
+            x_1 = x_1[:,:args.in_channels[1]]
+            x_2 = x_2[:,:args.in_channels[2]]
+            x_3 = x_3[:,:args.in_channels[3]]
+           
             n0_to_0 = normalize(torch.load(os.path.join(data_dir, f"n0_to_0_{num}.pt")))
             n1_to_1 = normalize(torch.load(os.path.join(data_dir, f"n1_to_1_{num}.pt")))
             n2_to_2 = normalize(torch.load(os.path.join(data_dir, f"n2_to_2_{num}.pt")))
