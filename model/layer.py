@@ -171,7 +171,7 @@ class AugmentedHMCLayer(torch.nn.Module):
         x_0_level1 = self.aggr([x_0_to_0, x_1_to_0])
         x_1_level1 = self.aggr([x_0_to_1, x_2_to_1])
         x_2_level1 = self.aggr([x_1_to_2, x_3_to_2])
-        x_3_level1 = self.aggr([x_2_to_3])
+        x_3_level1 = self.aggr([x_2_to_3, x_3_to_3])
 
         # Computing messages from Higher Order Attention Blocks Level 2
         x_0_to_0 = self.hbs_0_level2(x_0_level1, adjacency_0)
@@ -217,7 +217,7 @@ class AugmentedHMC(torch.nn.Module):
                     intermediate_channels=intermediate_channels,
                     out_channels=out_channels,
                     negative_slope=negative_slope,
-                    softmax_attention=True,
+                    softmax_attention=True, # softmax or row norm.
                     update_func_attention=update_func_attention,
                     update_func_aggregation=update_func_aggregation,
                 )

@@ -33,7 +33,7 @@ r_link = 0.015
 # ------------------ #
 
 in_dir = "/data2/jylee/topology/IllustrisTNG/data/"
-out_dir = "/data2/jylee/topology/IllustrisTNG/combinatorial/cc/"
+out_dir = "/data2/jylee/topology/IllustrisTNG/combinatorial/cc_no_tetraedge/"
 
 def normalize(value, isVolume = True):
     global r_link
@@ -231,7 +231,8 @@ def get_all_tetra_edges(pos, tetrahedra):
     for tetra in tetrahedra:
         tetra_edge_set.update(get_single_tetra_edges(pos, tetra))
 
-    return tetra_edge_set
+    #return tetra_edge_set
+    return set()
 
 def get_kdtree_edges(pos, r_link=0.015):
     '''
@@ -247,6 +248,7 @@ def get_kdtree_edges(pos, r_link=0.015):
         edge_obj = Edge([src, dst],pos)
         kdtree_edge_set.add(edge_obj)
 
+    #return kdtree_edge_set
     return kdtree_edge_set
 
 def create_cc(pos, feat):    

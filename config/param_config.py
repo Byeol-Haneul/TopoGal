@@ -12,7 +12,7 @@ PARAM_STATS = {
 
 PARAM_ORDER = ["Omega0", "sigma8", "ASN1", "AAGN1", "ASN2", "AAGN2"]
 
-def normalize_params(y_list: list[torch.tensor], tarpget_labels: list[str]) -> list[torch.tensor]:
+def normalize_params(y_list: list[torch.tensor], target_labels: list[str]) -> list[torch.tensor]:
     norm_y_list = []
     for y in y_list:
         norm_y = torch.zeros_like(y)

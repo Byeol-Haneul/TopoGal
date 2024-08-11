@@ -8,9 +8,9 @@ import sys
 
 # Define your in_channels and file paths
 in_channels = [-1, -1, -1, -1]
-in_dir = "/data2/jylee/topology/IllustrisTNG/combinatorial/cc/"
+in_dir = "/data2/jylee/topology/IllustrisTNG/combinatorial/cc_no_tetraedge/"
 label_filename = "/data2/jylee/topology/CosmoAstroSeed_IllustrisTNG_L25n256_LH.txt"
-output_save_dir = "/data2/jylee/topology/IllustrisTNG/combinatorial/tensors/"
+output_save_dir = "/data2/jylee/topology/IllustrisTNG/combinatorial/tensors_no_tetraedge/"
 
 # Create the directory if it doesn't exist
 os.makedirs(output_save_dir, exist_ok=True)
@@ -52,7 +52,7 @@ def process_num(num):
         
         # Compute adjacency and incidence matrices
         print(f"[LOG] Computing n0_to_0 for num {num}", file=sys.stderr)
-        n0_to_0 = cc.adjacency_matrix(rank=0, via_rank=3) # nodes in the same cluster
+        n0_to_0 = cc.adjacency_matrix(rank=0, via_rank=1) # nodes in the same cluster
         results['n0_to_0'] = torch.from_numpy(n0_to_0.todense()).to_sparse()
 
         print(f"[LOG] Computing n1_to_1 for num {num}", file=sys.stderr)

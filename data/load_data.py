@@ -25,6 +25,7 @@ def normalize(tensor):
         return tensor / max_val
     return tensor
     '''
+    
 
 def load_tensors(num_list, data_dir, label_filename, target_labels=None):
     label_file = pd.read_csv(label_filename, sep='\s+')
