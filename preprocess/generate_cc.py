@@ -27,7 +27,7 @@ ISDISTANCE = False
 
 # --- HYPERPARAMS --- #
 r_link = 0.015
-MINCLUSTER = 10
+MINCLUSTER = 5 #>10 Found no clusters made in some catalogs. 
 
 # --- FEATURES --- #
 # NODES: 7 (x, y, z, Mstar, Rstar, Metal, Vmax)
