@@ -4,6 +4,7 @@ import h5py
 import random
 from itertools import product, combinations
 import sys
+import os 
 
 from scipy.spatial import Delaunay, distance, KDTree
 from sklearn.cluster import DBSCAN
@@ -23,17 +24,22 @@ Nstar_th = 20 # not used
 MASS_CUT = 1e8
 ISVOLUME = True
 ISDISTANCE = False
+
 # --- HYPERPARAMS --- #
 r_link = 0.015
-# FEATURES
-# NODES: 5 (x, y, z, Mstar, Rstar)
+MINCLUSTER = 10
+
+# --- FEATURES --- #
+# NODES: 7 (x, y, z, Mstar, Rstar, Metal, Vmax)
 # EDGES: 4 (distance, mid[x,y,z])
 # TETRA: 4 (volume, mid[x,y,z])
 # CLUSTERS: 8 (avg_volume, std_volume, centroid[x,y,z], std_pos[x,y,z])
 # ------------------ #
 
 in_dir = "/data2/jylee/topology/IllustrisTNG/data/"
-out_dir = "/data2/jylee/topology/IllustrisTNG/combinatorial/cc_no_tetraedge/"
+out_dir = "/data2/jylee/topology/IllustrisTNG/combinatorial/cc_kdtree/"
+
+os.makedirs(out_dir, exist_ok=True)
 
 def normalize(value, isVolume = True):
     global r_link
@@ -314,7 +320,7 @@ def clustering(tetrahedra, scaled_volumes):
     #embeddings = np.array([np.append(tetra.midpoint, scaled_volumes[i]) for i, tetra in enumerate(tetrahedra)])
     global r_link
     embeddings = np.array([tetra.midpoint for i, tetra in enumerate(tetrahedra)])
-    db = DBSCAN(eps=r_link, min_samples=2).fit(embeddings)
+    db = DBSCAN(eps=r_link, min_samples=MINCLUSTER).fit(embeddings)
     labels = db.labels_
 
     # Merge tetrahedra within each cluster
@@ -325,9 +331,12 @@ def clustering(tetrahedra, scaled_volumes):
             continue
         indices = np.where(labels == label)[0]
         merged_tetra = [tetrahedra[idx] for idx in indices]
-        
-        cluster = Cluster(label, merged_tetra, scaled_volumes[indices])
-        clusters[label] = cluster
+
+        if len(merged_tetra)==1:
+            continue # if we do not remove singletons, the existing tetrahedron will be overrided, causing error.
+        else:
+            cluster = Cluster(label, merged_tetra, scaled_volumes[indices])
+            clusters[label] = cluster
 
     print(f"""
     [LOG] We Currently have {len(embeddings)} Tetrahedra.
