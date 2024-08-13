@@ -4,7 +4,7 @@ from torch.nn.parameter import Parameter
 from topomodelx.nn.combinatorial.hmc_layer import sparse_row_norm, HBNS, HBS
 from topomodelx.base.aggregation import Aggregation
 
-class AugmentedHMCLayer(torch.nn.Module):
+class HierLayer(torch.nn.Module):
     def __init__(
         self,
         in_channels: list[int],
@@ -28,9 +28,22 @@ class AugmentedHMCLayer(torch.nn.Module):
         ) = intermediate_channels
         out_channels_0, out_channels_1, out_channels_2, out_channels_3, out_channels_4 = out_channels
 
-        self.hbs_0_level1 = HBS(
-            source_in_channels=in_channels_0,
-            source_out_channels=intermediate_channels_0,
+        for inter, out in zip(intermediate_channels, out_channels):
+            assert inter==out
+
+        ## LEVEL 1
+        self.hbs_1_level1 = HBS(
+            source_in_channels=in_channels_1,
+            source_out_channels=intermediate_channels_1,
+            negative_slope=negative_slope,
+            softmax=softmax_attention,
+            update_func=update_func_attention,
+            initialization=initialization,
+        )
+
+        self.hbs_2_level1 = HBS(
+            source_in_channels=in_channels_2,
+            source_out_channels=intermediate_channels_2,
             negative_slope=negative_slope,
             softmax=softmax_attention,
             update_func=update_func_attention,
@@ -40,6 +53,15 @@ class AugmentedHMCLayer(torch.nn.Module):
         self.hbs_3_level1 = HBS(
             source_in_channels=in_channels_3,
             source_out_channels=intermediate_channels_3,
+            negative_slope=negative_slope,
+            softmax=softmax_attention,
+            update_func=update_func_attention,
+            initialization=initialization,
+        )
+
+        self.hbs_4_level1 = HBS(
+            source_in_channels=in_channels_4,
+            source_out_channels=intermediate_channels_4,
             negative_slope=negative_slope,
             softmax=softmax_attention,
             update_func=update_func_attention,
@@ -90,9 +112,10 @@ class AugmentedHMCLayer(torch.nn.Module):
             initialization=initialization,
         )
 
-        self.hbs_0_level2 = HBS(
-            source_in_channels=intermediate_channels_0,
-            source_out_channels=out_channels_0,
+        ## LEVEL 2
+        self.hbs_2_level2 = HBS(
+            source_in_channels=intermediate_channels_2,
+            source_out_channels=intermediate_channels_2,
             negative_slope=negative_slope,
             softmax=softmax_attention,
             update_func=update_func_attention,
@@ -101,27 +124,7 @@ class AugmentedHMCLayer(torch.nn.Module):
 
         self.hbs_3_level2 = HBS(
             source_in_channels=intermediate_channels_3,
-            source_out_channels=out_channels_3,
-            negative_slope=negative_slope,
-            softmax=softmax_attention,
-            update_func=update_func_attention,
-            initialization=initialization,
-        )
-
-        self.hbns_0_1_level2 = HBNS(
-            source_in_channels=intermediate_channels_1,
-            source_out_channels=out_channels_1,
-            target_in_channels=intermediate_channels_0,
-            target_out_channels=out_channels_0,
-            negative_slope=negative_slope,
-            softmax=softmax_attention,
-            update_func=update_func_attention,
-            initialization=initialization,
-        )
-
-        self.hbs_1_level2 = HBS(
-            source_in_channels=intermediate_channels_1,
-            source_out_channels=out_channels_1,
+            source_out_channels=intermediate_channels_3,
             negative_slope=negative_slope,
             softmax=softmax_attention,
             update_func=update_func_attention,
@@ -130,18 +133,9 @@ class AugmentedHMCLayer(torch.nn.Module):
 
         self.hbns_1_2_level2 = HBNS(
             source_in_channels=intermediate_channels_2,
-            source_out_channels=out_channels_2,
+            source_out_channels=intermediate_channels_2,
             target_in_channels=intermediate_channels_1,
-            target_out_channels=out_channels_1,
-            negative_slope=negative_slope,
-            softmax=softmax_attention,
-            update_func=update_func_attention,
-            initialization=initialization,
-        )
-
-        self.hbs_2_level2 = HBS(
-            source_in_channels=intermediate_channels_2,
-            source_out_channels=out_channels_2,
+            target_out_channels=intermediate_channels_1,
             negative_slope=negative_slope,
             softmax=softmax_attention,
             update_func=update_func_attention,
@@ -149,6 +143,37 @@ class AugmentedHMCLayer(torch.nn.Module):
         )
 
         self.hbns_2_3_level2 = HBNS(
+            source_in_channels=intermediate_channels_3,
+            source_out_channels=intermediate_channels_3,
+            target_in_channels=intermediate_channels_2,
+            target_out_channels=intermediate_channels_2,
+            negative_slope=negative_slope,
+            softmax=softmax_attention,
+            update_func=update_func_attention,
+            initialization=initialization,
+        )
+
+        self.hbns_3_4_level2 = HBNS(
+            source_in_channels=intermediate_channels_4,
+            source_out_channels=intermediate_channels_4,
+            target_in_channels=intermediate_channels_3,
+            target_out_channels=intermediate_channels_3,
+            negative_slope=negative_slope,
+            softmax=softmax_attention,
+            update_func=update_func_attention,
+            initialization=initialization,
+        )
+        ## LEVEL 3
+        self.hbs_3_level3 = HBS(
+            source_in_channels=intermediate_channels_3,
+            source_out_channels=out_channels_3,
+            negative_slope=negative_slope,
+            softmax=softmax_attention,
+            update_func=update_func_attention,
+            initialization=initialization,
+        )
+
+        self.hbns_2_3_level3 = HBNS(
             source_in_channels=intermediate_channels_3,
             source_out_channels=out_channels_3,
             target_in_channels=intermediate_channels_2,
@@ -159,7 +184,7 @@ class AugmentedHMCLayer(torch.nn.Module):
             initialization=initialization,
         )
 
-        self.hbns_3_4_level2 = HBNS(
+        self.hbns_3_4_level3 = HBNS(
             source_in_channels=intermediate_channels_4,
             source_out_channels=out_channels_4,
             target_in_channels=intermediate_channels_3,
@@ -169,49 +194,52 @@ class AugmentedHMCLayer(torch.nn.Module):
             update_func=update_func_attention,
             initialization=initialization,
         )
-
         self.aggr = Aggregation(aggr_func="mean", update_func=update_func_aggregation)
 
     def forward(
         self,
         x_0, x_1, x_2, x_3, x_4,
-        adjacency_0, adjacency_1, adjacency_2, adjacency_3,
+        adjacency_0, adjacency_1, adjacency_2, adjacency_3, adjacency_4,
         incidence_1, incidence_2, incidence_3, incidence_4
     ):
         # Computing messages from Higher Order Attention Blocks Level 1
-        x_0_to_0 = self.hbs_0_level1(x_0, adjacency_0)
+        x_1_to_1 = self.hbs_1_level1(x_1, adjacency_1)
+        x_2_to_2 = self.hbs_2_level1(x_2, adjacency_2)
         x_3_to_3 = self.hbs_3_level1(x_3, adjacency_3)
-        x_0_to_1, x_1_to_0 = self.hbns_0_1_level1(x_1, x_0, incidence_1)
-        x_1_to_2, x_2_to_1 = self.hbns_1_2_level1(x_2, x_1, incidence_2)
-        x_2_to_3, x_3_to_2 = self.hbns_2_3_level1(x_3, x_2, incidence_3)
-        x_3_to_4, x_4_to_3 = self.hbns_3_4_level1(x_4, x_3, incidence_4)
+        x_4_to_4 = self.hbs_4_level1(x_4, adjacency_4)
 
-        x_0_level1 = self.aggr([x_0_to_0, x_1_to_0])
-        x_1_level1 = self.aggr([x_0_to_1, x_2_to_1])
-        x_2_level1 = self.aggr([x_1_to_2, x_3_to_2])
-        x_3_level1 = self.aggr([x_2_to_3, x_4_to_3])
-        x_4_level1 = self.aggr([x_3_to_4])
+        x_0_to_1, _ = self.hbns_0_1_level1(x_1, x_0, incidence_1)
+        x_1_to_2, _ = self.hbns_1_2_level1(x_2, x_1, incidence_2)
+        x_2_to_3, _ = self.hbns_2_3_level1(x_3, x_2, incidence_3)
+        x_3_to_4, _ = self.hbns_3_4_level1(x_4, x_3, incidence_4)
+
+        x_1_level1 = self.aggr([x_0_to_1, x_1_to_1])
+        x_2_level1 = self.aggr([x_1_to_2, x_2_to_2])
+        x_3_level1 = self.aggr([x_2_to_3, x_3_to_3])
+        x_4_level1 = self.aggr([x_3_to_4, x_4_to_4])
 
         # Computing messages from Higher Order Attention Blocks Level 2
-        x_0_to_0 = self.hbs_0_level2(x_0_level1, adjacency_0)
-        x_1_to_1 = self.hbs_1_level2(x_1_level1, adjacency_1)
         x_2_to_2 = self.hbs_2_level2(x_2_level1, adjacency_2)
         x_3_to_3 = self.hbs_3_level2(x_3_level1, adjacency_3)
 
-        x_0_to_1, _ = self.hbns_0_1_level2(x_1_level1, x_0_level1, incidence_1)
         x_1_to_2, _ = self.hbns_1_2_level2(x_2_level1, x_1_level1, incidence_2)
         x_2_to_3, _ = self.hbns_2_3_level2(x_3_level1, x_2_level1, incidence_3)
-        x_3_to_4, _ = self.hbns_3_4_level2(x_4_level1, x_3_level1, incidence_4)
+        _, x_4_to_3 = self.hbns_3_4_level2(x_4_level1, x_3_level1, incidence_4)
 
-        x_0_level2 = self.aggr([x_0_to_0])
-        x_1_level2 = self.aggr([x_0_to_1, x_1_to_1])
         x_2_level2 = self.aggr([x_1_to_2, x_2_to_2])
-        x_3_level2 = self.aggr([x_2_to_3, x_3_to_3])
-        x_4_level2 = self.aggr([x_3_to_4])
+        x_3_level2 = self.aggr([x_2_to_3, x_3_to_3, x_4_to_3])
+        x_4_level2 = x_4_level1
 
-        return x_0_level2, x_1_level2, x_2_level2, x_3_level2, x_4_level2
+        # Computing messages from Higher Order Attention Blocks Level 3
+        x_3_to_3 = self.hbs_3_level3(x_3_level2, adjacency_3)
 
-class AugmentedHMC(torch.nn.Module):
+        x_2_to_3, _ = self.hbns_2_3_level3(x_3_level2, x_2_level2, incidence_3)
+        _, x_4_to_3 = self.hbns_3_4_level3(x_4_level2, x_3_level2, incidence_4)
+
+        x_3_level3 = self.aggr([x_2_to_3, x_3_to_3, x_4_to_3])        
+        return x_0, x_1_level1, x_2_level2, x_3_level2, x_4_level2
+
+class HierHMC(torch.nn.Module):
     def __init__(
         self,
         channels_per_layer,
@@ -233,7 +261,7 @@ class AugmentedHMC(torch.nn.Module):
         check_channels_consistency()
         self.layers = torch.nn.ModuleList(
             [
-                AugmentedHMCLayer(
+                HierLayer(
                     in_channels=in_channels,
                     intermediate_channels=intermediate_channels,
                     out_channels=out_channels,
@@ -249,13 +277,13 @@ class AugmentedHMC(torch.nn.Module):
     def forward(
         self,
         x_0, x_1, x_2, x_3, x_4,
-        neighborhood_0_to_0, neighborhood_1_to_1, neighborhood_2_to_2, neighborhood_3_to_3,
+        neighborhood_0_to_0, neighborhood_1_to_1, neighborhood_2_to_2, neighborhood_3_to_3, neighborhood_4_to_4,
         neighborhood_0_to_1, neighborhood_1_to_2, neighborhood_2_to_3, neighborhood_3_to_4,
     ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:
         for layer in self.layers:
             x_0, x_1, x_2, x_3, x_4 = layer(
                 x_0, x_1, x_2, x_3, x_4, 
-                neighborhood_0_to_0, neighborhood_1_to_1, neighborhood_2_to_2, neighborhood_3_to_3,
+                neighborhood_0_to_0, neighborhood_1_to_1, neighborhood_2_to_2, neighborhood_3_to_3, neighborhood_4_to_4,
                 neighborhood_0_to_1, neighborhood_1_to_2, neighborhood_2_to_3, neighborhood_3_to_4,
             )
 

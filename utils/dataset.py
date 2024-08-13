@@ -2,26 +2,24 @@ import torch
 from torch.utils.data import Dataset
 
 class CustomDataset(Dataset):
-    def __init__(self, data):
+    def __init__(self, data, feature_names):
+        """
+        Args:
+            data (list of tuples): List of samples where each sample is a tuple containing all features and target.
+            feature_names (list of str): List of feature names in the order they appear in the tuples.
+        """
         self.data = data
+        self.feature_names = feature_names
 
     def __len__(self):
         return len(self.data)
 
     def __getitem__(self, idx):
         sample = self.data[idx]
-        y = sample[0]
-        x_0, x_1, x_2, x_3 = sample[1:5]
-        n0_to_0, n1_to_1, n2_to_2, n3_to_3, n0_to_1, n1_to_2, n2_to_3, global_feature = sample[5:]
         
-        return {
-            'y': y,
-            'x_0': x_0, 'x_1': x_1, 'x_2': x_2, 'x_3': x_3,
-            'n0_to_0': n0_to_0, 'n1_to_1': n1_to_1, 'n2_to_2': n2_to_2, 'n3_to_3': n3_to_3,
-            'n0_to_1': n0_to_1, 'n1_to_2': n1_to_2, 'n2_to_3': n2_to_3, 
-            'global_feature': global_feature
-        }
-
+        # Dynamically construct the feature dictionary
+        feature_dict = {name: sample[i] for i, name in enumerate(self.feature_names)}
+        return feature_dict
 
 
 def pad_sparse_tensors(tensors):

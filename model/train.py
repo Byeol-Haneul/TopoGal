@@ -29,6 +29,9 @@ def load_checkpoint(model, optimizer, path, device):
         logging.error(f"No checkpoint found at {path}")
         return model, optimizer, 0, float('inf')
 
+def batch_to_device(batch, device):
+    return {key: tensor.float().to(device) for key, tensor in batch.items()}
+
 def train(model, train_loader, val_loader, test_loader, loss_fn, opt, args, checkpoint_path):
     # args setting
     num_epochs, test_interval, device = args.num_epochs, args.test_interval, args.device,
@@ -50,22 +53,11 @@ def train(model, train_loader, val_loader, test_loader, loss_fn, opt, args, chec
         model.train()
         
         for batch_idx, batch in enumerate(train_loader):
-            x_0 = batch['x_0'].float().to(device)
-            x_1 = batch['x_1'].float().to(device)
-            x_2 = batch['x_2'].float().to(device)
-            x_3 = batch['x_3'].float().to(device)
-            n0_to_0 = batch['n0_to_0'].float().to(device)
-            n1_to_1 = batch['n1_to_1'].float().to(device)
-            n2_to_2 = batch['n2_to_2'].float().to(device)
-            n3_to_3 = batch['n3_to_3'].float().to(device)
-            n0_to_1 = batch['n0_to_1'].float().to(device)
-            n1_to_2 = batch['n1_to_2'].float().to(device)
-            n2_to_3 = batch['n2_to_3'].float().to(device)
-            global_feature = batch['global_feature'].float().to(device)
-            y = batch['y'].float().to(device)
+            batch = batch_to_device(batch, device)
+            y = batch['y']
             
             opt.zero_grad()
-            y_hat = model(x_0, x_1, x_2, x_3, n0_to_0, n1_to_1, n2_to_2, n3_to_3, n0_to_1, n1_to_2, n2_to_3, global_feature)
+            y_hat = model(batch)
 
             loss = loss_fn(y_hat, y)
             loss.backward()
@@ -113,21 +105,10 @@ def validate(model, val_loader, loss_fn, device, epoch_i):
     val_loss = []
     with torch.no_grad():
         for batch_idx, batch in enumerate(val_loader):
-            x_0 = batch['x_0'].float().to(device)
-            x_1 = batch['x_1'].float().to(device)
-            x_2 = batch['x_2'].float().to(device)
-            x_3 = batch['x_3'].float().to(device)
-            n0_to_0 = batch['n0_to_0'].float().to(device)
-            n1_to_1 = batch['n1_to_1'].float().to(device)
-            n2_to_2 = batch['n2_to_2'].float().to(device)
-            n3_to_3 = batch['n3_to_3'].float().to(device)
-            n0_to_1 = batch['n0_to_1'].float().to(device)
-            n1_to_2 = batch['n1_to_2'].float().to(device)
-            n2_to_3 = batch['n2_to_3'].float().to(device)
-            global_feature = batch['global_feature'].float().to(device)
-            y = batch['y'].float().to(device)
-            
-            y_hat = model(x_0, x_1, x_2, x_3, n0_to_0, n1_to_1, n2_to_2, n3_to_3, n0_to_1, n1_to_2, n2_to_3, global_feature)
+            batch = batch_to_device(batch, device)
+            y = batch['y']
+        
+            y_hat = model(batch)
             loss = loss_fn(y_hat, y)
             val_loss.append(loss.item())
             logging.debug(f"Epoch: {epoch_i}, Validation Iteration: {batch_idx + 1}, Loss: {loss.item():.4f}")
@@ -140,21 +121,10 @@ def evaluate(model, test_loader, device, pred_filename, target_labels):
     real_values = []
     with torch.no_grad():
         for batch_idx, batch in enumerate(test_loader):
-            x_0 = batch['x_0'].float().to(device)
-            x_1 = batch['x_1'].float().to(device)
-            x_2 = batch['x_2'].float().to(device)
-            x_3 = batch['x_3'].float().to(device)
-            n0_to_0 = batch['n0_to_0'].float().to(device)
-            n1_to_1 = batch['n1_to_1'].float().to(device)
-            n2_to_2 = batch['n2_to_2'].float().to(device)
-            n3_to_3 = batch['n3_to_3'].float().to(device)
-            n0_to_1 = batch['n0_to_1'].float().to(device)
-            n1_to_2 = batch['n1_to_2'].float().to(device)
-            n2_to_3 = batch['n2_to_3'].float().to(device)
-            global_feature = batch['global_feature'].float().to(device)
-            y = batch['y'].float().to(device)
+            batch = batch_to_device(batch, device)
+            y = batch['y']
 
-            y_hat = model(x_0, x_1, x_2, x_3, n0_to_0, n1_to_1, n2_to_2, n3_to_3, n0_to_1, n1_to_2, n2_to_3, global_feature)
+            y_hat = model(batch)
             predictions.extend(y_hat.cpu().numpy())
             real_values.append(y.cpu().numpy())
             logging.debug(f"Test Iteration: {batch_idx + 1}, Real: {y.cpu().numpy()}, Pred: {y_hat.cpu().numpy()}")

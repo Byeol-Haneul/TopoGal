@@ -2,7 +2,7 @@ import torch
 import logging
 from torch.utils.data import DataLoader
 from data.load_data import load_tensors, split_data
-from model.network import Network
+from model.network import Network, HierNetwork
 from model.train import train, evaluate, save_checkpoint, load_checkpoint
 from utils.dataset import CustomDataset, custom_collate_fn
 from config.config import args
@@ -19,53 +19,43 @@ def implicit_likelihood_loss(output, target):
     loss = torch.log(loss_mse) + torch.log(loss_ili)
     return torch.mean(loss)
 
-def load_and_prepare_data(num_list, data_dir, label_filename, test_size, val_size, target_labels):
+def load_and_prepare_data(num_list, data_dir, label_filename, test_size, val_size, target_labels, feature_sets):
     logging.info(f"Loading tensors for {len(num_list)} samples from {data_dir}")
     
-    y_list, x_0_list, x_1_list, x_2_list, x_3_list, \
-    n0_to_0_list, n1_to_1_list, n2_to_2_list, n3_to_3_list, \
-    n0_to_1_list, n1_to_2_list, n2_to_3_list, \
-    global_feature_list = load_tensors(
-        num_list, data_dir, label_filename, args, target_labels
+    tensor_dict = load_tensors(
+        num_list, data_dir, label_filename, args, target_labels, feature_sets
     )
     
     logging.info("Normalizing target parameters")
-    y_list = normalize_params(y_list, target_labels)
+    tensor_dict['y'] = normalize_params(tensor_dict['y'], target_labels)
     
     logging.info("Splitting data into train, validation, and test sets")
-    (y_train, y_val, y_test), (x_0_train, x_0_val, x_0_test), (x_1_train, x_1_val, x_1_test), \
-    (x_2_train, x_2_val, x_2_test), (x_3_train, x_3_val, x_3_test), \
-    (n0_to_0_train, n0_to_0_val, n0_to_0_test), (n1_to_1_train, n1_to_1_val, n1_to_1_test), \
-    (n2_to_2_train, n2_to_2_val, n2_to_2_test), (n3_to_3_train, n3_to_3_val, n3_to_3_test), \
-    (n0_to_1_train, n0_to_1_val, n0_to_1_test), (n1_to_2_train, n1_to_2_val, n1_to_2_test), \
-    (n2_to_3_train, n2_to_3_val, n2_to_3_test), (global_feature_train, global_feature_val, global_feature_test) = split_data(
-        y_list, x_0_list, x_1_list, x_2_list, x_3_list, 
-        n0_to_0_list, n1_to_1_list, n2_to_2_list, n3_to_3_list, 
-        n0_to_1_list, n1_to_2_list, n2_to_3_list, 
-        global_feature_list,
-        test_size=test_size, val_size=val_size
+    train_data = {}
+    val_data = {}
+    test_data = {}
+    
+    train_idx, val_idx, test_idx = split_data(
+        num_list, test_size=test_size, val_size=val_size
     )
-    
-    train_data = list(zip(y_train, x_0_train, x_1_train, x_2_train, x_3_train, 
-                          n0_to_0_train, n1_to_1_train, n2_to_2_train, n3_to_3_train, 
-                          n0_to_1_train, n1_to_2_train, n2_to_3_train,
-                          global_feature_train))
-    val_data = list(zip(y_val, x_0_val, x_1_val, x_2_val, x_3_val, 
-                        n0_to_0_val, n1_to_1_val, n2_to_2_val, n3_to_3_val, 
-                        n0_to_1_val, n1_to_2_val, n2_to_3_val,
-                        global_feature_train))
-    test_data = list(zip(y_test, x_0_test, x_1_test, x_2_test, x_3_test, 
-                         n0_to_0_test, n1_to_1_test, n2_to_2_test, n3_to_3_test, 
-                         n0_to_1_test, n1_to_2_test, n2_to_3_test,
-                         global_feature_train))
-    
-    logging.info(f"Created train dataset with {len(train_data)} samples")
-    logging.info(f"Created validation dataset with {len(val_data)} samples")
-    logging.info(f"Created test dataset with {len(test_data)} samples")
 
-    train_dataset = CustomDataset(train_data)
-    val_dataset = CustomDataset(val_data)
-    test_dataset = CustomDataset(test_data)
+    for feature in feature_sets + ['y']:
+        feature_data = tensor_dict[feature]
+        train_data[feature] = [feature_data[i] for i in train_idx]
+        val_data[feature] = [feature_data[i] for i in val_idx]
+        test_data[feature] = [feature_data[i] for i in test_idx]
+
+    
+    train_tuples = list(zip(*[train_data[feature] for feature in feature_sets + ['y']]))
+    val_tuples = list(zip(*[val_data[feature] for feature in feature_sets + ['y']]))
+    test_tuples = list(zip(*[test_data[feature] for feature in feature_sets + ['y']]))
+
+    logging.info(f"Created train dataset with {len(train_tuples)} samples")
+    logging.info(f"Created validation dataset with {len(val_tuples)} samples")
+    logging.info(f"Created test dataset with {len(test_tuples)} samples")
+    
+    train_dataset = CustomDataset(train_tuples, feature_sets + ['y'])
+    val_dataset = CustomDataset(val_tuples, feature_sets + ['y'])
+    test_dataset = CustomDataset(test_tuples, feature_sets + ['y'])
     
     return train_dataset, val_dataset, test_dataset
 
@@ -80,13 +70,21 @@ def initialize_model(args):
     logging.info(f"Model architecture: {channels_per_layer}")
     logging.info("Initializing model")
     final_output_layer = len(args.target_labels) * 2
-    model = Network(channels_per_layer, final_output_layer).to(args.device) 
+
+    if args.modelType == "Hier":
+        model = HierNetwork(channels_per_layer, final_output_layer).to(args.device)
+    elif args.modelType == "Normal":
+        model = Network(channels_per_layer, final_output_layer).to(args.device) 
+    else:
+        raise Exception("Invalid Model Type. Current Available Options are [Hier, Normal]")
     return model
 
 def main(args):
     logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(levelname)s - %(message)s', 
                         handlers=[logging.FileHandler(args.checkpoint_dir + '/' + 'training.log'), logging.StreamHandler()])
 
+    logging.info(f"Arguments: {vars(args)}")
+    
     num_list = [i for i in range(1000)]
 
     os.environ["CUDA_DEVICE_ORDER"]="PCI_BUS_ID"
@@ -95,7 +93,7 @@ def main(args):
     
     # Load and prepare data
     train_dataset, val_dataset, test_dataset = load_and_prepare_data(
-        num_list, args.data_dir, args.label_filename, args.test_size, args.val_size, target_labels=args.target_labels
+        num_list, args.data_dir, args.label_filename, args.test_size, args.val_size, target_labels=args.target_labels, feature_sets = args.feature_sets
     )
     
     # Define and Initialize model
@@ -103,7 +101,7 @@ def main(args):
     
     # Define loss function and optimizer
     loss_fn = implicit_likelihood_loss
-    opt = torch.optim.Adam(model.parameters(), lr=args.learning_rate)
+    opt = torch.optim.Adam(model.parameters(), lr=args.learning_rate, weight_decay=args.weight_decay)
     
     # Define checkpoint path
     checkpoint_path = os.path.join(args.checkpoint_dir, 'model_checkpoint.pth')

@@ -26,7 +26,7 @@ ISVOLUME = True
 ISDISTANCE = False
 
 # --- HYPERPARAMS --- #
-r_link = 0.015
+r_link = 0.01
 MINCLUSTER = 7 #>10 Found no clusters made in some catalogs. 
 
 # ---- FEATURES ---- #
@@ -38,7 +38,7 @@ MINCLUSTER = 7 #>10 Found no clusters made in some catalogs.
 # ------------------ #
 
 in_dir = "/data2/jylee/topology/IllustrisTNG/data/"
-out_dir = "/data2/jylee/topology/IllustrisTNG/combinatorial/cc_kdtree/"
+out_dir = "/data2/jylee/topology/IllustrisTNG/combinatorial/cc_low/"
 
 os.makedirs(out_dir, exist_ok=True)
 
