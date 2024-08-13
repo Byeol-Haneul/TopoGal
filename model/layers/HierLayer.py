@@ -200,7 +200,10 @@ class HierLayer(torch.nn.Module):
         self,
         x_0, x_1, x_2, x_3, x_4,
         adjacency_0, adjacency_1, adjacency_2, adjacency_3, adjacency_4,
-        incidence_1, incidence_2, incidence_3, incidence_4
+        incidence_0_1, incidence_0_2, incidence_0_3, incidence_0_4,
+        incidence_1_2, incidence_1_3, incidence_1_4,
+        incidence_2_3, incidence_2_4,
+        incidence_3_4
     ):
         # Computing messages from Higher Order Attention Blocks Level 1
         x_1_to_1 = self.hbs_1_level1(x_1, adjacency_1)
@@ -208,10 +211,10 @@ class HierLayer(torch.nn.Module):
         x_3_to_3 = self.hbs_3_level1(x_3, adjacency_3)
         x_4_to_4 = self.hbs_4_level1(x_4, adjacency_4)
 
-        x_0_to_1, _ = self.hbns_0_1_level1(x_1, x_0, incidence_1)
-        x_1_to_2, _ = self.hbns_1_2_level1(x_2, x_1, incidence_2)
-        x_2_to_3, _ = self.hbns_2_3_level1(x_3, x_2, incidence_3)
-        x_3_to_4, _ = self.hbns_3_4_level1(x_4, x_3, incidence_4)
+        x_0_to_1, _ = self.hbns_0_1_level1(x_1, x_0, incidence_0_1)
+        x_1_to_2, _ = self.hbns_1_2_level1(x_2, x_1, incidence_1_2)
+        x_2_to_3, _ = self.hbns_2_3_level1(x_3, x_2, incidence_2_3)
+        x_3_to_4, _ = self.hbns_3_4_level1(x_4, x_3, incidence_3_4)
 
         x_1_level1 = self.aggr([x_0_to_1, x_1_to_1])
         x_2_level1 = self.aggr([x_1_to_2, x_2_to_2])
@@ -222,9 +225,9 @@ class HierLayer(torch.nn.Module):
         x_2_to_2 = self.hbs_2_level2(x_2_level1, adjacency_2)
         x_3_to_3 = self.hbs_3_level2(x_3_level1, adjacency_3)
 
-        x_1_to_2, _ = self.hbns_1_2_level2(x_2_level1, x_1_level1, incidence_2)
-        x_2_to_3, _ = self.hbns_2_3_level2(x_3_level1, x_2_level1, incidence_3)
-        _, x_4_to_3 = self.hbns_3_4_level2(x_4_level1, x_3_level1, incidence_4)
+        x_1_to_2, _ = self.hbns_1_2_level2(x_2_level1, x_1_level1, incidence_1_2)
+        x_2_to_3, _ = self.hbns_2_3_level2(x_3_level1, x_2_level1, incidence_2_3)
+        _, x_4_to_3 = self.hbns_3_4_level2(x_4_level1, x_3_level1, incidence_3_4)
 
         x_2_level2 = self.aggr([x_1_to_2, x_2_to_2])
         x_3_level2 = self.aggr([x_2_to_3, x_3_to_3, x_4_to_3])
@@ -233,59 +236,8 @@ class HierLayer(torch.nn.Module):
         # Computing messages from Higher Order Attention Blocks Level 3
         x_3_to_3 = self.hbs_3_level3(x_3_level2, adjacency_3)
 
-        x_2_to_3, _ = self.hbns_2_3_level3(x_3_level2, x_2_level2, incidence_3)
-        _, x_4_to_3 = self.hbns_3_4_level3(x_4_level2, x_3_level2, incidence_4)
+        x_2_to_3, _ = self.hbns_2_3_level3(x_3_level2, x_2_level2, incidence_2_3)
+        _, x_4_to_3 = self.hbns_3_4_level3(x_4_level2, x_3_level2, incidence_3_4)
 
-        x_3_level3 = self.aggr([x_2_to_3, x_3_to_3, x_4_to_3])        
-        return x_0, x_1_level1, x_2_level2, x_3_level2, x_4_level2
-
-class HierHMC(torch.nn.Module):
-    def __init__(
-        self,
-        channels_per_layer,
-        negative_slope=0.2,
-        update_func_attention="relu",
-        update_func_aggregation="relu",
-    ) -> None:
-        def check_channels_consistency():
-            """Check that the number of input, intermediate, and output channels is consistent."""
-            assert len(channels_per_layer) > 0
-            for i in range(len(channels_per_layer) - 1):
-                assert channels_per_layer[i][2][0] == channels_per_layer[i + 1][0][0]
-                assert channels_per_layer[i][2][1] == channels_per_layer[i + 1][0][1]
-                assert channels_per_layer[i][2][2] == channels_per_layer[i + 1][0][2]
-                assert channels_per_layer[i][2][3] == channels_per_layer[i + 1][0][3]
-
-
-        super().__init__()
-        check_channels_consistency()
-        self.layers = torch.nn.ModuleList(
-            [
-                HierLayer(
-                    in_channels=in_channels,
-                    intermediate_channels=intermediate_channels,
-                    out_channels=out_channels,
-                    negative_slope=negative_slope,
-                    softmax_attention=True, # softmax or row norm.
-                    update_func_attention=update_func_attention,
-                    update_func_aggregation=update_func_aggregation,
-                )
-                for in_channels, intermediate_channels, out_channels in channels_per_layer
-            ]
-        )
-
-    def forward(
-        self,
-        x_0, x_1, x_2, x_3, x_4,
-        neighborhood_0_to_0, neighborhood_1_to_1, neighborhood_2_to_2, neighborhood_3_to_3, neighborhood_4_to_4,
-        neighborhood_0_to_1, neighborhood_1_to_2, neighborhood_2_to_3, neighborhood_3_to_4,
-    ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:
-        for layer in self.layers:
-            x_0, x_1, x_2, x_3, x_4 = layer(
-                x_0, x_1, x_2, x_3, x_4, 
-                neighborhood_0_to_0, neighborhood_1_to_1, neighborhood_2_to_2, neighborhood_3_to_3, neighborhood_4_to_4,
-                neighborhood_0_to_1, neighborhood_1_to_2, neighborhood_2_to_3, neighborhood_3_to_4,
-            )
-
-
-        return x_0, x_1, x_2, x_3, x_4
+        x_3_level3 = self.aggr([x_2_to_3, x_3_to_3, x_4_to_3])     
+        return x_0, x_1_level1, x_2_level2, x_3_level3, x_4_level2

@@ -2,7 +2,7 @@ import torch
 import logging
 from torch.utils.data import DataLoader
 from data.load_data import load_tensors, split_data
-from model.network import Network, HierNetwork
+from model.network import Network
 from model.train import train, evaluate, save_checkpoint, load_checkpoint
 from utils.dataset import CustomDataset, custom_collate_fn
 from config.config import args
@@ -71,12 +71,7 @@ def initialize_model(args):
     logging.info("Initializing model")
     final_output_layer = len(args.target_labels) * 2
 
-    if args.modelType == "Hier":
-        model = HierNetwork(channels_per_layer, final_output_layer).to(args.device)
-    elif args.modelType == "Normal":
-        model = Network(channels_per_layer, final_output_layer).to(args.device) 
-    else:
-        raise Exception("Invalid Model Type. Current Available Options are [Hier, Normal]")
+    model = Network(args.layerType, channels_per_layer, final_output_layer).to(args.device)
     return model
 
 def main(args):
