@@ -57,6 +57,26 @@ def process_num(num):
         
         print(f"[LOG] Processing adjacency and incidence matrices for num {num}", file=sys.stderr)
         
+        # ADJACENCY
+        print(f"[LOG] Computing n0_to_0 for num {num}", file=sys.stderr)
+        n0_to_0 = cc.adjacency_matrix(rank=0, via_rank=1) # nodes in the same cluster
+        results['n0_to_0'] = torch.from_numpy(n0_to_0.todense()).to_sparse()
+
+        print(f"[LOG] Computing n1_to_1 for num {num}", file=sys.stderr)
+        n1_to_1 = cc.adjacency_matrix(rank=1, via_rank=2)
+        results['n1_to_1'] = torch.from_numpy(n1_to_1.todense()).to_sparse()
+
+        print(f"[LOG] Computing n2_to_2 (adjacency) for num {num}", file=sys.stderr)
+        n2_to_2 = cc.adjacency_matrix(rank=2, via_rank=3)
+        results['n2_to_2'] = torch.from_numpy(n2_to_2.todense()).to_sparse()
+
+        print(f"[LOG] Computing n3_to_3 (adjacency) for num {num}", file=sys.stderr)
+        n3_to_3 = cc.adjacency_matrix(rank=3, via_rank=4) # Clusters sharing edges
+        results['n3_to_3'] = torch.from_numpy(n3_to_3.todense()).to_sparse()
+
+        print(f"[LOG] Computing n4_to_4 (coadjacency) for num {num}", file=sys.stderr)
+        n4_to_4 = cc.coadjacency_matrix(rank=4, via_rank=3) # Clusters sharing edges
+        results['n4_to_4'] = torch.from_numpy(n4_to_4.todense()).to_sparse()
 
         ## INCIDENCE
         print(f"[LOG] Computing n0_to_1 for num {num}", file=sys.stderr)
@@ -99,6 +119,12 @@ def process_num(num):
         n3_to_4 = cc.incidence_matrix(rank=3, to_rank=4)
         results['n3_to_4'] = torch.from_numpy(n3_to_4.todense()).to_sparse()
         
+        print(f"[LOG] Global feature for num {num}", file=sys.stderr)
+        feature_list = [results[f'x_{i}'].shape[0] for i in range(5)]
+        global_feature = torch.tensor(feature_list, dtype=torch.float32).unsqueeze(0)  # Shape [1, 5]
+        global_feature = torch.log10(global_feature + 1)
+        results['global_feature'] = global_feature
+
         print(f"[LOG] Global feature for num {num}", file=sys.stderr)
         feature_list = [results[f'x_{i}'].shape[0] for i in range(5)]
         global_feature = torch.tensor(feature_list, dtype=torch.float32).unsqueeze(0)  # Shape [1, 5]
