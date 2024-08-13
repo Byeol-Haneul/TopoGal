@@ -7,7 +7,7 @@ import sys
 import os 
 
 from scipy.spatial import Delaunay, distance, KDTree
-from sklearn.cluster import DBSCAN
+from sklearn.cluster import DBSCAN, HDBSCAN
 from sklearn.preprocessing import StandardScaler
 
 import networkx as nx
@@ -16,7 +16,7 @@ from toponetx.classes.combinatorial_complex import CombinatorialComplex
 from toponetx.readwrite.serialization import to_pickle
 from toponetx.readwrite.serialization import load_from_pickle
 
-# --- CONSTANTS --- #
+# ---- CONSTANTS ---- #
 BOXSIZE = 25e3
 DIM = 3
 MASS_UNIT = 1e10
@@ -27,13 +27,14 @@ ISDISTANCE = False
 
 # --- HYPERPARAMS --- #
 r_link = 0.015
-MINCLUSTER = 5 #>10 Found no clusters made in some catalogs. 
+MINCLUSTER = 7 #>10 Found no clusters made in some catalogs. 
 
-# --- FEATURES --- #
-# NODES: 7 (x, y, z, Mstar, Rstar, Metal, Vmax)
-# EDGES: 4 (distance, mid[x,y,z])
-# TETRA: 4 (volume, mid[x,y,z])
-# CLUSTERS: 8 (avg_volume, std_volume, centroid[x,y,z], std_pos[x,y,z])
+# ---- FEATURES ---- #
+# NODES:        7 (x, y, z, Mstar, Rstar, Metal, Vmax)
+# EDGES:        4 (distance, mid[x,y,z])
+# TETRA:        4 (volume, mid[x,y,z])
+# CLUSTERS:     8 (avg_volume, std_volume, centroid[x,y,z], std_pos[x,y,z])
+# HYPERCLUSTER: 3 (distance, num_galaxies_cluster1, num_galaxies_cluster2)
 # ------------------ #
 
 in_dir = "/data2/jylee/topology/IllustrisTNG/data/"
@@ -204,6 +205,36 @@ class Cluster:
     def __repr__(self):
         return f"Cluster(label={self.label}, merged_volume={self.merged_volume}, features={self.features})"
 
+class Hypercluster:
+    def __init__(self, cluster1, cluster2, dist):
+        self.cluster1_label = cluster1.label
+        self.cluster2_label = cluster2.label
+        self.node_set = cluster1.node_set | cluster2.node_set
+        
+        self.distance = normalize(dist, ISDISTANCE)
+        self.num_nodes_cluster1 = np.log10(len(cluster1.node_set)+1)
+        self.num_nodes_cluster2 = np.log10(len(cluster2.node_set)+1)
+
+        self.features = [self.distance, self.num_nodes_cluster1, self.num_nodes_cluster2]
+
+    def __repr__(self):
+        return f"Hypercluster(cluster1={self.cluster1_label}, cluster2={self.cluster2_label}, features={self.features})"
+
+
+def create_mst(clusters):
+    centroids = np.array([cluster.centroid for cluster in clusters.values()])
+    labels = list(clusters.keys())
+    dist_matrix = distance.cdist(centroids, centroids, 'euclidean')
+
+    G = nx.Graph()
+    for i in range(len(labels)):
+        for j in range(i + 1, len(labels)):
+            G.add_edge(labels[i], labels[j], weight=dist_matrix[i, j])
+
+    mst = nx.minimum_spanning_tree(G)
+    return mst
+
+
 def get_tetrahedra(pos, feat):
     # Generate Delaunay triangulation
     tri = Delaunay(pos)
@@ -257,7 +288,10 @@ def get_kdtree_edges(pos, r_link=0.015):
     #return kdtree_edge_set
     return kdtree_edge_set
 
-def create_cc(pos, feat):    
+def create_cc(in_dir, in_filename):    
+    # Read in data
+    pos, feat = load_catalog(in_dir, in_filename)
+
     # 1. Get Tetrahedra
     tetrahedra, scaled_volumes = get_tetrahedra(pos, feat)
     
@@ -268,24 +302,40 @@ def create_cc(pos, feat):
     
     # 3. Clustering on Tetrahedra
     clusters = clustering(tetrahedra, scaled_volumes)
+
+    # 4. Get Hyperclusters using MST
+    hyperclusters = {}
+    mst = create_mst(clusters)
+    for edge in mst.edges(data=True):
+        cluster1_label = edge[0]
+        cluster2_label = edge[1]
+        dist = edge[2]['weight']
+
+        cluster1 = clusters[cluster1_label]
+        cluster2 = clusters[cluster2_label]
+
+        hypercluster_label = f"hyper_{cluster1_label}_{cluster2_label}"
+        hypercluster = Hypercluster(cluster1, cluster2, dist)
+        hyperclusters[hypercluster_label] = hypercluster
     
+    ##########################
     NUMPOINTS = pos.shape[0]
     NUMEDGES = len(edge_set)
     NUMTETRA = len(tetrahedra)
     
-    # 4. Generate Combinatorial Complex
+    # 5. Generate Combinatorial Complex
     print(f"""[LOG] We will select {NUMEDGES} edges and {NUMTETRA} tetra""", file=sys.stderr)
     print(f"""[LOG] Edges from tetra {len(tetra_edge_set)} and KDTree {len(kdtree_edge_set)} with {len(tetra_edge_set & kdtree_edge_set)} edges in common.""", file=sys.stderr)
 
     cc = CombinatorialComplex()
 
-    ## 4-1 ADD NODES ##
+    ## 5-1 ADD NODES ##
     for node, node_data in zip(list(range(NUMPOINTS)), feat):
         cc.add_cell([node], rank=0)
     
     node_data = {num: feat[num] for num in range(NUMPOINTS)}
 
-    ## 4-2 ADD EDGES ##
+    ## 5-2 ADD EDGES ##
     sorted_edge_objects = sorted(list(edge_set), key=lambda e: e.distance if e.features else float('inf'))
     sorted_edges = sorted_edge_objects[:NUMEDGES]
 
@@ -294,7 +344,7 @@ def create_cc(pos, feat):
     
     edge_data = {edge.nodes: edge.features for edge in sorted_edges}
 
-    ## 4-3 ADD TETRA ##
+    ## 5-3 ADD TETRA ##
     sorted_tetra = tetrahedra[:NUMTETRA]
 
     for tetra in sorted_tetra:
@@ -302,48 +352,78 @@ def create_cc(pos, feat):
 
     tetra_data = {tuple(tetra.nodes): tetra.features for tetra in sorted_tetra}  # Using volume as data
 
-    ## 4-4 ADD Clusters ##
+    ## 5-4 ADD Clusters ##
     for cluster in clusters.values():
         cc.add_cell(list(cluster.node_set), rank=3)
 
     cluster_data = {tuple(cluster.node_set): cluster.features for cluster in clusters.values()}
+
+    # 5-5 ADD HyperCluster ##
+    for hypercluster in hyperclusters.values():
+        cc.add_cell(list(hypercluster.node_set), rank=4)
+
+    hypercluster_data = {tuple(hypercluster.node_set): hypercluster.features for hypercluster in hyperclusters.values()}
 
     # ADD CELL ATTRIBUTES
     cc.set_cell_attributes(node_data, name="node_feat")
     cc.set_cell_attributes(edge_data, name="edge_feat")
     cc.set_cell_attributes(tetra_data, name="tetra_feat")
     cc.set_cell_attributes(cluster_data, name="cluster_feat")
+    cc.set_cell_attributes(hypercluster_data, name="hypercluster_feat")
     return cc
 
+def remove_subset_clusters(clusters):
+    to_remove = set()
+    cluster_labels = list(clusters.keys())
+
+    for i in range(len(cluster_labels)):
+        for j in range(len(cluster_labels)):
+            if i == j:
+                continue
+
+            A = clusters[cluster_labels[i]].node_set
+            B = clusters[cluster_labels[j]].node_set
+
+            if A & B == A or A & B == B:
+                if len(A) <= len(B):
+                    to_remove.add(cluster_labels[i])
+                else:
+                    to_remove.add(cluster_labels[j])
+
+    for label in to_remove:
+        del clusters[label]
+
+    print(f"[LOG] Removed {len(to_remove)} subset clusters.")
+    return clusters
+
 def clustering(tetrahedra, scaled_volumes):
-    # Perform DBSCAN clustering on the midpoints & scaled volumes
-    #embeddings = np.array([np.append(tetra.midpoint, scaled_volumes[i]) for i, tetra in enumerate(tetrahedra)])
     global r_link
     embeddings = np.array([tetra.midpoint for i, tetra in enumerate(tetrahedra)])
-    db = DBSCAN(eps=r_link, min_samples=MINCLUSTER).fit(embeddings)
+    db = HDBSCAN(min_samples=MINCLUSTER).fit(embeddings)
     labels = db.labels_
 
-    # Merge tetrahedra within each cluster
     clusters = {}
     for label in set(labels):
         if label == -1:
-            # Ignore noise points
             continue
         indices = np.where(labels == label)[0]
         merged_tetra = [tetrahedra[idx] for idx in indices]
 
-        if len(merged_tetra)==1:
-            continue # if we do not remove singletons, the existing tetrahedron will be overrided, causing error.
+        if len(merged_tetra) == 1:
+            continue
         else:
             cluster = Cluster(label, merged_tetra, scaled_volumes[indices])
             clusters[label] = cluster
+
+    # Remove subset clusters
+    clusters = remove_subset_clusters(clusters)
 
     print(f"""
     [LOG] We Currently have {len(embeddings)} Tetrahedra.
     [LOG] Generated {len(clusters)} Clusters of Tetrahedra. 
     [LOG] Mean number of nodes per cluster is {np.mean([len(cluster.node_set) for cluster in clusters.values()])}
     [LOG] Max number of nodes per cluster is {np.max([len(cluster.node_set) for cluster in clusters.values()])} and the number is {np.argmax([len(cluster.node_set) for cluster in clusters.values()])}""", file=sys.stderr)
-    
+
     return clusters
 
 def main():
@@ -366,8 +446,7 @@ def main():
         in_filename = f"data_{num}.hdf5"
         out_filename = f"data_{num}.pickle"
 
-        pos, feat = load_catalog(in_dir, in_filename)
-        cc = create_cc(pos, feat)
+        cc = create_cc(in_dir, in_filename)
 
         print(f"""[LOG] Process {rank}: Created combinatorial complex for file {in_filename}""", file=sys.stderr)
         to_pickle(cc, out_dir + out_filename)
@@ -402,8 +481,7 @@ def main2():
         in_filename = f"data_{num}.hdf5"
         out_filename = f"data_{num}.pickle"
 
-        pos, feat = load_catalog(in_dir, in_filename)
-        cc = create_cc(pos, feat)
+        cc = create_cc(in_dir, in_filename)
 
         print(f"[LOG] Process {rank}: Created combinatorial complex for file {in_filename}", file=sys.stderr)
         to_pickle(cc, out_dir + out_filename)

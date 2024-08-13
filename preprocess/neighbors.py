@@ -7,7 +7,7 @@ import os
 import sys
 
 # Define your in_channels and file paths
-in_channels = [-1, -1, -1, -1]
+in_channels = [-1, -1, -1, -1, -1]
 in_dir = "/data2/jylee/topology/IllustrisTNG/combinatorial/cc_kdtree/"
 label_filename = "/data2/jylee/topology/CosmoAstroSeed_IllustrisTNG_L25n256_LH.txt"
 output_save_dir = "/data2/jylee/topology/IllustrisTNG/combinatorial/tensors_kdtree/"
@@ -47,37 +47,63 @@ def process_num(num):
         in_channels[3] = len(x_3[0])
         x_3 = torch.tensor(np.stack(x_3)).reshape(-1, in_channels[3])
         results['x_3'] = x_3
+
+        print(f"[LOG] Processing cluster features for num {num}", file=sys.stderr)
+        x_4 = list(cc.get_cell_attributes("hypercluster_feat").values())
+        in_channels[4] = len(x_4[0])
+        x_4 = torch.tensor(np.stack(x_4)).reshape(-1, in_channels[4])
+        results['x_4'] = x_4
+        
         
         print(f"[LOG] Processing adjacency and incidence matrices for num {num}", file=sys.stderr)
         
-        # Compute adjacency and incidence matrices
-        print(f"[LOG] Computing n0_to_0 for num {num}", file=sys.stderr)
-        n0_to_0 = cc.adjacency_matrix(rank=0, via_rank=1) # nodes in the same cluster
-        results['n0_to_0'] = torch.from_numpy(n0_to_0.todense()).to_sparse()
 
-        print(f"[LOG] Computing n1_to_1 for num {num}", file=sys.stderr)
-        n1_to_1 = cc.adjacency_matrix(rank=1, via_rank=2)
-        results['n1_to_1'] = torch.from_numpy(n1_to_1.todense()).to_sparse()
-
-        print(f"[LOG] Computing n2_to_2 (coadjacency) for num {num}", file=sys.stderr)
-        n2_to_2 = cc.coadjacency_matrix(rank=2, via_rank=1)
-        results['n2_to_2'] = torch.from_numpy(n2_to_2.todense()).to_sparse()
-
+        ## INCIDENCE
         print(f"[LOG] Computing n0_to_1 for num {num}", file=sys.stderr)
         n0_to_1 = cc.incidence_matrix(rank=0, to_rank=1)
         results['n0_to_1'] = torch.from_numpy(n0_to_1.todense()).to_sparse()
+
+        print(f"[LOG] Computing n0_to_2 for num {num}", file=sys.stderr)
+        n0_to_2 = cc.incidence_matrix(rank=0, to_rank=2)
+        results['n0_to_2'] = torch.from_numpy(n0_to_2.todense()).to_sparse()
+        
+        print(f"[LOG] Computing n0_to_3 for num {num}", file=sys.stderr)
+        n0_to_3 = cc.incidence_matrix(rank=0, to_rank=3)
+        results['n0_to_3'] = torch.from_numpy(n0_to_3.todense()).to_sparse()
+
+        print(f"[LOG] Computing n0_to_4 for num {num}", file=sys.stderr)
+        n0_to_4 = cc.incidence_matrix(rank=0, to_rank=4)
+        results['n0_to_4'] = torch.from_numpy(n0_to_4.todense()).to_sparse()
 
         print(f"[LOG] Computing n1_to_2 for num {num}", file=sys.stderr)
         n1_to_2 = cc.incidence_matrix(rank=1, to_rank=2)
         results['n1_to_2'] = torch.from_numpy(n1_to_2.todense()).to_sparse()
         
+        print(f"[LOG] Computing n1_to_3 for num {num}", file=sys.stderr)
+        n1_to_3 = cc.incidence_matrix(rank=1, to_rank=3)
+        results['n1_to_3'] = torch.from_numpy(n1_to_3.todense()).to_sparse()
+
+        print(f"[LOG] Computing n1_to_4 for num {num}", file=sys.stderr)
+        n1_to_4 = cc.incidence_matrix(rank=1, to_rank=4)
+        results['n1_to_4'] = torch.from_numpy(n1_to_4.todense()).to_sparse()
+
         print(f"[LOG] Computing n2_to_3 for num {num}", file=sys.stderr)
         n2_to_3 = cc.incidence_matrix(rank=2, to_rank=3)
         results['n2_to_3'] = torch.from_numpy(n2_to_3.todense()).to_sparse()
 
-        print(f"[LOG] Computing n3_to_3 (coadjacency) for num {num}", file=sys.stderr)
-        n3_to_3 = cc.coadjacency_matrix(rank=3, via_rank=1) # Clusters sharing edges
-        results['n3_to_3'] = torch.from_numpy(n3_to_3.todense()).to_sparse()
+        print(f"[LOG] Computing n2_to_4 for num {num}", file=sys.stderr)
+        n2_to_4 = cc.incidence_matrix(rank=2, to_rank=4)
+        results['n2_to_4'] = torch.from_numpy(n2_to_4.todense()).to_sparse()
+
+        print(f"[LOG] Computing n3_to_4 for num {num}", file=sys.stderr)
+        n3_to_4 = cc.incidence_matrix(rank=3, to_rank=4)
+        results['n3_to_4'] = torch.from_numpy(n3_to_4.todense()).to_sparse()
+        
+        print(f"[LOG] Global feature for num {num}", file=sys.stderr)
+        feature_list = [results[f'x_{i}'].shape[0] for i in range(5)]
+        global_feature = torch.tensor(feature_list, dtype=torch.float32).unsqueeze(0)  # Shape [1, 5]
+        global_feature = torch.log10(global_feature + 1)
+        results['global_feature'] = global_feature
 
         # Save results
         for key, tensor in results.items():
