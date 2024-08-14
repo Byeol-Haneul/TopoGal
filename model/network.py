@@ -3,7 +3,7 @@ from torch import nn
 from .layers import AugmentedHMCLayer, HierLayer, GNNLayer, MasterLayer 
 
 class Network(nn.Module):
-    def __init__(self, layerType, channels_per_layer, final_output_layer):
+    def __init__(self, layerType, channels_per_layer, final_output_layer, attention_flag: bool = False):
         super().__init__()
         '''
         Base Model: Higher Order Attention Network for Mesh Classification ()
@@ -20,20 +20,16 @@ class Network(nn.Module):
             (2023) https://arxiv.org/abs/2206.00606.
         '''
         self.layerType = layerType
-        self.base_model = CustomHMC(layerType, channels_per_layer)        
-        
-        # Compute the penultimate layer output size
+        self.base_model = CustomHMC(layerType, channels_per_layer, attention_flag=attention_flag)        
         penultimate_layer = channels_per_layer[-1][-1][0]
-        num_aggregators = 3 # sum, max, min, avg
-        num_ranks_pooling = 1      # rank 0~4
+        num_aggregators = 4         # sum, max, min, avg
+        num_ranks_pooling = 1       # rank 0~4
         
         # Global feature size
-        global_feature_size = 4  # x_0.shape[0], x_1.shape[0], x_2.shape[0], x_3.shape[0]
+        global_feature_size = 4     # x_0.shape[0], x_1.shape[0], x_2.shape[0], x_3.shape[0]
 
-        # Define fully connected layers with LeakyReLU activations
-        self.fc1 = nn.Linear(
-            penultimate_layer * num_ranks_pooling * num_aggregators + global_feature_size, 512
-        )  # Adjust input size for concatenated features + global features
+        # FCL
+        self.fc1 = nn.Linear(penultimate_layer * num_ranks_pooling * num_aggregators + global_feature_size, 512) 
         self.leaky_relu1 = nn.LeakyReLU(negative_slope=0.01)
         self.fc2 = nn.Linear(512, 256)
         self.leaky_relu2 = nn.LeakyReLU(negative_slope=0.01)
@@ -42,7 +38,6 @@ class Network(nn.Module):
         self.fc4 = nn.Linear(128, final_output_layer)
 
     def forward(self, batch) -> torch.Tensor:
-   # Extract from Dict
         # features
         x_0 = batch['x_0']
         x_1 = batch['x_1']
@@ -84,9 +79,10 @@ class Network(nn.Module):
 
         def global_aggregations(x):
             x_avg = torch.mean(x, dim=0, keepdim=True)
+            x_sum = torch.sum(x, dim=0, keepdim=True)
             x_max, _ = torch.max(x, dim=0, keepdim=True)
             x_min, _ = torch.min(x, dim=0, keepdim=True)
-            x = torch.cat((x_avg, x_max, x_min), dim=1)
+            x = torch.cat((x_avg, x_sum, x_max, x_min), dim=1)
             return x
         
         # Apply global aggregations to each feature set
@@ -121,6 +117,7 @@ class CustomHMC(torch.nn.Module):
         negative_slope=0.2,
         update_func_attention="relu",
         update_func_aggregation="relu",
+        attention_flag: bool = False
     ) -> None:
         def check_channels_consistency():
             """Check that the number of input, intermediate, and output channels is consistent."""
@@ -157,6 +154,7 @@ class CustomHMC(torch.nn.Module):
                     softmax_attention=True, # softmax or row norm.
                     update_func_attention=update_func_attention,
                     update_func_aggregation=update_func_aggregation,
+                    attention_flag=attention_flag,
                 )
                 for in_channels, intermediate_channels, out_channels in channels_per_layer
             ]

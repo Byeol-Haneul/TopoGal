@@ -71,7 +71,7 @@ def initialize_model(args):
     logging.info("Initializing model")
     final_output_layer = len(args.target_labels) * 2
 
-    model = Network(args.layerType, channels_per_layer, final_output_layer).to(args.device)
+    model = Network(args.layerType, channels_per_layer, final_output_layer, args.attention_flag).to(args.device)
     return model
 
 def main(args):

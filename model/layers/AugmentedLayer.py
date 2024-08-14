@@ -1,7 +1,7 @@
 import torch
 import torch.nn.functional as F
 from torch.nn.parameter import Parameter
-from topomodelx.nn.combinatorial.hmc_layer import sparse_row_norm, HBNS, HBS
+from .BaseLayer import sparse_row_norm, HBNS, HBS
 from topomodelx.base.aggregation import Aggregation
 
 class AugmentedHMCLayer(torch.nn.Module):
@@ -15,6 +15,7 @@ class AugmentedHMCLayer(torch.nn.Module):
         update_func_attention=None,
         update_func_aggregation=None,
         initialization="xavier_uniform",
+        attention_flag: bool = False
     ):
         super().__init__()
 
@@ -35,6 +36,7 @@ class AugmentedHMCLayer(torch.nn.Module):
             softmax=softmax_attention,
             update_func=update_func_attention,
             initialization=initialization,
+            attention_flag=attention_flag
         )
 
         self.hbs_3_level1 = HBS(
@@ -44,6 +46,7 @@ class AugmentedHMCLayer(torch.nn.Module):
             softmax=softmax_attention,
             update_func=update_func_attention,
             initialization=initialization,
+            attention_flag=attention_flag
         )
 
         self.hbns_0_1_level1 = HBNS(
@@ -55,6 +58,7 @@ class AugmentedHMCLayer(torch.nn.Module):
             softmax=softmax_attention,
             update_func=update_func_attention,
             initialization=initialization,
+            attention_flag=attention_flag
         )
 
         self.hbns_1_2_level1 = HBNS(
@@ -66,6 +70,7 @@ class AugmentedHMCLayer(torch.nn.Module):
             softmax=softmax_attention,
             update_func=update_func_attention,
             initialization=initialization,
+            attention_flag=attention_flag
         )
 
         self.hbns_2_3_level1 = HBNS(
@@ -77,6 +82,7 @@ class AugmentedHMCLayer(torch.nn.Module):
             softmax=softmax_attention,
             update_func=update_func_attention,
             initialization=initialization,
+            attention_flag=attention_flag
         )
 
         self.hbns_3_4_level1 = HBNS(
@@ -88,6 +94,7 @@ class AugmentedHMCLayer(torch.nn.Module):
             softmax=softmax_attention,
             update_func=update_func_attention,
             initialization=initialization,
+            attention_flag=attention_flag
         )
 
         self.hbs_0_level2 = HBS(
@@ -97,6 +104,7 @@ class AugmentedHMCLayer(torch.nn.Module):
             softmax=softmax_attention,
             update_func=update_func_attention,
             initialization=initialization,
+            attention_flag=attention_flag
         )
 
         self.hbs_3_level2 = HBS(
@@ -106,6 +114,7 @@ class AugmentedHMCLayer(torch.nn.Module):
             softmax=softmax_attention,
             update_func=update_func_attention,
             initialization=initialization,
+            attention_flag=attention_flag
         )
 
         self.hbns_0_1_level2 = HBNS(
@@ -117,6 +126,7 @@ class AugmentedHMCLayer(torch.nn.Module):
             softmax=softmax_attention,
             update_func=update_func_attention,
             initialization=initialization,
+            attention_flag=attention_flag
         )
 
         self.hbs_1_level2 = HBS(
@@ -126,6 +136,7 @@ class AugmentedHMCLayer(torch.nn.Module):
             softmax=softmax_attention,
             update_func=update_func_attention,
             initialization=initialization,
+            attention_flag=attention_flag
         )
 
         self.hbns_1_2_level2 = HBNS(
@@ -137,6 +148,7 @@ class AugmentedHMCLayer(torch.nn.Module):
             softmax=softmax_attention,
             update_func=update_func_attention,
             initialization=initialization,
+            attention_flag=attention_flag
         )
 
         self.hbs_2_level2 = HBS(
@@ -146,6 +158,7 @@ class AugmentedHMCLayer(torch.nn.Module):
             softmax=softmax_attention,
             update_func=update_func_attention,
             initialization=initialization,
+            attention_flag=attention_flag
         )
 
         self.hbns_2_3_level2 = HBNS(
@@ -157,6 +170,7 @@ class AugmentedHMCLayer(torch.nn.Module):
             softmax=softmax_attention,
             update_func=update_func_attention,
             initialization=initialization,
+            attention_flag=attention_flag
         )
 
         self.hbns_3_4_level2 = HBNS(
@@ -168,6 +182,7 @@ class AugmentedHMCLayer(torch.nn.Module):
             softmax=softmax_attention,
             update_func=update_func_attention,
             initialization=initialization,
+            attention_flag=attention_flag
         )
 
         self.aggr = Aggregation(aggr_func="mean", update_func=update_func_aggregation)

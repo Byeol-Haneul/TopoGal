@@ -1,7 +1,7 @@
 import torch
 import torch.nn.functional as F
 from torch.nn.parameter import Parameter
-from topomodelx.nn.combinatorial.hmc_layer import sparse_row_norm, HBNS, HBS
+from .BaseLayer import sparse_row_norm, HBNS, HBS
 from topomodelx.base.aggregation import Aggregation
 
 class MasterLayer(torch.nn.Module):
@@ -15,6 +15,7 @@ class MasterLayer(torch.nn.Module):
         update_func_attention=None,
         update_func_aggregation=None,
         initialization="xavier_uniform",
+        attention_flag: bool = False
     ):
         super().__init__()
 
@@ -37,6 +38,7 @@ class MasterLayer(torch.nn.Module):
             softmax=softmax_attention,
             update_func=update_func_attention,
             initialization=initialization,
+            attention_flag=attention_flag
         )
         self.hbs_1_level1 = HBS(
             source_in_channels=in_channels_1,
@@ -45,6 +47,7 @@ class MasterLayer(torch.nn.Module):
             softmax=softmax_attention,
             update_func=update_func_attention,
             initialization=initialization,
+            attention_flag=attention_flag
         )
         self.hbs_2_level1 = HBS(
             source_in_channels=in_channels_2,
@@ -53,6 +56,7 @@ class MasterLayer(torch.nn.Module):
             softmax=softmax_attention,
             update_func=update_func_attention,
             initialization=initialization,
+            attention_flag=attention_flag
         )
         self.hbs_3_level1 = HBS(
             source_in_channels=in_channels_3,
@@ -61,6 +65,7 @@ class MasterLayer(torch.nn.Module):
             softmax=softmax_attention,
             update_func=update_func_attention,
             initialization=initialization,
+            attention_flag=attention_flag
         )
         self.hbs_4_level1 = HBS(
             source_in_channels=in_channels_4,
@@ -69,6 +74,7 @@ class MasterLayer(torch.nn.Module):
             softmax=softmax_attention,
             update_func=update_func_attention,
             initialization=initialization,
+            attention_flag=attention_flag
         )
 
         # Incidence Blocks (HBNS) for Level 1
@@ -83,6 +89,7 @@ class MasterLayer(torch.nn.Module):
             softmax=softmax_attention,
             update_func=update_func_attention,
             initialization=initialization,
+            attention_flag=attention_flag
         )
         self.hbns_0_to_2_level1 = HBNS(
             source_in_channels=in_channels_2,
@@ -93,6 +100,7 @@ class MasterLayer(torch.nn.Module):
             softmax=softmax_attention,
             update_func=update_func_attention,
             initialization=initialization,
+            attention_flag=attention_flag
         )
         self.hbns_0_to_3_level1 = HBNS(
             source_in_channels=in_channels_3,
@@ -103,6 +111,7 @@ class MasterLayer(torch.nn.Module):
             softmax=softmax_attention,
             update_func=update_func_attention,
             initialization=initialization,
+            attention_flag=attention_flag
         )
         self.hbns_0_to_4_level1 = HBNS(
             source_in_channels=in_channels_4,
@@ -113,6 +122,7 @@ class MasterLayer(torch.nn.Module):
             softmax=softmax_attention,
             update_func=update_func_attention,
             initialization=initialization,
+            attention_flag=attention_flag
         )
 
         # n1_to_2, n1_to_3, n1_to_4
@@ -125,6 +135,7 @@ class MasterLayer(torch.nn.Module):
             softmax=softmax_attention,
             update_func=update_func_attention,
             initialization=initialization,
+            attention_flag=attention_flag
         )
         self.hbns_1_to_3_level1 = HBNS(
             source_in_channels=in_channels_3,
@@ -135,6 +146,7 @@ class MasterLayer(torch.nn.Module):
             softmax=softmax_attention,
             update_func=update_func_attention,
             initialization=initialization,
+            attention_flag=attention_flag
         )
         self.hbns_1_to_4_level1 = HBNS(
             source_in_channels=in_channels_4,
@@ -145,6 +157,7 @@ class MasterLayer(torch.nn.Module):
             softmax=softmax_attention,
             update_func=update_func_attention,
             initialization=initialization,
+            attention_flag=attention_flag
         )
 
         # n2_to_3, n2_to_4
@@ -157,6 +170,7 @@ class MasterLayer(torch.nn.Module):
             softmax=softmax_attention,
             update_func=update_func_attention,
             initialization=initialization,
+            attention_flag=attention_flag
         )
         self.hbns_2_to_4_level1 = HBNS(
             source_in_channels=in_channels_4,
@@ -167,6 +181,7 @@ class MasterLayer(torch.nn.Module):
             softmax=softmax_attention,
             update_func=update_func_attention,
             initialization=initialization,
+            attention_flag=attention_flag
         )
 
         # n3_to_4
@@ -179,6 +194,7 @@ class MasterLayer(torch.nn.Module):
             softmax=softmax_attention,
             update_func=update_func_attention,
             initialization=initialization,
+            attention_flag=attention_flag
         )
 
         # Neighborhood Blocks (HBS) for Level 2
@@ -189,6 +205,7 @@ class MasterLayer(torch.nn.Module):
             softmax=softmax_attention,
             update_func=update_func_aggregation,
             initialization=initialization,
+            attention_flag=attention_flag
         )
         self.hbs_1_level2 = HBS(
             source_in_channels=intermediate_channels_1,
@@ -197,6 +214,7 @@ class MasterLayer(torch.nn.Module):
             softmax=softmax_attention,
             update_func=update_func_aggregation,
             initialization=initialization,
+            attention_flag=attention_flag
         )
         self.hbs_2_level2 = HBS(
             source_in_channels=intermediate_channels_2,
@@ -205,6 +223,7 @@ class MasterLayer(torch.nn.Module):
             softmax=softmax_attention,
             update_func=update_func_aggregation,
             initialization=initialization,
+            attention_flag=attention_flag
         )
         self.hbs_3_level2 = HBS(
             source_in_channels=intermediate_channels_3,
@@ -213,6 +232,7 @@ class MasterLayer(torch.nn.Module):
             softmax=softmax_attention,
             update_func=update_func_aggregation,
             initialization=initialization,
+            attention_flag=attention_flag
         )
         self.hbs_4_level2 = HBS(
             source_in_channels=intermediate_channels_4,
@@ -221,6 +241,7 @@ class MasterLayer(torch.nn.Module):
             softmax=softmax_attention,
             update_func=update_func_aggregation,
             initialization=initialization,
+            attention_flag=attention_flag
         )
 
         # Incidence Blocks (HBNS) for Level 2
@@ -235,6 +256,7 @@ class MasterLayer(torch.nn.Module):
             softmax=softmax_attention,
             update_func=update_func_aggregation,
             initialization=initialization,
+            attention_flag=attention_flag
         )
         self.hbns_0_to_2_level2 = HBNS(
             source_in_channels=intermediate_channels_2,
@@ -245,6 +267,7 @@ class MasterLayer(torch.nn.Module):
             softmax=softmax_attention,
             update_func=update_func_aggregation,
             initialization=initialization,
+            attention_flag=attention_flag
         )
         self.hbns_0_to_3_level2 = HBNS(
             source_in_channels=intermediate_channels_3,
@@ -255,6 +278,7 @@ class MasterLayer(torch.nn.Module):
             softmax=softmax_attention,
             update_func=update_func_aggregation,
             initialization=initialization,
+            attention_flag=attention_flag
         )
         self.hbns_0_to_4_level2 = HBNS(
             source_in_channels=intermediate_channels_4,
@@ -265,6 +289,7 @@ class MasterLayer(torch.nn.Module):
             softmax=softmax_attention,
             update_func=update_func_aggregation,
             initialization=initialization,
+            attention_flag=attention_flag
         )
 
         # n1_to_2, n1_to_3, n1_to_4
@@ -277,6 +302,7 @@ class MasterLayer(torch.nn.Module):
             softmax=softmax_attention,
             update_func=update_func_aggregation,
             initialization=initialization,
+            attention_flag=attention_flag
         )
         self.hbns_1_to_3_level2 = HBNS(
             source_in_channels=intermediate_channels_3,
@@ -287,6 +313,7 @@ class MasterLayer(torch.nn.Module):
             softmax=softmax_attention,
             update_func=update_func_aggregation,
             initialization=initialization,
+            attention_flag=attention_flag
         )
         self.hbns_1_to_4_level2 = HBNS(
             source_in_channels=intermediate_channels_4,
@@ -297,6 +324,7 @@ class MasterLayer(torch.nn.Module):
             softmax=softmax_attention,
             update_func=update_func_aggregation,
             initialization=initialization,
+            attention_flag=attention_flag
         )
 
         # n2_to_3, n2_to_4
@@ -309,6 +337,7 @@ class MasterLayer(torch.nn.Module):
             softmax=softmax_attention,
             update_func=update_func_aggregation,
             initialization=initialization,
+            attention_flag=attention_flag
         )
         self.hbns_2_to_4_level2 = HBNS(
             source_in_channels=intermediate_channels_4,
@@ -319,6 +348,7 @@ class MasterLayer(torch.nn.Module):
             softmax=softmax_attention,
             update_func=update_func_aggregation,
             initialization=initialization,
+            attention_flag=attention_flag
         )
 
         # n3_to_4
@@ -331,6 +361,7 @@ class MasterLayer(torch.nn.Module):
             softmax=softmax_attention,
             update_func=update_func_aggregation,
             initialization=initialization,
+            attention_flag=attention_flag
         )
         self.aggr = Aggregation(aggr_func="mean", update_func=update_func_aggregation)
 

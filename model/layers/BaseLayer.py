@@ -388,7 +388,6 @@ class HBNS(torch.nn.Module):
         )  # [n_source_cells, n_target_cells]
 
         self.target_indices, self.source_indices = neighborhood_s_to_t.indices()
-
         if self.attention_flag:
             s_to_t_attention, t_to_s_attention = self.attention(s_message, t_message)
 
@@ -405,6 +404,7 @@ class HBNS(torch.nn.Module):
                 size=neighborhood_t_to_s.shape,
                 device=self.get_device(),
             )
+
         else:
             neighborhood_s_to_t_att = torch.sparse_coo_tensor(
                 indices=neighborhood_s_to_t.indices(),
