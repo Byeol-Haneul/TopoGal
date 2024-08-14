@@ -77,4 +77,5 @@ class GNNLayer(torch.nn.Module):
         
         x_0_level1 = self.aggr([x_0_to_0, x_1_to_0])
         x_1_level1 = self.aggr([x_0_to_1, x_1_to_1])
+        
         return x_0_level1, x_1_level1, x_2, x_3, x_4

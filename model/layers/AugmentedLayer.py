@@ -185,6 +185,13 @@ class AugmentedHMCLayer(torch.nn.Module):
             attention_flag=attention_flag
         )
 
+        self.fc_0 = torch.nn.Linear(out_channels_0, out_channels_0)
+        self.fc_1 = torch.nn.Linear(out_channels_1, out_channels_1)
+        self.fc_2 = torch.nn.Linear(out_channels_2, out_channels_2)
+        self.fc_3 = torch.nn.Linear(out_channels_3, out_channels_3)
+        self.fc_4 = torch.nn.Linear(out_channels_4, out_channels_4)
+
+        self.leaky_relu = torch.nn.LeakyReLU(negative_slope=negative_slope)
         self.aggr = Aggregation(aggr_func="mean", update_func=update_func_aggregation)
 
     def forward(
@@ -227,4 +234,9 @@ class AugmentedHMCLayer(torch.nn.Module):
         x_3_level2 = self.aggr([x_2_to_3, x_3_to_3])
         x_4_level2 = self.aggr([x_3_to_4])
 
-        return x_0_level2, x_1_level2, x_2_level2, x_3_level2, x_4_level2
+        x_0 = self.leaky_relu(self.fc_0(x_0_level2))
+        x_1 = self.leaky_relu(self.fc_1(x_1_level2))
+        x_2 = self.leaky_relu(self.fc_0(x_2_level2))
+        x_3 = self.leaky_relu(self.fc_1(x_3_level2))        
+        x_4 = self.leaky_relu(self.fc_1(x_4_level2))        
+        return x_0, x_1, x_2, x_3, x_4

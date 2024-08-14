@@ -1,6 +1,6 @@
 import torch
 from torch import nn
-from .layers import AugmentedHMCLayer, HierLayer, GNNLayer, MasterLayer 
+from .layers import AugmentedHMCLayer, HierLayer, GNNLayer, MasterLayer, TestLayer
 
 class Network(nn.Module):
     def __init__(self, layerType, channels_per_layer, final_output_layer, attention_flag: bool = False):
@@ -29,13 +29,20 @@ class Network(nn.Module):
         global_feature_size = 4     # x_0.shape[0], x_1.shape[0], x_2.shape[0], x_3.shape[0]
 
         # FCL
-        self.fc1 = nn.Linear(penultimate_layer * num_ranks_pooling * num_aggregators + global_feature_size, 512) 
-        self.leaky_relu1 = nn.LeakyReLU(negative_slope=0.01)
+        self.fc1 = nn.Linear(penultimate_layer * num_ranks_pooling * num_aggregators + global_feature_size, 512)
+        self.ln1 = nn.LayerNorm(512)
+        self.leaky_relu1 = nn.LeakyReLU(negative_slope=0.2)
+        
         self.fc2 = nn.Linear(512, 256)
-        self.leaky_relu2 = nn.LeakyReLU(negative_slope=0.01)
+        self.ln2 = nn.LayerNorm(256)
+        self.leaky_relu2 = nn.LeakyReLU(negative_slope=0.2)
+        
         self.fc3 = nn.Linear(256, 128)
-        self.leaky_relu3 = nn.LeakyReLU(negative_slope=0.01)
+        self.ln3 = nn.LayerNorm(128)
+        self.leaky_relu3 = nn.LeakyReLU(negative_slope=0.2)
+        
         self.fc4 = nn.Linear(128, final_output_layer)
+
 
     def forward(self, batch) -> torch.Tensor:
         # features
@@ -100,10 +107,13 @@ class Network(nn.Module):
 
         # Forward pass through fully connected layers with LeakyReLU activations
         x = self.fc1(x)
+        x = self.ln1(x)
         x = self.leaky_relu1(x)
         x = self.fc2(x)
+        x = self.ln2(x)
         x = self.leaky_relu2(x)
         x = self.fc3(x)
+        x = self.ln3(x)
         x = self.leaky_relu3(x)
         x = self.fc4(x)
         return x
@@ -116,7 +126,7 @@ class CustomHMC(torch.nn.Module):
         channels_per_layer,
         negative_slope=0.2,
         update_func_attention="relu",
-        update_func_aggregation="relu",
+        update_func_aggregation="tanh", #"relu"
         attention_flag: bool = False
     ) -> None:
         def check_channels_consistency():
@@ -141,6 +151,8 @@ class CustomHMC(torch.nn.Module):
             self.base_layer = GNNLayer
         elif layerType == "Master":
             self.base_layer = MasterLayer
+        elif layerType == "Test":
+            self.base_layer = TestLayer
         else:
             raise Exception("Invalid Model Type. Current Available Options are [Hier, Normal]")
 
@@ -178,6 +190,5 @@ class CustomHMC(torch.nn.Module):
                 neighborhood_2_to_3, neighborhood_2_to_4,
                 neighborhood_3_to_4
             )
-
 
         return x_0, x_1, x_2, x_3, x_4
