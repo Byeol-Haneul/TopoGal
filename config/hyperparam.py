@@ -17,7 +17,7 @@ class HyperparameterTuner:
         num_layers = trial.suggest_int('num_layers', 1, 5)
         learning_rate = trial.suggest_loguniform('learning_rate', 1e-7, 1e-4)
         weight_decay = trial.suggest_loguniform('weight_decay', 1e-8, 1e-4)
-        layer_type = trial.suggest_categorical('layerType', ['GNN', 'Test'])
+        layer_type = trial.suggest_categorical('layerType', ['GNN', 'Normal', 'Master'])
 
         self.args = self.create_args(
             hidden_dim=hidden_dim,

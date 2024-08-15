@@ -31,11 +31,19 @@ class TestLayer(torch.nn.Module):
             attention_flag=attention_flag
         )
 
-        self.hbns_0_1_level1 = HBNS(
+        self.hbs_1_level1 = HBS(
             source_in_channels=in_channels_1,
             source_out_channels=inout_channels_1,
-            target_in_channels=in_channels_0,
-            target_out_channels=inout_channels_0,
+            negative_slope=negative_slope,
+            softmax=softmax_attention,
+            update_func=update_func_attention,
+            initialization=initialization,
+            attention_flag=attention_flag
+        )
+
+        self.hbs_2_level1 = HBS(
+            source_in_channels=in_channels_2,
+            source_out_channels=inout_channels_2,
             negative_slope=negative_slope,
             softmax=softmax_attention,
             update_func=update_func_attention,
@@ -46,6 +54,28 @@ class TestLayer(torch.nn.Module):
         self.hbs_3_level1 = HBS(
             source_in_channels=in_channels_3,
             source_out_channels=inout_channels_3,
+            negative_slope=negative_slope,
+            softmax=softmax_attention,
+            update_func=update_func_attention,
+            initialization=initialization,
+            attention_flag=attention_flag
+        )
+
+        self.hbs_4_level1 = HBS(
+            source_in_channels=in_channels_4,
+            source_out_channels=inout_channels_4,
+            negative_slope=negative_slope,
+            softmax=softmax_attention,
+            update_func=update_func_attention,
+            initialization=initialization,
+            attention_flag=attention_flag
+        )
+
+        self.hbns_0_1_level1 = HBNS(
+            source_in_channels=in_channels_1,
+            source_out_channels=inout_channels_1,
+            target_in_channels=in_channels_0,
+            target_out_channels=inout_channels_0,
             negative_slope=negative_slope,
             softmax=softmax_attention,
             update_func=update_func_attention,
@@ -82,13 +112,20 @@ class TestLayer(torch.nn.Module):
         incidence_3_4
     ):
         x_0_to_0 = self.hbs_0_level1(x_0, adjacency_0)
+        x_1_to_1 = self.hbs_0_level1(x_1, adjacency_1)
+        x_2_to_2 = self.hbs_0_level1(x_2, adjacency_2)
         x_3_to_3 = self.hbs_3_level1(x_3, adjacency_3)
+        x_4_to_4 = self.hbs_3_level1(x_4, adjacency_4)
 
         _, x_1_to_0 = self.hbns_0_1_level1(x_1, x_0, incidence_0_1)
         x_2_to_3, _ = self.hbns_2_3_level1(x_3, x_2, incidence_2_3)
         
         x_0 = self.aggr([x_0_to_0, x_1_to_0])
         x_3 = self.aggr([x_2_to_3, x_3_to_3])
+
+        x_1 = x_1_to_1
+        x_2 = x_2_to_2
+        x_4 = x_4_to_4
 
         x_0 = self.leaky_relu(self.fc_0(x_0))
         x_3 = self.leaky_relu(self.fc_3(x_3))

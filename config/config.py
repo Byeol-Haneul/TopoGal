@@ -4,7 +4,7 @@ from argparse import Namespace
 args = Namespace(
     # Directories
     data_dir="/data2/jylee/topology/IllustrisTNG/combinatorial/tensors/",
-    checkpoint_dir="/data2/jylee/topology/IllustrisTNG/combinatorial/checkpoint19",
+    checkpoint_dir="/data2/jylee/topology/IllustrisTNG/combinatorial/checkpoint20",
     label_filename="/data2/jylee/topology/CosmoAstroSeed_IllustrisTNG_L25n256_LH.txt",
 
 
@@ -12,7 +12,7 @@ args = Namespace(
     in_channels=[7, 4, 4, 8, 3],
     hidden_dim = 64,
     num_layers=3,
-    layerType = "Normal",
+    layerType = "Master",
     attention_flag = False,
     residual_flag = True,
 

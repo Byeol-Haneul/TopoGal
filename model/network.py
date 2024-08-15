@@ -153,7 +153,6 @@ class CustomHMC(torch.nn.Module):
 
         super().__init__()
         check_channels_consistency()
-
         if layerType == "Normal":
             self.base_layer = AugmentedHMCLayer
         elif layerType == "Hier":
@@ -173,7 +172,7 @@ class CustomHMC(torch.nn.Module):
             [
                 self.base_layer(
                     in_channels=in_channels,
-                    inout_channels = inout_channels,
+                    inout_channels=inout_channels,
                     negative_slope=negative_slope,
                     softmax_attention=True, # softmax or row norm.
                     update_func_attention=update_func_attention,
