@@ -60,12 +60,13 @@ def load_and_prepare_data(num_list, data_dir, label_filename, test_size, val_siz
     return train_dataset, val_dataset, test_dataset
 
 def initialize_model(args):
+    inout_channels = [args.hidden_dim] * len(args.in_channels)
     channels_per_layer = [
-        [args.in_channels, args.intermediate_channels, args.inout_channels],
+        [args.in_channels, inout_channels],
     ]
 
     for _ in range(args.num_layers - 1):
-        channels_per_layer.append([args.inout_channels, args.intermediate_channels, args.inout_channels])
+        channels_per_layer.append([inout_channels, inout_channels])
 
     logging.info(f"Model architecture: {channels_per_layer}")
     logging.info("Initializing model")
@@ -87,12 +88,10 @@ def main(args):
     os.environ["CUDA_VISIBLE_DEVICES"]= str(args.device_num)
     args.device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
     
-    # Load and prepare data
     train_dataset, val_dataset, test_dataset = load_and_prepare_data(
         num_list, args.data_dir, args.label_filename, args.test_size, args.val_size, target_labels=args.target_labels, feature_sets = args.feature_sets
     )
     
-    # Define and Initialize model
     model = initialize_model(args) 
     
     # Define loss function and optimizer
@@ -114,13 +113,3 @@ def main(args):
 
 if __name__ == "__main__":
     main(args)
-
-
-
-'''
-# We currently do not support batching
-logging.info(f"Batch Size: {args.batch_size}")
-train_loader = DataLoader(train_dataset, batch_size=args.batch_size, collate_fn=custom_collate_fn)
-val_loader = DataLoader(val_dataset, batch_size=args.batch_size, collate_fn=custom_collate_fn)
-test_loader = DataLoader(test_dataset, batch_size=args.batch_size, collate_fn=custom_collate_fn)
-'''

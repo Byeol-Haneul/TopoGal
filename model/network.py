@@ -20,7 +20,8 @@ class Network(nn.Module):
             (2023) https://arxiv.org/abs/2206.00606.
         '''
         self.layerType = layerType
-        self.base_model = CustomHMC(layerType, channels_per_layer, attention_flag=attention_flag, residual_flag=residual_flag)        
+        self.base_model = CustomHMC(layerType, channels_per_layer, attention_flag=attention_flag, residual_flag=residual_flag)   
+
         penultimate_layer = channels_per_layer[-1][-1][0]
         num_aggregators = 4         # sum, max, min, avg
 
@@ -144,11 +145,11 @@ class CustomHMC(torch.nn.Module):
             """Check that the number of input, intermediate, and output channels is consistent."""
             assert len(channels_per_layer) > 0
             for i in range(len(channels_per_layer) - 1):
-                assert channels_per_layer[i][2][0] == channels_per_layer[i + 1][0][0]
-                assert channels_per_layer[i][2][1] == channels_per_layer[i + 1][0][1]
-                assert channels_per_layer[i][2][2] == channels_per_layer[i + 1][0][2]
-                assert channels_per_layer[i][2][3] == channels_per_layer[i + 1][0][3]
-
+                assert channels_per_layer[i][1][0] == channels_per_layer[i + 1][0][0]
+                assert channels_per_layer[i][1][1] == channels_per_layer[i + 1][0][1]
+                assert channels_per_layer[i][1][2] == channels_per_layer[i + 1][0][2]
+                assert channels_per_layer[i][1][3] == channels_per_layer[i + 1][0][3]
+                assert channels_per_layer[i][1][4] == channels_per_layer[i + 1][0][4]
 
         super().__init__()
         check_channels_consistency()
@@ -172,15 +173,14 @@ class CustomHMC(torch.nn.Module):
             [
                 self.base_layer(
                     in_channels=in_channels,
-                    intermediate_channels=intermediate_channels,
-                    out_channels=out_channels,
+                    inout_channels = inout_channels,
                     negative_slope=negative_slope,
                     softmax_attention=True, # softmax or row norm.
                     update_func_attention=update_func_attention,
                     update_func_aggregation=update_func_aggregation,
                     attention_flag=attention_flag,
                 )
-                for in_channels, intermediate_channels, out_channels in channels_per_layer
+                for in_channels, inout_channels in channels_per_layer
             ]
         )
 

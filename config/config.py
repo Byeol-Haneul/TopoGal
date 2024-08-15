@@ -10,9 +10,8 @@ args = Namespace(
 
     # Model Architecture
     in_channels=[7, 4, 4, 8, 3],
-    intermediate_channels=[64, 64, 64, 64, 64],
-    inout_channels=[64, 64, 64, 64, 64],
-    num_layers=2,
+    hidden_dim = 64,
+    num_layers=3,
     layerType = "GNN",
     attention_flag = False,
     residual_flag = True,
