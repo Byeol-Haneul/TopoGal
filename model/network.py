@@ -3,7 +3,7 @@ from torch import nn
 from .layers import AugmentedHMCLayer, HierLayer, GNNLayer, MasterLayer, TestLayer
 
 class Network(nn.Module):
-    def __init__(self, layerType, channels_per_layer, final_output_layer, attention_flag: bool = False):
+    def __init__(self, layerType, channels_per_layer, final_output_layer, attention_flag: bool = False, residual_flag: bool = True):
         super().__init__()
         '''
         Base Model: Higher Order Attention Network for Mesh Classification ()
@@ -20,10 +20,16 @@ class Network(nn.Module):
             (2023) https://arxiv.org/abs/2206.00606.
         '''
         self.layerType = layerType
-        self.base_model = CustomHMC(layerType, channels_per_layer, attention_flag=attention_flag)        
+        self.base_model = CustomHMC(layerType, channels_per_layer, attention_flag=attention_flag, residual_flag=residual_flag)        
         penultimate_layer = channels_per_layer[-1][-1][0]
         num_aggregators = 4         # sum, max, min, avg
-        num_ranks_pooling = 1       # rank 0~4
+
+        if layerType == "Master":
+            num_ranks_pooling = 5
+        elif layerType == "Test":
+            num_ranks_pooling = 2
+        else:
+            num_ranks_pooling = 1
         
         # Global feature size
         global_feature_size = 4     # x_0.shape[0], x_1.shape[0], x_2.shape[0], x_3.shape[0]
@@ -102,6 +108,10 @@ class Network(nn.Module):
         # Concatenate features from different inputs along with global features
         if self.layerType == "Hier":
             x = torch.cat((x_3, global_feature), dim=1)
+        if self.layerType == "Test":
+            x = torch.cat((x_0, x_3, global_feature), dim=1)
+        elif self.layerType == "Master":
+            x = torch.cat((x_0, x_1, x_2, x_3, x_4, global_feature), dim=1)
         else:
             x = torch.cat((x_0, global_feature), dim=1)
 
@@ -127,7 +137,8 @@ class CustomHMC(torch.nn.Module):
         negative_slope=0.2,
         update_func_attention="relu",
         update_func_aggregation="tanh", #"relu"
-        attention_flag: bool = False
+        attention_flag: bool = False,
+        residual_flag: bool = True
     ) -> None:
         def check_channels_consistency():
             """Check that the number of input, intermediate, and output channels is consistent."""
@@ -156,6 +167,7 @@ class CustomHMC(torch.nn.Module):
         else:
             raise Exception("Invalid Model Type. Current Available Options are [Hier, Normal]")
 
+        self.residual_flag = residual_flag
         self.layers = torch.nn.ModuleList(
             [
                 self.base_layer(
@@ -181,8 +193,8 @@ class CustomHMC(torch.nn.Module):
         neighborhood_2_to_3, neighborhood_2_to_4,
         neighborhood_3_to_4
     ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:
-        for layer in self.layers:
-            x_0, x_1, x_2, x_3, x_4 = layer(
+        for layer_num, layer in enumerate(self.layers):
+            h_0, h_1, h_2, h_3, h_4 = layer(
                 x_0, x_1, x_2, x_3, x_4,
                 neighborhood_0_to_0, neighborhood_1_to_1, neighborhood_2_to_2, neighborhood_3_to_3, neighborhood_4_to_4,
                 neighborhood_0_to_1, neighborhood_0_to_2, neighborhood_0_to_3, neighborhood_0_to_4,
@@ -190,5 +202,13 @@ class CustomHMC(torch.nn.Module):
                 neighborhood_2_to_3, neighborhood_2_to_4,
                 neighborhood_3_to_4
             )
+
+            residual_condition = self.residual_flag and layer_num > 1
+
+            x_0 = h_0 + x_0 if residual_condition else h_0
+            x_1 = h_1 + x_1 if residual_condition else h_1
+            x_2 = h_2 + x_2 if residual_condition else h_2
+            x_3 = h_3 + x_3 if residual_condition else h_3
+            x_4 = h_4 + x_4 if residual_condition else h_4
 
         return x_0, x_1, x_2, x_3, x_4

@@ -38,16 +38,6 @@ class TestLayer(torch.nn.Module):
             attention_flag=attention_flag
         )
 
-        self.hbs_1_level1 = HBS(
-            source_in_channels=in_channels_1,
-            source_out_channels=intermediate_channels_1,
-            negative_slope=negative_slope,
-            softmax=softmax_attention,
-            update_func=update_func_attention,
-            initialization=initialization,
-            attention_flag=attention_flag
-        )
-
         self.hbns_0_1_level1 = HBNS(
             source_in_channels=in_channels_1,
             source_out_channels=intermediate_channels_1,
@@ -60,11 +50,21 @@ class TestLayer(torch.nn.Module):
             attention_flag=attention_flag
         )
 
-        self.hbns_0_3_level1 = HBNS(
+        self.hbs_3_level1 = HBS(
             source_in_channels=in_channels_3,
             source_out_channels=intermediate_channels_3,
-            target_in_channels=in_channels_0,
-            target_out_channels=intermediate_channels_0,
+            negative_slope=negative_slope,
+            softmax=softmax_attention,
+            update_func=update_func_attention,
+            initialization=initialization,
+            attention_flag=attention_flag
+        )
+
+        self.hbns_2_3_level1 = HBNS(
+            source_in_channels=in_channels_3,
+            source_out_channels=intermediate_channels_3,
+            target_in_channels=in_channels_2,
+            target_out_channels=intermediate_channels_2,
             negative_slope=negative_slope,
             softmax=softmax_attention,
             update_func=update_func_attention,
@@ -74,7 +74,7 @@ class TestLayer(torch.nn.Module):
 
         # FCLs after msg passing
         self.fc_0 = torch.nn.Linear(intermediate_channels_0, intermediate_channels_0)
-        self.fc_1 = torch.nn.Linear(intermediate_channels_1, intermediate_channels_1)
+        self.fc_3 = torch.nn.Linear(intermediate_channels_0, intermediate_channels_3)
         self.leaky_relu = torch.nn.LeakyReLU(negative_slope=negative_slope)
 
         self.aggr = Aggregation(aggr_func="sum", update_func=update_func_aggregation)
@@ -89,14 +89,15 @@ class TestLayer(torch.nn.Module):
         incidence_3_4
     ):
         x_0_to_0 = self.hbs_0_level1(x_0, adjacency_0)
-        x_1_to_1 = self.hbs_1_level1(x_1, adjacency_1)
-        x_0_to_1, x_1_to_0 = self.hbns_0_1_level1(x_1, x_0, incidence_0_1)
-        x_0_to_3, x_3_to_0 = self.hbns_0_3_level1(x_3, x_0, incidence_0_3)
+        x_3_to_3 = self.hbs_3_level1(x_3, adjacency_3)
+
+        _, x_1_to_0 = self.hbns_0_1_level1(x_1, x_0, incidence_0_1)
+        x_2_to_3, _ = self.hbns_2_3_level1(x_3, x_2, incidence_2_3)
         
-        x_0 = self.aggr([x_0_to_0, x_1_to_0, x_3_to_0])
-        x_1 = self.aggr([x_0_to_1, x_1_to_1])
-        
+        x_0 = self.aggr([x_0_to_0, x_1_to_0])
+        x_3 = self.aggr([x_2_to_3, x_3_to_3])
+
         x_0 = self.leaky_relu(self.fc_0(x_0))
-        x_1 = self.leaky_relu(self.fc_1(x_1))
+        x_3 = self.leaky_relu(self.fc_3(x_3))
         return x_0, x_1, x_2, x_3, x_4
 

@@ -14,10 +14,10 @@ import numpy as np
 def implicit_likelihood_loss(output, target):
     num_params = len(target)
     y_out, err_out = output[:,:num_params], output[:,num_params:]
-    loss_mse = torch.sum((y_out - target)**2 , axis=1)
-    loss_ili = torch.sum(((y_out - target)**2 - err_out**2)**2, axis=1)
+    loss_mse = torch.mean(torch.sum((y_out - target)**2., axis=1), axis=0)
+    loss_ili = torch.mean(torch.sum(((y_out - target)**2. - err_out**2.)**2., axis=1), axis=0)
     loss = torch.log(loss_mse) + torch.log(loss_ili)
-    return torch.mean(loss)
+    return loss #torch.mean(loss)
 
 def load_and_prepare_data(num_list, data_dir, label_filename, test_size, val_size, target_labels, feature_sets):
     logging.info(f"Loading tensors for {len(num_list)} samples from {data_dir}")
@@ -71,10 +71,11 @@ def initialize_model(args):
     logging.info("Initializing model")
     final_output_layer = len(args.target_labels) * 2
 
-    model = Network(args.layerType, channels_per_layer, final_output_layer, args.attention_flag).to(args.device)
+    model = Network(args.layerType, channels_per_layer, final_output_layer, args.attention_flag, args.residual_flag).to(args.device)
     return model
 
 def main(args):
+    os.makedirs(args.checkpoint_dir, exist_ok=True)
     logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(levelname)s - %(message)s', 
                         handlers=[logging.FileHandler(args.checkpoint_dir + '/' + 'training.log'), logging.StreamHandler()])
 

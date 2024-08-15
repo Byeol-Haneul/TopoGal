@@ -14,7 +14,7 @@ PARAM_ORDER = ["Omega0", "sigma8", "ASN1", "AAGN1", "ASN2", "AAGN2"]
 
 def normalize_params(y_list: list[torch.tensor], target_labels: list[str]) -> list[torch.tensor]:
     norm_y_list = []
-    for y in y_list:
+    for y in y_list: #already sorted by target_labels's order
         norm_y = torch.zeros_like(y)
         for i, param in enumerate(target_labels):
             norm_y[i] = (y[i] - PARAM_STATS[param]["min"]) / (PARAM_STATS[param]["max"] - PARAM_STATS[param]["min"])
