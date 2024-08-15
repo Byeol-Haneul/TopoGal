@@ -13,8 +13,7 @@ class HyperparameterTuner:
         self.device_num = device_num
 
     def objective(self, trial):
-        # Suggest hyperparameters
-        hidden_dim = trial.suggest_int('hidden_dim', 16, 64)
+        hidden_dim = trial.suggest_categorical('hidden_dim', [32, 64, 128])
         num_layers = trial.suggest_int('num_layers', 1, 5)
         learning_rate = trial.suggest_loguniform('learning_rate', 1e-7, 1e-4)
         weight_decay = trial.suggest_loguniform('weight_decay', 1e-8, 1e-4)
@@ -87,16 +86,16 @@ class HyperparameterTuner:
 def run_optuna_study(data_dir, checkpoint_dir, label_filename, device_num, n_trials=50):
     tuner = HyperparameterTuner(data_dir, checkpoint_dir, label_filename, device_num)
     
-    # Create a unique directory to save the best results
+    # Create directory to save the best results
     timestamp = time.strftime("%Y%m%d_%H%M%S")
     result_dir = os.path.join(checkpoint_dir, f"optuna_results_{timestamp}")
     os.makedirs(result_dir, exist_ok=True)
-    
+     
     # Run the Optuna study
-    study = optuna.create_study(direction='minimize')
+    sampler = optuna.samplers.TPESampler(seed=42)
+    study = optuna.create_study(direction='minimize', sampler=sampler)
     study.optimize(tuner.objective, n_trials=n_trials)
     
-    # Save the best parameters to a file
     best_params_path = os.path.join(result_dir, 'best_params.json')
     with open(best_params_path, 'w') as f:
         optuna.importance.save_study(study, f)
@@ -106,5 +105,19 @@ def run_optuna_study(data_dir, checkpoint_dir, label_filename, device_num, n_tri
     trials_csv_path = os.path.join(result_dir, 'trials.csv')
     trials_df.to_csv(trials_csv_path, index=False)
     
+    # Print the best hyperparameters
     print("Best Hyperparameters:", study.best_params)
     print(f"Results saved to: {result_dir}")
+    
+    # Plot and save visualizations
+    plot_optimization_history_path = os.path.join(result_dir, 'optimization_history.png')
+    plot_param_importances_path = os.path.join(result_dir, 'param_importances.png')
+    plot_parallel_coordinate_path = os.path.join(result_dir, 'parallel_coordinate.png')
+    
+    optuna.visualization.matplotlib.plot_optimization_history(study).figure.savefig(plot_optimization_history_path)
+    optuna.visualization.matplotlib.plot_param_importances(study).figure.savefig(plot_param_importances_path)
+    optuna.visualization.matplotlib.plot_parallel_coordinate(study).figure.savefig(plot_parallel_coordinate_path)
+    
+    print(f"Optimization history saved to: {plot_optimization_history_path}")
+    print(f"Parameter importances saved to: {plot_param_importances_path}")
+    print(f"Parallel coordinate plot saved to: {plot_parallel_coordinate_path}")

@@ -12,7 +12,7 @@ args = Namespace(
     in_channels=[7, 4, 4, 8, 3],
     hidden_dim = 64,
     num_layers=3,
-    layerType = "GNN",
+    layerType = "Normal",
     attention_flag = False,
     residual_flag = True,
 
