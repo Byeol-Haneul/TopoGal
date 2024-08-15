@@ -13,19 +13,19 @@ class HyperparameterTuner:
         self.device_num = device_num
 
     def objective(self, trial):
-        intermediate_channel_size = trial.suggest_int('intermediate_channel_size', 16, 64)
-        inout_channel_size = trial.suggest_int('inout_channel_size', 32, 128)
-        intermediate_channels = [intermediate_channel_size] * 4
-        inout_channels = [inout_channel_size] * 4
-
-        num_layers = trial.suggest_int('num_layers', 2, 5)
-        learning_rate = trial.suggest_loguniform('learning_rate', 1e-5, 1e-3)
+        # Suggest hyperparameters
+        hidden_dim = trial.suggest_int('hidden_dim', 16, 64)
+        num_layers = trial.suggest_int('num_layers', 1, 5)
+        learning_rate = trial.suggest_loguniform('learning_rate', 1e-7, 1e-4)
+        weight_decay = trial.suggest_loguniform('weight_decay', 1e-8, 1e-4)
+        layer_type = trial.suggest_categorical('layerType', ['GNN', 'Test'])
 
         self.args = self.create_args(
-            intermediate_channels=intermediate_channels,
-            inout_channels=inout_channels,
+            hidden_dim=hidden_dim,
             num_layers=num_layers,
-            learning_rate=learning_rate
+            learning_rate=learning_rate,
+            weight_decay=weight_decay,
+            layer_type=layer_type
         )
 
         try:
@@ -36,24 +36,49 @@ class HyperparameterTuner:
 
         return val_loss
 
-    def create_args(self, intermediate_channels, inout_channels, num_layers, learning_rate):        
+    def create_args(self, hidden_dim, num_layers, learning_rate, weight_decay, layer_type):        
         return Namespace(
-            in_channels=[5, 4, 4, 8],
-            intermediate_channels=intermediate_channels,
-            inout_channels=inout_channels,
+            # Model Architecture
+            in_channels=[7, 4, 4, 8, 3],
+            hidden_dim=hidden_dim,
             num_layers=num_layers,
+            layerType=layer_type,  # Add layer type here
+            attention_flag=False,
+            residual_flag=True,
+
+            # Target Labels
             target_labels=["Omega0", "sigma8", "ASN1", "AAGN1", "ASN2", "AAGN2"],
+
+            # Directories
             data_dir=self.data_dir,
             checkpoint_dir=self.checkpoint_dir,
             label_filename=self.label_filename,
+
+            # Training Hyperparameters
             num_epochs=100,
             test_interval=1,
-            batch_size=1,
             learning_rate=learning_rate,
+            weight_decay=weight_decay,
+
+            # Device
+            device_num=self.device_num,
+            device=torch.device(f"cuda:{self.device_num}" if torch.cuda.is_available() else "cpu"),
+
+            # Fixed Values
+            batch_size=1,
             val_size=0.15,
             test_size=0.15,
-            device_num=self.device_num,
-            device=None
+
+            # Features & Neighborhood Functions
+            feature_sets=[
+                'x_0', 'x_1', 'x_2', 'x_3', 'x_4',
+                'n0_to_0', 'n1_to_1', 'n2_to_2', 'n3_to_3', 'n4_to_4',
+                'n0_to_1', 'n0_to_2', 'n0_to_3', 'n0_to_4',
+                'n1_to_2', 'n1_to_3', 'n1_to_4',
+                'n2_to_3', 'n2_to_4',
+                'n3_to_4',
+                'global_feature'
+            ],
         )
 
     def train_and_evaluate(self, args):

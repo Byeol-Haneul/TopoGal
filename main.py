@@ -4,7 +4,7 @@ from torch.utils.data import DataLoader
 from data.load_data import load_tensors, split_data
 from model.network import Network
 from model.train import train, evaluate, save_checkpoint, load_checkpoint
-from utils.dataset import CustomDataset, custom_collate_fn
+from data.dataset import CustomDataset, custom_collate_fn
 from config.config import args
 from config.param_config import PARAM_STATS, PARAM_ORDER, normalize_params, denormalize_params
 import os

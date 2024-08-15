@@ -38,7 +38,7 @@ def train(model, train_loader, val_loader, test_loader, loss_fn, opt, args, chec
 
     # checkpoint setting
     start_epoch = 1
-    best_loss = float('inf')
+    best_validation_loss = float('inf')
     best_checkpoint_path = os.path.join(os.path.dirname(checkpoint_path), "best_checkpoint.pth")
 
     # Load checkpoint if exists
@@ -78,9 +78,9 @@ def train(model, train_loader, val_loader, test_loader, loss_fn, opt, args, chec
         save_checkpoint(model, opt, epoch_i, val_loss, checkpoint_path)
         
         # Save the best model if validation loss has improved
-        if val_loss < best_loss:
-            best_loss = val_loss
-            save_checkpoint(model, opt, epoch_i, best_loss, best_checkpoint_path)
+        if val_loss < best_validation_loss:
+            best_validation_loss = val_loss
+            save_checkpoint(model, opt, epoch_i, best_validation_loss, best_checkpoint_path)
         
         # Save the train and validation losses after each epoch
         loss_dir = os.path.dirname(checkpoint_path)
@@ -98,7 +98,7 @@ def train(model, train_loader, val_loader, test_loader, loss_fn, opt, args, chec
             model.load_state_dict(current_model_state)
             opt.load_state_dict(current_opt_state)
     
-    return best_loss
+    return best_validation_loss
 
 def validate(model, val_loader, loss_fn, device, epoch_i):
     model.eval()
