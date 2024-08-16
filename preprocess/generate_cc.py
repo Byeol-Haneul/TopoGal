@@ -101,9 +101,9 @@ class Edge:
     def calculate_distance(self):
         diff = self.pos[0] - self.pos[1]
         for i, coord in enumerate(diff):
-            if coord > 0.5:
+            if coord > r_link:
                 diff[i] -= 1.0 
-            elif coord < -0.5:
+            elif coord < -r_link:
                 diff[i] += 1.0
         self.distance = np.linalg.norm(diff)
         self.distance = normalize(self.distance, ISDISTANCE)
