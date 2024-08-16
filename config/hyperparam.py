@@ -4,6 +4,7 @@ import time
 import os
 from argparse import Namespace
 from main import main
+import json
 
 class HyperparameterTuner:
     def __init__(self, data_dir, checkpoint_dir, label_filename, device_num):
@@ -37,6 +38,9 @@ class HyperparameterTuner:
 
     def create_args(self, hidden_dim, num_layers, learning_rate, weight_decay, layer_type):        
         return Namespace(
+            # mode
+            tuning=True,
+
             # Model Architecture
             in_channels=[7, 4, 4, 8, 3],
             hidden_dim=hidden_dim,
@@ -55,7 +59,7 @@ class HyperparameterTuner:
 
             # Training Hyperparameters
             num_epochs=100,
-            test_interval=1,
+            test_interval=10,
             learning_rate=learning_rate,
             weight_decay=weight_decay,
 
@@ -90,24 +94,27 @@ def run_optuna_study(data_dir, checkpoint_dir, label_filename, device_num, n_tri
     timestamp = time.strftime("%Y%m%d_%H%M%S")
     result_dir = os.path.join(checkpoint_dir, f"optuna_results_{timestamp}")
     os.makedirs(result_dir, exist_ok=True)
-     
+
+    checkpoint_path = os.path.join(checkpoint_dir, 'model_checkpoint.pth')
+
     # Run the Optuna study
     sampler = optuna.samplers.TPESampler(seed=42)
     study = optuna.create_study(direction='minimize', sampler=sampler)
     study.optimize(tuner.objective, n_trials=n_trials)
+
+    # Print the best hyperparameters
+    print(f"Results saved to: {result_dir}")
+    print("Best Hyperparameters:", study.best_params)
     
+    # After the study has completed
     best_params_path = os.path.join(result_dir, 'best_params.json')
     with open(best_params_path, 'w') as f:
-        optuna.importance.save_study(study, f)
-    
+        json.dump(study.best_params, f, indent=4)
+
     # Save the study results (including all trials) to a CSV file
     trials_df = study.trials_dataframe()
     trials_csv_path = os.path.join(result_dir, 'trials.csv')
     trials_df.to_csv(trials_csv_path, index=False)
-    
-    # Print the best hyperparameters
-    print("Best Hyperparameters:", study.best_params)
-    print(f"Results saved to: {result_dir}")
     
     # Plot and save visualizations
     plot_optimization_history_path = os.path.join(result_dir, 'optimization_history.png')

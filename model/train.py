@@ -87,7 +87,7 @@ def train(model, train_loader, val_loader, test_loader, loss_fn, opt, args, chec
         pd.DataFrame({"train_loss": train_losses}).to_csv(os.path.join(loss_dir, "train_losses.csv"), index=False)
         pd.DataFrame({"val_loss": val_losses}).to_csv(os.path.join(loss_dir, "val_losses.csv"), index=False)
         
-        if epoch_i % test_interval == 0:
+        if not args.tuning and epoch_i % test_interval == 0:
             logging.info(f"Starting evaluation for epoch {epoch_i}")
             # Temporarily load the best checkpoint for evaluation
             current_model_state = model.state_dict()

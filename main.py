@@ -77,6 +77,16 @@ def initialize_model(args):
 
 def main(args):
     os.makedirs(args.checkpoint_dir, exist_ok=True)
+    if args.tuning:
+        try:
+            os.remove(os.path.join(args.checkpoint_dir, 'model_checkpoint.pth'))
+            os.remove(os.path.join(args.checkpoint_dir, 'pred.txt'))
+            os.remove(os.path.join(args.checkpoint_dir, 'train_losses.csv'))
+            os.remove(os.path.join(args.checkpoint_dir, 'val_losses.csv'))
+            os.remove(os.path.join(args.checkpoint_dir, 'training.log'))
+        except OSError:
+            pass 
+
     logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(levelname)s - %(message)s', 
                         handlers=[logging.FileHandler(args.checkpoint_dir + '/' + 'training.log'), logging.StreamHandler()])
 

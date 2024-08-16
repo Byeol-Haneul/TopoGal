@@ -2,6 +2,9 @@ import torch
 from argparse import Namespace
 
 args = Namespace(
+    # mode
+    tuning=False,
+
     # Directories
     data_dir="/data2/jylee/topology/IllustrisTNG/combinatorial/tensors/",
     checkpoint_dir="/data2/jylee/topology/IllustrisTNG/combinatorial/checkpoint20",
