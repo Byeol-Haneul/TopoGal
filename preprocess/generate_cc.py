@@ -22,32 +22,46 @@ DIM = 3
 MASS_UNIT = 1e10
 Nstar_th = 20 # not used
 MASS_CUT = 1e8
-ISVOLUME = True
-ISDISTANCE = False
+modes = {"ISDISTANCE": 1, "ISEIGEN": 2, "ISVOLUME": 3}
 
+global_centroid = None # to be updated.
 # --- HYPERPARAMS --- #
 r_link = 0.015
 MINCLUSTER = 7 #>10 Found no clusters made in some catalogs. 
 
 # ---- FEATURES ---- #
-# NODES:        7 (x, y, z, Mstar, Rstar, Metal, Vmax)
-# EDGES:        4 (distance, mid[x,y,z])
-# TETRA:        4 (volume, mid[x,y,z])
-# CLUSTERS:     8 (avg_volume, std_volume, centroid[x,y,z], std_pos[x,y,z])
+# NODES:        4 (Mstar, Rstar, Metal, Vmax)
+# EDGES:        3 (distance, angle1, angle2)
+# TETRA:        1 (volume)
+# CLUSTERS:     4 (e1, e2, e3, gyradius)
 # HYPERCLUSTER: 3 (distance, num_galaxies_cluster1, num_galaxies_cluster2)
 # ------------------ #
 
 in_dir = "/data2/jylee/topology/IllustrisTNG/data/"
-out_dir = "/data2/jylee/topology/IllustrisTNG/combinatorial/cc/"
+out_dir = "/data2/jylee/topology/IllustrisTNG/combinatorial/cc_inv/"
 
 os.makedirs(out_dir, exist_ok=True)
 
-def normalize(value, isVolume = True):
-    global r_link
-    if isVolume:
-        return value / (r_link**3)
-    else:
-        return value/ (r_link)
+def normalize(value, option):
+    power = modes[option]
+    return value/ (r_link)
+
+def get_corrected_pos(pos):
+    pos -= global_centroid
+    if pos.ndim == 1:
+        pos = pos.reshape(1, 3)
+    
+    for i, pos_i in enumerate(pos):
+        for j, coord in enumerate(pos_i):
+            if coord > 0.5:
+                pos[i, j] -= 1.  
+            elif -coord > 0.5:
+                pos[i, j] += 1.
+    
+    if pos.shape[0] == 1:
+        return pos.flatten()
+    
+    return pos
 
 def load_catalog(directory, filename):
     f = h5py.File(directory + filename, 'r')
@@ -85,18 +99,19 @@ def load_catalog(directory, filename):
 class Edge:
     def __init__(self, nodes, pos=None):
         self.nodes = tuple(sorted(nodes))
-        self.pos = np.array([pos[node] for node in self.nodes])
-        self.distance = 0
-        self.midpoint = [0,0,0]
+        self.pos = get_corrected_pos(np.array([pos[node] for node in self.nodes]))
+        self.distance = None
+        self.angles = [None, None]
+        self.midpoint =  [None, None, None]
         
         self.features = []
         self.add_feature() 
 
     def add_feature(self):
         self.calculate_distance()
-        self.calculate_midpoint()
+        self.calculate_angles()
         self.features.insert(0, self.distance)
-        self.features.extend(self.midpoint)
+        self.features.extend(self.angles)
 
     def calculate_distance(self):
         diff = self.pos[0] - self.pos[1]
@@ -106,7 +121,7 @@ class Edge:
             elif coord < -r_link:
                 diff[i] += 1.0
         self.distance = np.linalg.norm(diff)
-        self.distance = normalize(self.distance, ISDISTANCE)
+        self.distance = normalize(self.distance, "ISDISTANCE")
 
     def calculate_midpoint(self):
         self.midpoint = np.mean(self.pos, axis=0)
@@ -115,6 +130,21 @@ class Edge:
                 self.midpoint[i] -= 1.0
             elif coord < 0.0:
                 self.midpoint[i] += 1.0
+
+    def calculate_angles(self):
+        row, col = self.pos[0], self.pos[1]
+        diff = row-col
+
+        # Normalizing
+        unitrow = row/np.linalg.norm(row)
+        unitcol = col/np.linalg.norm(col)
+        unitdiff = diff/np.linalg.norm(diff)
+
+        # Dot products between unit vectors
+        cos1 = np.dot(unitrow.T,unitcol)
+        cos2 = np.dot(unitrow.T,unitdiff)
+        self.angles = [cos1, cos2]
+
 
     def __repr__(self):
         return f"Edge(nodes={self.nodes}, pos={self.pos}, features={self.features})"
@@ -129,13 +159,10 @@ class Tetrahedron:
     def __init__(self, index, nodes, pos):
         self.index = index
         self.nodes = nodes
-        self.pos = np.array([pos[node] for node in self.nodes])
+        self.pos = get_corrected_pos(np.array([pos[node] for node in self.nodes]))
+        
+        self.volume = None
         self.features = []
-
-        self.volume = 0
-        self.log_volume = 0
-        self.midpoint = [0,0,0]
-
         self.add_features() 
 
     def calculate_volume(self):
@@ -143,77 +170,101 @@ class Tetrahedron:
         mat[:, :3] = self.pos
         mat[:, 3] = 1.0
         self.volume = np.abs(np.linalg.det(mat)) / 6
-        self.normalized_volume = normalize(self.volume, ISVOLUME)
+        self.volume = normalize(self.volume, "ISVOLUME")
 
-    def calculate_midpoint(self):
-        self.midpoint = np.mean(self.pos, axis=0)
+    def get_midpoint(self):
+        return np.mean(self.pos, axis=0)
 
     def add_features(self):
         self.calculate_volume()
-        self.calculate_midpoint()
-        self.features.append(self.normalized_volume)
-        self.features.extend(self.midpoint)
+        self.features.append(self.volume)
         
     def __repr__(self):
         return f"Tetrahedron(index={self.index}, nodes={self.nodes}, features={self.features})"
 
 class Cluster:
-    def __init__(self, label, tetrahedra, scaled_volumes):
+    def __init__(self, label, tetrahedra):
         self.label = label
         self.tetrahedra = tetrahedra
-        self.scaled_volumes = scaled_volumes
         
+        self.nodes = self.get_nodes()
+        self.node_positions = self.get_node_positions()
+
+        self.centroid = None
+        self.eigenvalues = None
+        self.gyradius = None
+        self.covariance_matrix = None
+
         self.volumes = []
-        self.node_set = set()
-        self.avg_volume = 0
-        self.std_volume = 0
-        self.centroid = [0,0,0]
-        self.std_pos = [0,0,0]
-        
         self.features = []
+
         self.add_features()
 
-
-    def calculate_volumes(self):
+    def get_nodes(self):
+        nodes = set()
         for tetra in self.tetrahedra:
-            self.volumes.append(tetra.volume)
-            self.node_set.update(tetra.nodes)
+            nodes.update(tetra.nodes)
+        return nodes
 
-        self.avg_volume = normalize(np.mean(self.volumes), ISVOLUME)
-        self.std_volume = normalize(np.std(self.volumes), ISVOLUME)
-
-    def calculate_centroid(self):
-        if self.node_set:
+    def get_node_positions(self):
+        if self.nodes:
             node_positions = []
             for tetra in self.tetrahedra:
                 node_positions.extend(tetra.pos)
-            
             node_positions = np.array(node_positions)
-            if len(node_positions) > 0:
-                self.centroid = np.mean(node_positions, axis=0)
-                self.std_pos = np.std(node_positions, axis=0)
+            return node_positions  # tetra positions already corrected
+        else:
+            return None
+
+    def calculate_centroid(self):
+        if self.node_positions is not None:
+            self.centroid = np.mean(self.node_positions, axis=0)
+    
+    def calculate_volumes(self):
+        self.volumes = []
+        for tetra in self.tetrahedra:
+            self.volumes.append(tetra.volume)
+        self.avg_volume = normalize(np.mean(self.volumes), "ISVOLUME")
+        self.std_volume = normalize(np.std(self.volumes), "ISVOLUME")
+
+    def calculate_covariance_matrix(self):
+        if self.node_positions is not None and self.centroid is not None:
+            centered_positions = self.node_positions - self.centroid
+            self.covariance_matrix = np.cov(centered_positions, rowvar=False)
+
+    def calculate_eigenvalues(self):
+        if self.covariance_matrix is not None:
+            eigenvalues, _ = np.linalg.eigh(self.covariance_matrix)
+            self.eigenvalues = normalize(eigenvalues, "ISEIGEN")
+
+    def calculate_gyradius(self):
+        if self.node_positions is not None and self.centroid is not None:
+            centered_positions = self.node_positions - self.centroid
+            squared_distances = np.sum(centered_positions ** 2, axis=1)
+            self.gyradius = normalize(np.sqrt(np.mean(squared_distances)), "ISDISTANCE")
 
     def add_features(self):
-        self.calculate_volumes()
         self.calculate_centroid()
-        
-        self.features.append(self.avg_volume)
-        self.features.append(self.std_volume)
-        self.features.extend(self.centroid)
-        self.features.extend(self.std_pos)
-        
+        self.calculate_covariance_matrix()
+        self.calculate_eigenvalues()
+        self.calculate_gyradius()
+
+        # Add features
+        self.features.extend(self.eigenvalues)
+        self.features.append(self.gyradius)
+
     def __repr__(self):
-        return f"Cluster(label={self.label}, merged_volume={self.merged_volume}, features={self.features})"
+        return (f"Cluster(label={self.label}, features={self.features})")
 
 class Hypercluster:
     def __init__(self, cluster1, cluster2, dist):
         self.cluster1_label = cluster1.label
         self.cluster2_label = cluster2.label
-        self.node_set = cluster1.node_set | cluster2.node_set
+        self.nodes = cluster1.nodes | cluster2.nodes
         
-        self.distance = normalize(dist, ISDISTANCE)
-        self.num_nodes_cluster1 = np.log10(len(cluster1.node_set)+1)
-        self.num_nodes_cluster2 = np.log10(len(cluster2.node_set)+1)
+        self.distance = normalize(dist, "ISDISTANCE")
+        self.num_nodes_cluster1 = np.log10(len(cluster1.nodes)+1)
+        self.num_nodes_cluster2 = np.log10(len(cluster2.nodes)+1)
 
         self.features = [self.distance, self.num_nodes_cluster1, self.num_nodes_cluster2]
 
@@ -246,14 +297,8 @@ def get_tetrahedra(pos, feat):
         tetrahedra.append(tetra)
 
     tetrahedra.sort(key=lambda x: x.volume)  # Sorting by volume
-
-    # Scale the volumes to make an embedding
-    log_volumes = np.array([tetra.log_volume for tetra in tetrahedra])
-    volume_scaler = StandardScaler()
-    scaled_volumes = volume_scaler.fit_transform(log_volumes.reshape(-1, 1)).flatten()
-    
     print("[LOG] GENERATED TETRA", file=sys.stderr)
-    return tetrahedra, scaled_volumes
+    return tetrahedra
 
 def get_single_tetra_edges(pos, tetra):
     edge_objects = []
@@ -268,8 +313,7 @@ def get_all_tetra_edges(pos, tetrahedra):
     for tetra in tetrahedra:
         tetra_edge_set.update(get_single_tetra_edges(pos, tetra))
 
-    #return tetra_edge_set
-    return set()
+    return tetra_edge_set
 
 def get_kdtree_edges(pos, r_link=0.015):
     '''
@@ -292,16 +336,19 @@ def create_cc(in_dir, in_filename):
     # Read in data
     pos, feat = load_catalog(in_dir, in_filename)
 
+    global global_centroid
+    global_centroid = np.mean(pos, axis=0)
+
     # 1. Get Tetrahedra
-    tetrahedra, scaled_volumes = get_tetrahedra(pos, feat)
+    tetrahedra = get_tetrahedra(pos, feat)
     
     # 2. Get edges
-    tetra_edge_set = get_all_tetra_edges(pos, tetrahedra)
+    tetra_edge_set = set() #get_all_tetra_edges(pos, tetrahedra)
     kdtree_edge_set = get_kdtree_edges(pos, r_link)
-    edge_set = tetra_edge_set | kdtree_edge_set # union
+    edge_set = kdtree_edge_set | tetra_edge_set
     
     # 3. Clustering on Tetrahedra
-    clusters = clustering(tetrahedra, scaled_volumes)
+    clusters = clustering(tetrahedra)
 
     # 4. Get Hyperclusters using MST
     hyperclusters = {}
@@ -354,15 +401,15 @@ def create_cc(in_dir, in_filename):
 
     ## 5-4 ADD Clusters ##
     for cluster in clusters.values():
-        cc.add_cell(list(cluster.node_set), rank=3)
+        cc.add_cell(list(cluster.nodes), rank=3)
 
-    cluster_data = {tuple(cluster.node_set): cluster.features for cluster in clusters.values()}
+    cluster_data = {tuple(cluster.nodes): cluster.features for cluster in clusters.values()}
 
     # 5-5 ADD HyperCluster ##
     for hypercluster in hyperclusters.values():
-        cc.add_cell(list(hypercluster.node_set), rank=4)
+        cc.add_cell(list(hypercluster.nodes), rank=4)
 
-    hypercluster_data = {tuple(hypercluster.node_set): hypercluster.features for hypercluster in hyperclusters.values()}
+    hypercluster_data = {tuple(hypercluster.nodes): hypercluster.features for hypercluster in hyperclusters.values()}
 
     # ADD CELL ATTRIBUTES
     cc.set_cell_attributes(node_data, name="node_feat")
@@ -381,8 +428,8 @@ def remove_subset_clusters(clusters):
             if i == j:
                 continue
 
-            A = clusters[cluster_labels[i]].node_set
-            B = clusters[cluster_labels[j]].node_set
+            A = clusters[cluster_labels[i]].nodes
+            B = clusters[cluster_labels[j]].nodes
 
             if A & B == A or A & B == B:
                 if len(A) <= len(B):
@@ -396,9 +443,9 @@ def remove_subset_clusters(clusters):
     print(f"[LOG] Removed {len(to_remove)} subset clusters.")
     return clusters
 
-def clustering(tetrahedra, scaled_volumes):
+def clustering(tetrahedra):
     global r_link
-    embeddings = np.array([tetra.midpoint for i, tetra in enumerate(tetrahedra)])
+    embeddings = np.array([tetra.get_midpoint() for i, tetra in enumerate(tetrahedra)])
     db = HDBSCAN(min_samples=MINCLUSTER).fit(embeddings)
     labels = db.labels_
 
@@ -412,7 +459,7 @@ def clustering(tetrahedra, scaled_volumes):
         if len(merged_tetra) == 1:
             continue
         else:
-            cluster = Cluster(label, merged_tetra, scaled_volumes[indices])
+            cluster = Cluster(label, merged_tetra)
             clusters[label] = cluster
 
     # Remove subset clusters
@@ -421,8 +468,8 @@ def clustering(tetrahedra, scaled_volumes):
     print(f"""
     [LOG] We Currently have {len(embeddings)} Tetrahedra.
     [LOG] Generated {len(clusters)} Clusters of Tetrahedra. 
-    [LOG] Mean number of nodes per cluster is {np.mean([len(cluster.node_set) for cluster in clusters.values()])}
-    [LOG] Max number of nodes per cluster is {np.max([len(cluster.node_set) for cluster in clusters.values()])} and the number is {np.argmax([len(cluster.node_set) for cluster in clusters.values()])}""", file=sys.stderr)
+    [LOG] Mean number of nodes per cluster is {np.mean([len(cluster.nodes) for cluster in clusters.values()])}
+    [LOG] Max number of nodes per cluster is {np.max([len(cluster.nodes) for cluster in clusters.values()])} and the number is {np.argmax([len(cluster.nodes) for cluster in clusters.values()])}""", file=sys.stderr)
 
     return clusters
 
