@@ -44,7 +44,7 @@ os.makedirs(out_dir, exist_ok=True)
 
 def normalize(value, option):
     power = modes[option]
-    return value/ (r_link)
+    return value / (r_link)
 
 def get_corrected_pos(pos):
     pos -= global_centroid

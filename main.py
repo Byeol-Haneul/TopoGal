@@ -11,7 +11,7 @@ from data.load_data import load_tensors, split_data
 from model.network import Network
 from model.train import train, evaluate, save_checkpoint, load_checkpoint
 from data.dataset import CustomDataset, custom_collate_fn
-from config.config import args
+
 from config.param_config import PARAM_STATS, PARAM_ORDER, normalize_params, denormalize_params
 
 def fix_random_seed(seed):
@@ -29,9 +29,12 @@ def implicit_likelihood_loss(output, target):
     loss = torch.log(loss_mse) + torch.log(loss_ili)
     return loss #torch.mean(loss)
 
-def load_and_prepare_data(num_list, data_dir, label_filename, test_size, val_size, target_labels, feature_sets):
+def load_and_prepare_data(num_list, args):
+    data_dir, label_filename, test_size, val_size, target_labels, feature_sets = (
+        args.data_dir, args.label_filename, args.test_size, args.val_size, args.target_labels, args.feature_sets
+    )
+
     logging.info(f"Loading tensors for {len(num_list)} samples from {data_dir}")
-    
     tensor_dict = load_tensors(
         num_list, data_dir, label_filename, args, target_labels, feature_sets
     )
@@ -53,7 +56,6 @@ def load_and_prepare_data(num_list, data_dir, label_filename, test_size, val_siz
         train_data[feature] = [feature_data[i] for i in train_idx]
         val_data[feature] = [feature_data[i] for i in val_idx]
         test_data[feature] = [feature_data[i] for i in test_idx]
-
     
     train_tuples = list(zip(*[train_data[feature] for feature in feature_sets + ['y']]))
     val_tuples = list(zip(*[val_data[feature] for feature in feature_sets + ['y']]))
@@ -85,7 +87,13 @@ def initialize_model(args):
     model = Network(args.layerType, channels_per_layer, final_output_layer, args.attention_flag, args.residual_flag).to(args.device)
     return model
 
-def main(args):
+def main(passed_args=None):
+    # Use external args if provided, otherwise use the default config.args
+    if passed_args is None:
+        from config.config import args  # Import only if not passed
+    else:
+        args = passed_args
+
     os.makedirs(args.checkpoint_dir, exist_ok=True)
     if args.tuning:
         try:
@@ -97,22 +105,23 @@ def main(args):
         except OSError:
             pass 
 
+    # Basic Logging
     logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(levelname)s - %(message)s', 
                         handlers=[logging.FileHandler(args.checkpoint_dir + '/' + 'training.log'), logging.StreamHandler()])
 
-    logging.info(f"Arguments: {vars(args)}")
+    for key, value in vars(args).items():
+        logging.info(f"{key}: {value}")
 
+    # Basic Configurations
+    fix_random_seed(args.random_seed)
     num_list = [i for i in range(1000)]
-    fix_random_seed(args.random_seed)    
-
+    
     os.environ["CUDA_DEVICE_ORDER"]="PCI_BUS_ID"
     os.environ["CUDA_VISIBLE_DEVICES"]= str(args.device_num)
     args.device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
     
-    train_dataset, val_dataset, test_dataset = load_and_prepare_data(
-        num_list, args.data_dir, args.label_filename, args.test_size, args.val_size, target_labels=args.target_labels, feature_sets = args.feature_sets
-    )
-    
+    train_dataset, val_dataset, test_dataset = load_and_prepare_data(num_list, args)
+
     model = initialize_model(args) 
     
     # Define loss function and optimizer
@@ -133,4 +142,4 @@ def main(args):
     return best_loss
 
 if __name__ == "__main__":
-    main(args)
+    main()

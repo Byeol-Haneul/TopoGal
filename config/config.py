@@ -4,10 +4,11 @@ from argparse import Namespace
 args = Namespace(
     # mode
     tuning=False,
+    only_positions=True,
 
     # Directories
-    data_dir="/data2/jylee/topology/IllustrisTNG/combinatorial/tensors/",
-    checkpoint_dir="/data2/jylee/topology/IllustrisTNG/combinatorial/test/",
+    data_dir="/data2/jylee/topology/IllustrisTNG/combinatorial/tensors_inv/",
+    checkpoint_dir="/data2/jylee/topology/IllustrisTNG/combinatorial/optimize_inv/",
     label_filename="/data2/jylee/topology/CosmoAstroSeed_IllustrisTNG_L25n256_LH.txt",
 
     # Model Architecture

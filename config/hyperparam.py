@@ -7,17 +7,18 @@ from main import main
 import json
 
 class HyperparameterTuner:
-    def __init__(self, data_dir, checkpoint_dir, label_filename, device_num):
+    def __init__(self, data_dir, checkpoint_dir, label_filename, device_num, only_positions):
         self.data_dir = data_dir
         self.checkpoint_dir = checkpoint_dir
         self.label_filename = label_filename
         self.device_num = device_num
+        self.only_positions = only_positions
 
     def objective(self, trial):
         hidden_dim = trial.suggest_categorical('hidden_dim', [32, 64, 128])
         num_layers = trial.suggest_int('num_layers', 1, 5)
-        learning_rate = trial.suggest_loguniform('learning_rate', 1e-7, 1e-4)
-        weight_decay = trial.suggest_loguniform('weight_decay', 1e-8, 1e-4)
+        learning_rate = trial.suggest_float('learning_rate', 1e-7, 1e-4, log=True)
+        weight_decay = trial.suggest_float('weight_decay', 1e-8, 1e-4, log=True)
         layer_type = trial.suggest_categorical('layerType', ['GNN', 'Normal', 'Master'])
 
         # Include trial number in checkpoint directory
@@ -45,9 +46,10 @@ class HyperparameterTuner:
         return Namespace(
             # mode
             tuning=True,
+            only_positions=self.only_positions,
 
             # Model Architecture
-            in_channels=[3, 4, 4, 8, 3],
+            in_channels=[1, 3, 1, 4, 3],             # naive positions: in_channels=[3, 4, 4, 8, 3],
             hidden_dim=hidden_dim,
             num_layers=num_layers,
             layerType=layer_type,  # Add layer type here
@@ -93,8 +95,8 @@ class HyperparameterTuner:
     def train_and_evaluate(self, args):
         return main(args)
 
-def run_optuna_study(data_dir, checkpoint_dir, label_filename, device_num, n_trials=50):
-    tuner = HyperparameterTuner(data_dir, checkpoint_dir, label_filename, device_num)
+def run_optuna_study(data_dir, checkpoint_dir, label_filename, device_num, n_trials=50, only_positions=True):
+    tuner = HyperparameterTuner(data_dir, checkpoint_dir, label_filename, device_num, only_positions)
     
     # Create directory to save the best results
     timestamp = time.strftime("%Y%m%d_%H%M%S")
