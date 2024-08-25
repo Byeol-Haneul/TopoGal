@@ -62,7 +62,7 @@ def load_tensors(num_list, data_dir, label_filename, args, target_labels=None, f
             global_feature = torch.tensor(feature_list, dtype=torch.float32).unsqueeze(0)  # Shape [1, 4]
             global_feature = torch.log10(global_feature + 1)
             tensor_dict['global_feature'].append(global_feature)
-
+    
     return tensor_dict
 
 

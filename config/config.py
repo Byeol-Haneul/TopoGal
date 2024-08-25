@@ -7,15 +7,14 @@ args = Namespace(
 
     # Directories
     data_dir="/data2/jylee/topology/IllustrisTNG/combinatorial/tensors/",
-    checkpoint_dir="/data2/jylee/topology/IllustrisTNG/combinatorial/checkpoint20",
+    checkpoint_dir="/data2/jylee/topology/IllustrisTNG/combinatorial/test/",
     label_filename="/data2/jylee/topology/CosmoAstroSeed_IllustrisTNG_L25n256_LH.txt",
 
-
     # Model Architecture
-    in_channels=[7, 4, 4, 8, 3],
-    hidden_dim = 64,
+    in_channels=[3, 4, 4, 8, 3],
+    hidden_dim = 32,
     num_layers=3,
-    layerType = "Master",
+    layerType = "Normal",
     attention_flag = False,
     residual_flag = True,
 
@@ -25,8 +24,8 @@ args = Namespace(
     # Training Hyperparameters
     num_epochs=100,
     test_interval=5,
-    learning_rate=1e-5,#1e-5,
-    weight_decay=1e-5,
+    learning_rate=0.00006714467820021703,#1e-5,
+    weight_decay=0.000003548299217253911,
 
     # Device
     device_num=1,
@@ -36,6 +35,7 @@ args = Namespace(
     batch_size=1,
     val_size=0.15,
     test_size=0.15,
+    random_seed=12345,
 
     # Features & Neighborhood Functions
     feature_sets = [

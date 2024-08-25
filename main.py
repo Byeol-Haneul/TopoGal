@@ -1,15 +1,25 @@
-import torch
 import logging
+import torch
+import os
+import random
+import pandas as pd
+import numpy as np
+
 from torch.utils.data import DataLoader
+
 from data.load_data import load_tensors, split_data
 from model.network import Network
 from model.train import train, evaluate, save_checkpoint, load_checkpoint
 from data.dataset import CustomDataset, custom_collate_fn
 from config.config import args
 from config.param_config import PARAM_STATS, PARAM_ORDER, normalize_params, denormalize_params
-import os
-import pandas as pd
-import numpy as np
+
+def fix_random_seed(seed):
+    seed = seed if (seed is not None) else 12345
+    torch.manual_seed(seed)
+    np.random.seed(seed)
+    random.seed(seed)
+    logging.info(f"Random seed fixed to {seed}.")
 
 def implicit_likelihood_loss(output, target):
     num_params = len(target)
@@ -91,8 +101,9 @@ def main(args):
                         handlers=[logging.FileHandler(args.checkpoint_dir + '/' + 'training.log'), logging.StreamHandler()])
 
     logging.info(f"Arguments: {vars(args)}")
-    
+
     num_list = [i for i in range(1000)]
+    fix_random_seed(args.random_seed)    
 
     os.environ["CUDA_DEVICE_ORDER"]="PCI_BUS_ID"
     os.environ["CUDA_VISIBLE_DEVICES"]= str(args.device_num)

@@ -20,12 +20,17 @@ class HyperparameterTuner:
         weight_decay = trial.suggest_loguniform('weight_decay', 1e-8, 1e-4)
         layer_type = trial.suggest_categorical('layerType', ['GNN', 'Normal', 'Master'])
 
+        # Include trial number in checkpoint directory
+        trial_checkpoint_dir = os.path.join(self.checkpoint_dir, f'trial_{trial.number}')
+        os.makedirs(trial_checkpoint_dir, exist_ok=True)
+
         self.args = self.create_args(
             hidden_dim=hidden_dim,
             num_layers=num_layers,
             learning_rate=learning_rate,
             weight_decay=weight_decay,
-            layer_type=layer_type
+            layer_type=layer_type,
+            checkpoint_dir=trial_checkpoint_dir
         )
 
         try:
@@ -36,13 +41,13 @@ class HyperparameterTuner:
 
         return val_loss
 
-    def create_args(self, hidden_dim, num_layers, learning_rate, weight_decay, layer_type):        
+    def create_args(self, hidden_dim, num_layers, learning_rate, weight_decay, layer_type, checkpoint_dir):        
         return Namespace(
             # mode
             tuning=True,
 
             # Model Architecture
-            in_channels=[7, 4, 4, 8, 3],
+            in_channels=[3, 4, 4, 8, 3],
             hidden_dim=hidden_dim,
             num_layers=num_layers,
             layerType=layer_type,  # Add layer type here
@@ -54,12 +59,12 @@ class HyperparameterTuner:
 
             # Directories
             data_dir=self.data_dir,
-            checkpoint_dir=self.checkpoint_dir,
+            checkpoint_dir=checkpoint_dir,
             label_filename=self.label_filename,
 
             # Training Hyperparameters
             num_epochs=100,
-            test_interval=10,
+            test_interval=30,
             learning_rate=learning_rate,
             weight_decay=weight_decay,
 
@@ -71,6 +76,7 @@ class HyperparameterTuner:
             batch_size=1,
             val_size=0.15,
             test_size=0.15,
+            random_seed=12345,
 
             # Features & Neighborhood Functions
             feature_sets=[
