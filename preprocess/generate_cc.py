@@ -22,7 +22,7 @@ DIM = 3
 MASS_UNIT = 1e10
 Nstar_th = 20 # not used
 MASS_CUT = 1e8
-modes = {"ISDISTANCE": 1, "ISEIGEN": 2, "ISVOLUME": 3}
+modes = {"ISDISTANCE": 1, "ISAREA": 2, "ISVOLUME": 3}
 
 global_centroid = None # to be updated.
 # --- HYPERPARAMS --- #
@@ -32,9 +32,9 @@ MINCLUSTER = 7 #>10 Found no clusters made in some catalogs.
 # ---- FEATURES ---- #
 # NODES:        4 (Mstar, Rstar, Metal, Vmax)
 # EDGES:        3 (distance, angle1, angle2)
-# TETRA:        1 (volume)
-# CLUSTERS:     4 (e1, e2, e3, gyradius)
-# HYPERCLUSTER: 3 (distance, num_galaxies_cluster1, num_galaxies_cluster2)
+# TETRA:        5 (4 areas, volume)
+# CLUSTERS:     7 (e1, e2, e3, gyradius, angle1, angle2, num_galaxies)
+# HYPERCLUSTER: 3 (distance, angle1, angle2)
 # ------------------ #
 
 in_dir = "/data2/jylee/topology/IllustrisTNG/data/"
@@ -93,7 +93,7 @@ def load_catalog(directory, filename):
     Vmax  = np.log10(1.+ Vmax)
 
     feat = np.vstack((Mstar, Rstar, Metal, Vmax)).T
-    feat = np.hstack((pos, feat))
+    #feat = np.hstack((pos, feat))
     return pos, feat
 
 class Edge:
@@ -142,6 +142,7 @@ class Edge:
 
         # Dot products between unit vectors
         cos1 = np.dot(unitrow.T,unitcol)
+        cos1 = 1 - cos1 if cos1 > 0 else cos1 + 1 # Values close to 1. 
         cos2 = np.dot(unitrow.T,unitdiff)
         self.angles = [cos1, cos2]
 
@@ -162,6 +163,7 @@ class Tetrahedron:
         self.pos = get_corrected_pos(np.array([pos[node] for node in self.nodes]))
         
         self.volume = None
+        self.areas = None
         self.features = []
         self.add_features() 
 
@@ -177,8 +179,23 @@ class Tetrahedron:
 
     def add_features(self):
         self.calculate_volume()
+        self.calculate_areas()
+        self.features.extend(self.areas)
         self.features.append(self.volume)
         
+    def triangle_area(self, a, b, c):
+        area = 0.5 * np.linalg.norm(np.cross(b - a, c - a))
+        return normalize(area, "ISAREA")    
+
+    def calculate_areas(self):
+        a, b, c, d = self.pos
+        self.areas = [
+            self.triangle_area(a, b, c),
+            self.triangle_area(a, b, d),
+            self.triangle_area(a, c, d),
+            self.triangle_area(b, c, d)
+        ]
+
     def __repr__(self):
         return f"Tetrahedron(index={self.index}, nodes={self.nodes}, features={self.features})"
 
@@ -196,6 +213,7 @@ class Cluster:
         self.covariance_matrix = None
 
         self.volumes = []
+        self.angles = []
         self.features = []
 
         self.add_features()
@@ -234,8 +252,9 @@ class Cluster:
 
     def calculate_eigenvalues(self):
         if self.covariance_matrix is not None:
-            eigenvalues, _ = np.linalg.eigh(self.covariance_matrix)
-            self.eigenvalues = normalize(eigenvalues, "ISEIGEN")
+            eigenvalues, eigenvectors = np.linalg.eigh(self.covariance_matrix)
+            self.eigenvalues = normalize(eigenvalues, "ISAREA")
+            self.eigenvectors = normalize(eigenvectors, "ISDISTANCE")
 
     def calculate_gyradius(self):
         if self.node_positions is not None and self.centroid is not None:
@@ -243,21 +262,38 @@ class Cluster:
             squared_distances = np.sum(centered_positions ** 2, axis=1)
             self.gyradius = normalize(np.sqrt(np.mean(squared_distances)), "ISDISTANCE")
 
+    def calculate_angles(self):
+        angles = []
+        if self.node_positions is not None and self.eigenvectors is not None:
+            vector = self.centroid
+            unit_vector = vector / np.linalg.norm(vector)
+            for eigenvector in self.eigenvectors.T:
+                unit_eigenvector = eigenvector / np.linalg.norm(eigenvector)
+                cos_angle = np.dot(unit_vector, unit_eigenvector)
+                angles.append(cos_angle)
+        
+        self.angles = angles[:2] # only use two axes. 
+ 
     def add_features(self):
         self.calculate_centroid()
         self.calculate_covariance_matrix()
         self.calculate_eigenvalues()
         self.calculate_gyradius()
+        self.calculate_angles()
 
         # Add features
         self.features.extend(self.eigenvalues)
         self.features.append(self.gyradius)
+        self.features.extend(self.angles)
+        self.features.append(np.log10(len(list(self.nodes))+1))
 
     def __repr__(self):
         return (f"Cluster(label={self.label}, features={self.features})")
 
 class Hypercluster:
     def __init__(self, cluster1, cluster2, dist):
+        self.cluster1 = cluster1
+        self.cluster2 = cluster2
         self.cluster1_label = cluster1.label
         self.cluster2_label = cluster2.label
         self.nodes = cluster1.nodes | cluster2.nodes
@@ -266,7 +302,23 @@ class Hypercluster:
         self.num_nodes_cluster1 = np.log10(len(cluster1.nodes)+1)
         self.num_nodes_cluster2 = np.log10(len(cluster2.nodes)+1)
 
-        self.features = [self.distance, self.num_nodes_cluster1, self.num_nodes_cluster2]
+        self.angles = self.calculate_angles()
+        self.features = [self.distance] + self.angles
+
+    def calculate_angles(self):
+        row, col = self.cluster1.centroid, self.cluster2.centroid
+        diff = row-col
+
+        # Normalizing
+        unitrow = row/np.linalg.norm(row)
+        unitcol = col/np.linalg.norm(col)
+        unitdiff = diff/np.linalg.norm(diff)
+
+        # Dot products between unit vectors
+        cos1 = np.dot(unitrow.T,unitcol)
+        cos2 = np.dot(unitrow.T,unitdiff)
+        angles = [cos1, cos2]
+        return angles
 
     def __repr__(self):
         return f"Hypercluster(cluster1={self.cluster1_label}, cluster2={self.cluster2_label}, features={self.features})"
@@ -440,7 +492,7 @@ def remove_subset_clusters(clusters):
     for label in to_remove:
         del clusters[label]
 
-    print(f"[LOG] Removed {len(to_remove)} subset clusters.")
+    print(f"[LOG] Removed {len(to_remove)} subset clusters.", file=sys.stderr)
     return clusters
 
 def clustering(tetrahedra):
@@ -507,7 +559,7 @@ def main2():
     size = comm.Get_size()
 
     # Array to be processed
-    array = [34, 35, 36, 37, 38, 39, 40, 41, 57, 58, 59, 60, 61, 62, 91, 92, 93, 94, 95, 96, 97, 98, 99, 100, 101, 102, 103, 104, 155, 156, 157, 158, 159, 160, 161, 162, 163, 164, 165, 166, 167, 191, 192, 193, 194, 195, 196, 197, 198, 199, 200, 201, 202, 203, 204, 205, 206, 207, 208, 209, 240, 241, 242, 243, 244, 245, 246, 247, 248, 249, 250, 251, 259, 260, 261, 262, 263, 264, 265, 266, 267, 268, 269, 270, 271, 272, 280, 281, 282, 283, 284, 285, 286, 287, 288, 289, 290, 291, 292, 293, 328, 329, 330, 331, 332, 333, 334, 335, 366, 367, 368, 369, 370, 371, 372, 373, 374, 375, 376, 377, 386, 387, 388, 389, 390, 391, 392, 393, 394, 395, 396, 397, 398, 452, 453, 454, 455, 456, 457, 458, 459, 460, 461, 527, 528, 529, 530, 531, 532, 533, 534, 535, 536, 537, 538, 539, 540, 541, 542, 543, 544, 545, 562, 563, 564, 565, 566, 596, 597, 598, 599, 600, 601, 602, 603, 604, 605, 606, 607, 608, 611, 612, 613, 614, 615, 616, 617, 618, 619, 620, 621, 622, 623, 624, 625, 626, 627, 628, 629, 721, 722, 723, 724, 725, 726, 727, 728, 729, 730, 731, 732, 733, 734, 755, 764, 765, 766, 767, 768, 769, 770, 771, 772, 773, 774, 775, 776, 893, 894, 895, 896, 897, 898, 899, 907, 908, 909, 910, 911, 912, 913, 914, 915, 916, 917, 918, 919, 962, 963, 964, 965, 966, 967, 968, 969, 970, 971, 972, 973, 974, 975, 976, 977, 978, 979, 993, 994, 995, 996, 997, 998, 999]
+    array = [7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 113, 114, 115, 116, 117, 118, 119, 120, 121, 122, 123, 124, 125, 154, 155, 156, 157, 158, 159, 160, 161, 162, 163, 164, 165, 166, 167, 196, 197, 198, 199, 200, 201, 202, 203, 204, 205, 206, 207, 208, 209, 314, 356, 573, 574, 575, 576, 577, 578, 579, 580, 581, 582, 583, 584, 585, 586, 587, 707, 708, 709, 710, 711, 712, 713, 805, 806, 807, 808, 809, 810, 811, 812, 813, 814, 815, 816, 817, 818, 874, 875, 876, 877, 878, 879]
 
     total_elements = len(array)
     jobs_per_process = total_elements // size
@@ -538,5 +590,5 @@ def main2():
 
 
 if __name__ == "__main__":
-    main()
+    main2()
 
