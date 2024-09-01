@@ -5,6 +5,7 @@ import random
 from itertools import product, combinations
 import sys
 import os 
+import torch
 
 from scipy.spatial import Delaunay, distance, KDTree
 from sklearn.cluster import DBSCAN, HDBSCAN
@@ -15,6 +16,8 @@ from toponetx.classes.simplicial_complex import SimplicialComplex
 from toponetx.classes.combinatorial_complex import CombinatorialComplex
 from toponetx.readwrite.serialization import to_pickle
 from toponetx.readwrite.serialization import load_from_pickle
+
+from invariants import Invariants, cell_invariants_torch
 
 # ---- CONSTANTS ---- #
 BOXSIZE = 25e3
@@ -38,30 +41,15 @@ MINCLUSTER = 7 #>10 Found no clusters made in some catalogs.
 # ------------------ #
 
 in_dir = "/data2/jylee/topology/IllustrisTNG/data/"
-out_dir = "/data2/jylee/topology/IllustrisTNG/combinatorial/cc_inv/"
+out_dir = "/data2/jylee/topology/IllustrisTNG/combinatorial/cc_cross_inv/"
+invariants_save_dir = "/data2/jylee/topology/IllustrisTNG/combinatorial/tensors_cross_inv/"
 
 os.makedirs(out_dir, exist_ok=True)
+os.makedirs(invariants_save_dir, exist_ok=True)
 
 def normalize(value, option):
     power = modes[option]
     return value / (r_link)
-
-def get_corrected_pos(pos):
-    pos -= global_centroid
-    if pos.ndim == 1:
-        pos = pos.reshape(1, 3)
-    
-    for i, pos_i in enumerate(pos):
-        for j, coord in enumerate(pos_i):
-            if coord > 0.5:
-                pos[i, j] -= 1.  
-            elif -coord > 0.5:
-                pos[i, j] += 1.
-    
-    if pos.shape[0] == 1:
-        return pos.flatten()
-    
-    return pos
 
 def load_catalog(directory, filename):
     f = h5py.File(directory + filename, 'r')
@@ -96,16 +84,62 @@ def load_catalog(directory, filename):
     #feat = np.hstack((pos, feat))
     return pos, feat
 
-class Edge:
+class AbstractCells:
+    def __init__(self, nodes, pos):
+        self.nodes = set(nodes)  # Changed from list to set for consistency
+        self.node_position = self.get_corrected_pos(np.array([pos[node] for node in self.nodes]))
+        self.centroid = self.calculate_centroid()
+
+    def get_corrected_pos(self, pos):
+        pos -= global_centroid
+        if pos.ndim == 1:
+            pos = pos.reshape(1, 3)
+        
+        for i, pos_i in enumerate(pos):
+            for j, coord in enumerate(pos_i):
+                if coord > 0.5:
+                    pos[i, j] -= 1.  
+                elif -coord > 0.5:
+                    pos[i, j] += 1.
+        
+        return pos
+
+    def calculate_centroid(self):
+        if len(list(self.nodes)) == 1:
+            return self.node_position[0]
+
+        self.centroid = np.mean(self.node_position, axis=0)
+        for i, coord in enumerate(self.centroid):
+            if coord > 1.0:
+                self.centroid[i] -= 1.0
+            elif coord < 0.0:
+                self.centroid[i] += 1.0
+        return self.centroid
+
+class Node(AbstractCells):  # Inherit from AbstractCells
+    def __init__(self, node, pos, feat):
+        super().__init__([node], pos)  # Use the superclass constructor
+        self.node = node 
+        self.features = feat[node]
+
+    def __repr__(self):
+        return f"Node(node={self.node}, pos={self.node_position}, features={self.features})"
+
+    def __hash__(self):
+        return hash(self.node)
+
+    def __eq__(self, other):
+        return self.node == other.node
+
+
+class Edge(AbstractCells):  # Inherit from AbstractCells
     def __init__(self, nodes, pos=None):
-        self.nodes = tuple(sorted(nodes))
-        self.pos = get_corrected_pos(np.array([pos[node] for node in self.nodes]))
+        super().__init__(nodes, pos)  # Use the superclass constructor
+        self.nodes = tuple(sorted(nodes))  # Ensure nodes are sorted
         self.distance = None
         self.angles = [None, None]
-        self.midpoint =  [None, None, None]
-        
         self.features = []
-        self.add_feature() 
+        self.add_feature()
 
     def add_feature(self):
         self.calculate_distance()
@@ -114,41 +148,32 @@ class Edge:
         self.features.extend(self.angles)
 
     def calculate_distance(self):
-        diff = self.pos[0] - self.pos[1]
+        diff = self.node_position[0] - self.node_position[1]
         for i, coord in enumerate(diff):
             if coord > r_link:
-                diff[i] -= 1.0 
+                diff[i] -= 1.0
             elif coord < -r_link:
                 diff[i] += 1.0
         self.distance = np.linalg.norm(diff)
         self.distance = normalize(self.distance, "ISDISTANCE")
 
-    def calculate_midpoint(self):
-        self.midpoint = np.mean(self.pos, axis=0)
-        for i, coord in enumerate(self.midpoint):
-            if coord > 1.0:
-                self.midpoint[i] -= 1.0
-            elif coord < 0.0:
-                self.midpoint[i] += 1.0
-
     def calculate_angles(self):
-        row, col = self.pos[0], self.pos[1]
-        diff = row-col
+        row, col = self.node_position[0], self.node_position[1]
+        diff = row - col
 
         # Normalizing
-        unitrow = row/np.linalg.norm(row)
-        unitcol = col/np.linalg.norm(col)
-        unitdiff = diff/np.linalg.norm(diff)
+        unitrow = row / np.linalg.norm(row)
+        unitcol = col / np.linalg.norm(col)
+        unitdiff = diff / np.linalg.norm(diff)
 
         # Dot products between unit vectors
-        cos1 = np.dot(unitrow.T,unitcol)
-        cos1 = 1 - cos1 if cos1 > 0 else cos1 + 1 # Values close to 1. 
-        cos2 = np.dot(unitrow.T,unitdiff)
+        cos1 = np.dot(unitrow.T, unitcol)
+        cos1 = 1 - cos1 if cos1 > 0 else cos1 + 1  # Values close to 1.
+        cos2 = np.dot(unitrow.T, unitdiff)
         self.angles = [cos1, cos2]
 
-
     def __repr__(self):
-        return f"Edge(nodes={self.nodes}, pos={self.pos}, features={self.features})"
+        return f"Edge(nodes={self.nodes}, pos={self.node_position}, features={self.features})"
 
     def __hash__(self):
         return hash(self.nodes)
@@ -156,39 +181,35 @@ class Edge:
     def __eq__(self, other):
         return self.nodes == other.nodes
 
-class Tetrahedron:
+
+class Tetrahedron(AbstractCells):  # Inherit from AbstractCells
     def __init__(self, index, nodes, pos):
+        super().__init__(nodes, pos)  # Use the superclass constructor
         self.index = index
-        self.nodes = nodes
-        self.pos = get_corrected_pos(np.array([pos[node] for node in self.nodes]))
-        
         self.volume = None
         self.areas = None
         self.features = []
-        self.add_features() 
+        self.add_features()
 
     def calculate_volume(self):
         mat = np.zeros([4, 4])
-        mat[:, :3] = self.pos
+        mat[:, :3] = self.node_position
         mat[:, 3] = 1.0
         self.volume = np.abs(np.linalg.det(mat)) / 6
         self.volume = normalize(self.volume, "ISVOLUME")
-
-    def get_midpoint(self):
-        return np.mean(self.pos, axis=0)
 
     def add_features(self):
         self.calculate_volume()
         self.calculate_areas()
         self.features.extend(self.areas)
         self.features.append(self.volume)
-        
+
     def triangle_area(self, a, b, c):
         area = 0.5 * np.linalg.norm(np.cross(b - a, c - a))
-        return normalize(area, "ISAREA")    
+        return normalize(area, "ISAREA")
 
     def calculate_areas(self):
-        a, b, c, d = self.pos
+        a, b, c, d = self.node_position
         self.areas = [
             self.triangle_area(a, b, c),
             self.triangle_area(a, b, d),
@@ -199,19 +220,19 @@ class Tetrahedron:
     def __repr__(self):
         return f"Tetrahedron(index={self.index}, nodes={self.nodes}, features={self.features})"
 
-class Cluster:
-    def __init__(self, label, tetrahedra):
+
+class Cluster(AbstractCells):  # Inherit from AbstractCells
+    def __init__(self, label, tetrahedra, pos):
         self.label = label
         self.tetrahedra = tetrahedra
-        
-        self.nodes = self.get_nodes()
-        self.node_positions = self.get_node_positions()
 
-        self.centroid = None
+        # Extract nodes and positions from tetrahedra
+        nodes = self.get_nodes()
+        super().__init__(nodes, pos)  # Use the superclass constructor
+
         self.eigenvalues = None
         self.gyradius = None
         self.covariance_matrix = None
-
         self.volumes = []
         self.angles = []
         self.features = []
@@ -224,30 +245,9 @@ class Cluster:
             nodes.update(tetra.nodes)
         return nodes
 
-    def get_node_positions(self):
-        if self.nodes:
-            node_positions = []
-            for tetra in self.tetrahedra:
-                node_positions.extend(tetra.pos)
-            node_positions = np.array(node_positions)
-            return node_positions  # tetra positions already corrected
-        else:
-            return None
-
-    def calculate_centroid(self):
-        if self.node_positions is not None:
-            self.centroid = np.mean(self.node_positions, axis=0)
-    
-    def calculate_volumes(self):
-        self.volumes = []
-        for tetra in self.tetrahedra:
-            self.volumes.append(tetra.volume)
-        self.avg_volume = normalize(np.mean(self.volumes), "ISVOLUME")
-        self.std_volume = normalize(np.std(self.volumes), "ISVOLUME")
-
     def calculate_covariance_matrix(self):
-        if self.node_positions is not None and self.centroid is not None:
-            centered_positions = self.node_positions - self.centroid
+        if self.node_position is not None and self.centroid is not None:
+            centered_positions = self.node_position - self.centroid
             self.covariance_matrix = np.cov(centered_positions, rowvar=False)
 
     def calculate_eigenvalues(self):
@@ -257,25 +257,24 @@ class Cluster:
             self.eigenvectors = normalize(eigenvectors, "ISDISTANCE")
 
     def calculate_gyradius(self):
-        if self.node_positions is not None and self.centroid is not None:
-            centered_positions = self.node_positions - self.centroid
+        if self.node_position is not None and self.centroid is not None:
+            centered_positions = self.node_position - self.centroid
             squared_distances = np.sum(centered_positions ** 2, axis=1)
             self.gyradius = normalize(np.sqrt(np.mean(squared_distances)), "ISDISTANCE")
 
     def calculate_angles(self):
         angles = []
-        if self.node_positions is not None and self.eigenvectors is not None:
+        if self.node_position is not None and self.eigenvectors is not None:
             vector = self.centroid
             unit_vector = vector / np.linalg.norm(vector)
             for eigenvector in self.eigenvectors.T:
                 unit_eigenvector = eigenvector / np.linalg.norm(eigenvector)
                 cos_angle = np.dot(unit_vector, unit_eigenvector)
                 angles.append(cos_angle)
-        
-        self.angles = angles[:2] # only use two axes. 
- 
+
+        self.angles = angles[:2]  # only use two axes.
+
     def add_features(self):
-        self.calculate_centroid()
         self.calculate_covariance_matrix()
         self.calculate_eigenvalues()
         self.calculate_gyradius()
@@ -285,38 +284,42 @@ class Cluster:
         self.features.extend(self.eigenvalues)
         self.features.append(self.gyradius)
         self.features.extend(self.angles)
-        self.features.append(np.log10(len(list(self.nodes))+1))
+        self.features.append(np.log10(len(list(self.nodes)) + 1))
 
     def __repr__(self):
-        return (f"Cluster(label={self.label}, features={self.features})")
+        return f"Cluster(label={self.label}, features={self.features})"
 
-class Hypercluster:
-    def __init__(self, cluster1, cluster2, dist):
+
+class Hypercluster(AbstractCells):  # Inherit from AbstractCells
+    def __init__(self, cluster1, cluster2, dist, pos):
+        # Combine nodes and positions from both clusters
+        nodes = cluster1.nodes | cluster2.nodes
+        super().__init__(nodes, pos)  # Use the superclass constructor
+
         self.cluster1 = cluster1
         self.cluster2 = cluster2
         self.cluster1_label = cluster1.label
         self.cluster2_label = cluster2.label
-        self.nodes = cluster1.nodes | cluster2.nodes
-        
+
         self.distance = normalize(dist, "ISDISTANCE")
-        self.num_nodes_cluster1 = np.log10(len(cluster1.nodes)+1)
-        self.num_nodes_cluster2 = np.log10(len(cluster2.nodes)+1)
+        self.num_nodes_cluster1 = np.log10(len(cluster1.nodes) + 1)
+        self.num_nodes_cluster2 = np.log10(len(cluster2.nodes) + 1)
 
         self.angles = self.calculate_angles()
         self.features = [self.distance] + self.angles
 
     def calculate_angles(self):
         row, col = self.cluster1.centroid, self.cluster2.centroid
-        diff = row-col
+        diff = row - col
 
         # Normalizing
-        unitrow = row/np.linalg.norm(row)
-        unitcol = col/np.linalg.norm(col)
-        unitdiff = diff/np.linalg.norm(diff)
+        unitrow = row / np.linalg.norm(row)
+        unitcol = col / np.linalg.norm(col)
+        unitdiff = diff / np.linalg.norm(diff)
 
         # Dot products between unit vectors
-        cos1 = np.dot(unitrow.T,unitcol)
-        cos2 = np.dot(unitrow.T,unitdiff)
+        cos1 = np.dot(unitrow.T, unitcol)
+        cos2 = np.dot(unitrow.T, unitdiff)
         angles = [cos1, cos2]
         return angles
 
@@ -391,6 +394,8 @@ def create_cc(in_dir, in_filename):
     global global_centroid
     global_centroid = np.mean(pos, axis=0)
 
+    nodes = [Node(node, pos, feat) for node in range(len(pos))]
+
     # 1. Get Tetrahedra
     tetrahedra = get_tetrahedra(pos, feat)
     
@@ -400,7 +405,7 @@ def create_cc(in_dir, in_filename):
     edge_set = kdtree_edge_set | tetra_edge_set
     
     # 3. Clustering on Tetrahedra
-    clusters = clustering(tetrahedra)
+    clusters = clustering(tetrahedra, pos)
 
     # 4. Get Hyperclusters using MST
     hyperclusters = {}
@@ -414,7 +419,7 @@ def create_cc(in_dir, in_filename):
         cluster2 = clusters[cluster2_label]
 
         hypercluster_label = f"hyper_{cluster1_label}_{cluster2_label}"
-        hypercluster = Hypercluster(cluster1, cluster2, dist)
+        hypercluster = Hypercluster(cluster1, cluster2, dist, pos)
         hyperclusters[hypercluster_label] = hypercluster
     
     ##########################
@@ -429,27 +434,24 @@ def create_cc(in_dir, in_filename):
     cc = CombinatorialComplex()
 
     ## 5-1 ADD NODES ##
-    for node, node_data in zip(list(range(NUMPOINTS)), feat):
-        cc.add_cell([node], rank=0)
+    for node in nodes:
+        cc.add_cell([node.node], rank=0)
     
-    node_data = {num: feat[num] for num in range(NUMPOINTS)}
+    node_data = {node.node: node.features for node in nodes}
 
     ## 5-2 ADD EDGES ##
-    sorted_edge_objects = sorted(list(edge_set), key=lambda e: e.distance if e.features else float('inf'))
-    sorted_edges = sorted_edge_objects[:NUMEDGES]
+    edges = list(edge_set)
 
-    for edge in sorted_edges:
+    for edge in edges:
         cc.add_cell(edge.nodes, rank=1)
     
-    edge_data = {edge.nodes: edge.features for edge in sorted_edges}
+    edge_data = {edge.nodes: edge.features for edge in edges}
 
     ## 5-3 ADD TETRA ##
-    sorted_tetra = tetrahedra[:NUMTETRA]
-
-    for tetra in sorted_tetra:
+    for tetra in tetrahedra:
         cc.add_cell(list(tetra.nodes), rank=2)
 
-    tetra_data = {tuple(tetra.nodes): tetra.features for tetra in sorted_tetra}  # Using volume as data
+    tetra_data = {tuple(tetra.nodes): tetra.features for tetra in tetrahedra}  # Using volume as data
 
     ## 5-4 ADD Clusters ##
     for cluster in clusters.values():
@@ -469,7 +471,7 @@ def create_cc(in_dir, in_filename):
     cc.set_cell_attributes(tetra_data, name="tetra_feat")
     cc.set_cell_attributes(cluster_data, name="cluster_feat")
     cc.set_cell_attributes(hypercluster_data, name="hypercluster_feat")
-    return cc
+    return cc, nodes, edges, tetrahedra, clusters, hyperclusters #cc, edges, clusters, tetra_edge_set, kdtree_edge_set, tetra_data, mst, feat, pos, hyperclusters
 
 def remove_subset_clusters(clusters):
     to_remove = set()
@@ -495,9 +497,9 @@ def remove_subset_clusters(clusters):
     print(f"[LOG] Removed {len(to_remove)} subset clusters.", file=sys.stderr)
     return clusters
 
-def clustering(tetrahedra):
+def clustering(tetrahedra, pos):
     global r_link
-    embeddings = np.array([tetra.get_midpoint() for i, tetra in enumerate(tetrahedra)])
+    embeddings = np.array([tetra.centroid for i, tetra in enumerate(tetrahedra)])
     db = HDBSCAN(min_samples=MINCLUSTER).fit(embeddings)
     labels = db.labels_
 
@@ -511,7 +513,7 @@ def clustering(tetrahedra):
         if len(merged_tetra) == 1:
             continue
         else:
-            cluster = Cluster(label, merged_tetra)
+            cluster = Cluster(label, merged_tetra, pos)
             clusters[label] = cluster
 
     # Remove subset clusters
@@ -525,42 +527,36 @@ def clustering(tetrahedra):
 
     return clusters
 
-def main():
-    comm = MPI.COMM_WORLD
-    rank = comm.Get_rank()
-    size = comm.Get_size()
+def cross_cell_invariants(nodes, edges, tetrahedra, clusters, hyperclusters):
+    cell_lists = [nodes, edges, tetrahedra, clusters.values(), hyperclusters.values()]
+    rank_names = ['0', '1', '2', '3', '4']
 
-    total_jobs = 1000
-    jobs_per_process = total_jobs // size
-    extra_jobs = total_jobs % size
+    invariants = {}
 
-    if rank < extra_jobs:
-        start_num = rank * (jobs_per_process + 1)
-        end_num = start_num + jobs_per_process + 1
-    else:
-        start_num = rank * jobs_per_process + extra_jobs
-        end_num = start_num + jobs_per_process
+    for i, list1 in enumerate(cell_lists):
+        for j, list2 in enumerate(cell_lists):
+            if i < j:
+                print(f"[LOG] Calculating for cell ranks {i} and {j}", file=sys.stderr)
+                # Compute invariants using the cell_invariants_torch function
+                euclidean_distances, hausdorff_distances = cell_invariants_torch(list1, list2)
+                
+                # Store the results in the dictionary
+                invariants[f'euclidean_{rank_names[i]}_{rank_names[j]}'] = normalize(euclidean_distances, "ISDISTANCE")
+                invariants[f'hausdorff_{rank_names[i]}_{rank_names[j]}'] = normalize(hausdorff_distances, "ISDISTANCE")
 
-    for num in range(start_num, end_num):
-        in_filename = f"data_{num}.hdf5"
-        out_filename = f"data_{num}.pickle"
 
-        cc = create_cc(in_dir, in_filename)
+    for key, tensor in invariants.items():
+        print(f"[LOG] Saving tensor {key}.pt", file=sys.stderr)
+        torch.save(tensor, os.path.join(invariants_save_dir, f"{key}.pt"))
 
-        print(f"""[LOG] Process {rank}: Created combinatorial complex for file {in_filename}""", file=sys.stderr)
-        to_pickle(cc, out_dir + out_filename)
+    return invariants
 
-    comm.Barrier()
-    MPI.Finalize()
-
-def main2():
+def main(array):
     comm = MPI.COMM_WORLD
     rank = comm.Get_rank()
     size = comm.Get_size()
 
     # Array to be processed
-    array = [7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 113, 114, 115, 116, 117, 118, 119, 120, 121, 122, 123, 124, 125, 154, 155, 156, 157, 158, 159, 160, 161, 162, 163, 164, 165, 166, 167, 196, 197, 198, 199, 200, 201, 202, 203, 204, 205, 206, 207, 208, 209, 314, 356, 573, 574, 575, 576, 577, 578, 579, 580, 581, 582, 583, 584, 585, 586, 587, 707, 708, 709, 710, 711, 712, 713, 805, 806, 807, 808, 809, 810, 811, 812, 813, 814, 815, 816, 817, 818, 874, 875, 876, 877, 878, 879]
-
     total_elements = len(array)
     jobs_per_process = total_elements // size
     extra_jobs = total_elements % size
@@ -580,15 +576,21 @@ def main2():
         in_filename = f"data_{num}.hdf5"
         out_filename = f"data_{num}.pickle"
 
-        cc = create_cc(in_dir, in_filename)
+        cc, nodes, edges, tetrahedra, clusters, hyperclusters = create_cc(in_dir, in_filename)
 
         print(f"[LOG] Process {rank}: Created combinatorial complex for file {in_filename}", file=sys.stderr)
         to_pickle(cc, out_dir + out_filename)
+
+        print(f"[LOG] Process {rank}: Calculating Cross-Cell-Invariants", file=sys.stderr)
+        invariants = cross_cell_invariants(nodes, edges, tetrahedra, clusters, hyperclusters)
+
 
     comm.Barrier()
     MPI.Finalize()
 
 
 if __name__ == "__main__":
-    main2()
+    #num_array = [7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 113, 114, 115, 116, 117, 118, 119, 120, 121, 122, 123, 124, 125, 154, 155, 156, 157, 158, 159, 160, 161, 162, 163, 164, 165, 166, 167, 196, 197, 198, 199, 200, 201, 202, 203, 204, 205, 206, 207, 208, 209, 314, 356, 573, 574, 575, 576, 577, 578, 579, 580, 581, 582, 583, 584, 585, 586, 587, 707, 708, 709, 710, 711, 712, 713, 805, 806, 807, 808, 809, 810, 811, 812, 813, 814, 815, 816, 817, 818, 874, 875, 876, 877, 878, 879]
+    num_array = list(range(1000))
+    main(num_array)
 
