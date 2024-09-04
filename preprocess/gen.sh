@@ -3,7 +3,7 @@
 #PBS -v LD_LIBRARY_PATH=$LD_LIBRARY_PATH  
 #PBS -q workq
 #PBS -N preprocessing
-#PBS -l nodes=node2:ppn=48
+#PBS -l nodes=node3:ppn=48
 #PBS -l walltime=100:00:00
 #PBS -m abe
 #PBS -M toti010@naver.com
@@ -21,13 +21,14 @@ echo
 echo The following nodes will be used to run this program:
 echo                                                        
 echo $PBS_NODEFILE > stderr
+echo $PBS_NODEFILE > stdout
 echo
 
 source ~/.bashrc
 conda activate topo >> stderr
 
 #cat precalc_data.py > code
-#mpiexec -n 48 python3 generate_cc.py 1>> stdout 2>> stderr
+mpiexec -n 48 python3 generate_cc.py 1>> stdout 2>> stderr
 mpiexec -n 48 python3 neighbors.py 1>> stdout 2>> stderr
 exit 0
 

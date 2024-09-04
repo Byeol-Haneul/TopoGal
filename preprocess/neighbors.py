@@ -5,24 +5,20 @@ from toponetx.readwrite.serialization import load_from_pickle
 import pandas as pd
 import os
 import sys
+from config_preprocess import *
 
-# Define your in_channels and file paths
-in_channels = [-1, -1, -1, -1, -1]
-in_dir = "/data2/jylee/topology/IllustrisTNG/combinatorial/cc_cross_inv/"
-label_filename = "/data2/jylee/topology/CosmoAstroSeed_IllustrisTNG_L25n256_LH.txt"
-output_save_dir = "/data2/jylee/topology/IllustrisTNG/combinatorial/tensors_cross_inv/"
+def get_neighbors(num, cc):
+    in_channels = [-1, -1, -1, -1, -1]
 
-# Create the directory if it doesn't exist
-os.makedirs(output_save_dir, exist_ok=True)
-
-def process_num(num):
     results = {}
     label_file = pd.read_csv(label_filename, sep='\s+')
     
     try:
         in_filename = "data_" + str(num) + ".pickle"
         print(f"[LOG] Loading pickle file {in_filename}", file=sys.stderr)
-        cc = load_from_pickle(in_dir + in_filename)
+
+        if cc == None:
+            cc = load_from_pickle(cc_dir + in_filename)
         
         print(f"[LOG] Processing node features for num {num}", file=sys.stderr)
         x_0 = list(cc.get_node_attributes("node_feat").values())
@@ -134,10 +130,12 @@ def process_num(num):
         # Save results
         for key, tensor in results.items():
             print(f"[LOG] Saving tensor {key}_{num}.pt", file=sys.stderr)
-            torch.save(tensor, os.path.join(output_save_dir, f"{key}_{num}.pt"))
+            torch.save(tensor, os.path.join(tensor_dir, f"{key}_{num}.pt"))
 
     except Exception as e:
         print(f"[LOG] Error processing num {num}: {e}", file=sys.stderr)
+
+    return results
 
 
 def main():
@@ -163,7 +161,7 @@ def main():
     # Process the numbers assigned to this rank
     for num in range(start_num, end_num):
         print(f"[LOG] Rank {rank} processing num {num}", file=sys.stderr)
-        process_num(num)
+        get_neighbors(num, None)
 
     print(f"[LOG] Rank {rank} completed processing", file=sys.stderr)
 

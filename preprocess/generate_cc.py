@@ -17,20 +17,9 @@ from toponetx.classes.combinatorial_complex import CombinatorialComplex
 from toponetx.readwrite.serialization import to_pickle
 from toponetx.readwrite.serialization import load_from_pickle
 
-from invariants import Invariants, cell_invariants_torch
-
-# ---- CONSTANTS ---- #
-BOXSIZE = 25e3
-DIM = 3
-MASS_UNIT = 1e10
-Nstar_th = 20 # not used
-MASS_CUT = 1e8
-modes = {"ISDISTANCE": 1, "ISAREA": 2, "ISVOLUME": 3}
-
-global_centroid = None # to be updated.
-# --- HYPERPARAMS --- #
-r_link = 0.015
-MINCLUSTER = 7 #>10 Found no clusters made in some catalogs. 
+from invariants import Invariants, cell_invariants_torch, cross_cell_invariants
+from neighbors import get_neighbors
+from config_preprocess import *
 
 # ---- FEATURES ---- #
 # NODES:        4 (Mstar, Rstar, Metal, Vmax)
@@ -39,17 +28,6 @@ MINCLUSTER = 7 #>10 Found no clusters made in some catalogs.
 # CLUSTERS:     7 (e1, e2, e3, gyradius, angle1, angle2, num_galaxies)
 # HYPERCLUSTER: 3 (distance, angle1, angle2)
 # ------------------ #
-
-in_dir = "/data2/jylee/topology/IllustrisTNG/data/"
-out_dir = "/data2/jylee/topology/IllustrisTNG/combinatorial/cc_cross_inv/"
-invariants_save_dir = "/data2/jylee/topology/IllustrisTNG/combinatorial/tensors_cross_inv/"
-
-os.makedirs(out_dir, exist_ok=True)
-os.makedirs(invariants_save_dir, exist_ok=True)
-
-def normalize(value, option):
-    power = modes[option]
-    return value / (r_link)
 
 def load_catalog(directory, filename):
     f = h5py.File(directory + filename, 'r')
@@ -107,14 +85,9 @@ class AbstractCells:
     def calculate_centroid(self):
         if len(list(self.nodes)) == 1:
             return self.node_position[0]
+        else:
+            return np.mean(self.node_position, axis=0)
 
-        self.centroid = np.mean(self.node_position, axis=0)
-        for i, coord in enumerate(self.centroid):
-            if coord > 1.0:
-                self.centroid[i] -= 1.0
-            elif coord < 0.0:
-                self.centroid[i] += 1.0
-        return self.centroid
 
 class Node(AbstractCells):  # Inherit from AbstractCells
     def __init__(self, node, pos, feat):
@@ -390,6 +363,8 @@ def get_kdtree_edges(pos, r_link=0.015):
 def create_cc(in_dir, in_filename):    
     # Read in data
     pos, feat = load_catalog(in_dir, in_filename)
+    pos[np.where(pos<0.0)]+=1.0
+    pos[np.where(pos>1.0)]-=1.0
 
     global global_centroid
     global_centroid = np.mean(pos, axis=0)
@@ -527,30 +502,6 @@ def clustering(tetrahedra, pos):
 
     return clusters
 
-def cross_cell_invariants(nodes, edges, tetrahedra, clusters, hyperclusters):
-    cell_lists = [nodes, edges, tetrahedra, clusters.values(), hyperclusters.values()]
-    rank_names = ['0', '1', '2', '3', '4']
-
-    invariants = {}
-
-    for i, list1 in enumerate(cell_lists):
-        for j, list2 in enumerate(cell_lists):
-            if i < j:
-                print(f"[LOG] Calculating for cell ranks {i} and {j}", file=sys.stderr)
-                # Compute invariants using the cell_invariants_torch function
-                euclidean_distances, hausdorff_distances = cell_invariants_torch(list1, list2)
-                
-                # Store the results in the dictionary
-                invariants[f'euclidean_{rank_names[i]}_{rank_names[j]}'] = normalize(euclidean_distances, "ISDISTANCE")
-                invariants[f'hausdorff_{rank_names[i]}_{rank_names[j]}'] = normalize(hausdorff_distances, "ISDISTANCE")
-
-
-    for key, tensor in invariants.items():
-        print(f"[LOG] Saving tensor {key}.pt", file=sys.stderr)
-        torch.save(tensor, os.path.join(invariants_save_dir, f"{key}.pt"))
-
-    return invariants
-
 def main(array):
     comm = MPI.COMM_WORLD
     rank = comm.Get_rank()
@@ -579,10 +530,13 @@ def main(array):
         cc, nodes, edges, tetrahedra, clusters, hyperclusters = create_cc(in_dir, in_filename)
 
         print(f"[LOG] Process {rank}: Created combinatorial complex for file {in_filename}", file=sys.stderr)
-        to_pickle(cc, out_dir + out_filename)
+        to_pickle(cc, cc_dir + out_filename)
+
+        print(f"[LOG] Process {rank}: Calculating Neighbors", file=sys.stderr)
+        neighbors = get_neighbors(num, cc)
 
         print(f"[LOG] Process {rank}: Calculating Cross-Cell-Invariants", file=sys.stderr)
-        invariants = cross_cell_invariants(nodes, edges, tetrahedra, clusters, hyperclusters)
+        invariants = cross_cell_invariants(num, nodes, edges, tetrahedra, clusters, hyperclusters, neighbors)
 
 
     comm.Barrier()
