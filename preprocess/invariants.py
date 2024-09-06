@@ -45,20 +45,22 @@ def cell_invariants_torch(rank1_cells, rank2_cells, neighbor_matrix):
     euclidean_distances = torch.zeros((num_cells_rank1, num_cells_rank2))
     hausdorff_distances = torch.zeros((num_cells_rank1, num_cells_rank2))
 
-    # Compute distances between cells
-    for i, cell1 in enumerate(rank1_cells):
-        for j, cell2 in enumerate(rank2_cells):
-            if neighbor_matrix[i, j] == 0: # Only calculate for neighbors
-                continue
-            
-            invariant = Invariants(cell1, cell2)
-            euclidean_distance = invariant.cell_euclidean_distance()
-            hausdorff_distance = invariant.cell_hausdorff_distance()
-            
-            # Assign distances to the respective tensors
-            euclidean_distances[i, j] = euclidean_distance
-            hausdorff_distances[i, j] = hausdorff_distance
-    
+    # Access the indices of non-zero elements in the sparse matrix
+    indices = neighbor_matrix.indices().T.numpy()
+
+    # Iterate through the non-zero entries using the indices
+    for i, j in indices:      
+        cell1 = rank1_cells[i]
+        cell2 = rank2_cells[j]
+                    
+        invariant = Invariants(cell1, cell2)
+        euclidean_distance = invariant.cell_euclidean_distance()
+        hausdorff_distance = invariant.cell_hausdorff_distance()
+        
+        # Assign distances to the respective tensors
+        euclidean_distances[i, j] = euclidean_distance
+        hausdorff_distances[i, j] = hausdorff_distance
+
     return euclidean_distances.to_sparse(), hausdorff_distances.to_sparse()
 
 
@@ -80,7 +82,7 @@ def profile_if_enabled(func):
 cell_invariants_torch = profile_if_enabled(cell_invariants_torch)
 
 def cross_cell_invariants(num, nodes, edges, tetrahedra, clusters, hyperclusters, neighbors):
-    cell_lists = [nodes, edges, tetrahedra, clusters.values(), hyperclusters.values()]
+    cell_lists = [nodes, edges, tetrahedra, list(clusters.values()), list(hyperclusters.values())]
     rank_names = ['0', '1', '2', '3', '4']
 
     invariants = {}
@@ -91,7 +93,7 @@ def cross_cell_invariants(num, nodes, edges, tetrahedra, clusters, hyperclusters
                 print(f"[LOG] Calculating for cell ranks {i} and {j}", file=sys.stderr)
                 # Compute invariants using the cell_invariants_torch function
                 euclidean_distances, hausdorff_distances = cell_invariants_torch(list1, list2, neighbors[f"n{i}_to_{j}"])
-                
+
                 # Store the results in the dictionary
                 invariants[f'euclidean_{rank_names[i]}_to_{rank_names[j]}'] = normalize(euclidean_distances, "ISDISTANCE")
                 invariants[f'hausdorff_{rank_names[i]}_to_{rank_names[j]}'] = normalize(hausdorff_distances, "ISDISTANCE")

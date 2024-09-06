@@ -19,7 +19,7 @@ class HyperparameterTuner:
         num_layers = trial.suggest_int('num_layers', 1, 5)
         learning_rate = trial.suggest_float('learning_rate', 1e-7, 1e-4, log=True)
         weight_decay = trial.suggest_float('weight_decay', 1e-8, 1e-4, log=True)
-        layer_type = trial.suggest_categorical('layerType', ['GNN', 'Normal', 'Master'])
+        layer_type = trial.suggest_categorical('layerType', ['GNN', 'Normal'])
 
         # Include trial number in checkpoint directory
         trial_checkpoint_dir = os.path.join(self.checkpoint_dir, f'trial_{trial.number}')
@@ -49,7 +49,7 @@ class HyperparameterTuner:
             only_positions=self.only_positions,
 
             # Model Architecture
-            in_channels=[1, 3, 1, 4, 3],             # naive positions: in_channels=[3, 4, 4, 8, 3],
+            in_channels=[1, 3, 5, 7, 3],             # naive positions: in_channels=[3, 4, 4, 8, 3],
             hidden_dim=hidden_dim,
             num_layers=num_layers,
             layerType=layer_type,  # Add layer type here
@@ -106,7 +106,7 @@ def run_optuna_study(data_dir, checkpoint_dir, label_filename, device_num, n_tri
     checkpoint_path = os.path.join(checkpoint_dir, 'model_checkpoint.pth')
 
     # Run the Optuna study
-    sampler = optuna.samplers.TPESampler(seed=42)
+    sampler = optuna.samplers.TPESampler(seed=12345)
     study = optuna.create_study(direction='minimize', sampler=sampler)
     study.optimize(tuner.objective, n_trials=n_trials)
 

@@ -141,7 +141,7 @@ class Edge(AbstractCells):  # Inherit from AbstractCells
 
         # Dot products between unit vectors
         cos1 = np.dot(unitrow.T, unitcol)
-        cos1 = 1 - cos1 if cos1 > 0 else cos1 + 1  # Values close to 1.
+        #cos1 = 1 - cos1 if cos1 > 0 else cos1 + 1  # Values close to 1.
         cos2 = np.dot(unitrow.T, unitdiff)
         self.angles = [cos1, cos2]
 
@@ -174,8 +174,8 @@ class Tetrahedron(AbstractCells):  # Inherit from AbstractCells
     def add_features(self):
         self.calculate_volume()
         self.calculate_areas()
-        self.features.extend(self.areas)
         self.features.append(self.volume)
+        self.features.extend(self.areas)
 
     def triangle_area(self, a, b, c):
         area = 0.5 * np.linalg.norm(np.cross(b - a, c - a))
@@ -254,10 +254,10 @@ class Cluster(AbstractCells):  # Inherit from AbstractCells
         self.calculate_angles()
 
         # Add features
+        self.features.append(np.log10(len(list(self.nodes)) + 1))
         self.features.extend(self.eigenvalues)
         self.features.append(self.gyradius)
         self.features.extend(self.angles)
-        self.features.append(np.log10(len(list(self.nodes)) + 1))
 
     def __repr__(self):
         return f"Cluster(label={self.label}, features={self.features})"

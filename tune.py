@@ -2,8 +2,8 @@ import os
 from config.hyperparam import HyperparameterTuner, run_optuna_study
 
 def tune():
-    data_dir = "/data2/jylee/topology/IllustrisTNG/combinatorial/tensors_inv/"
-    checkpoint_dir = "/data2/jylee/topology/IllustrisTNG/combinatorial/optimize_inv/"
+    data_dir = "/data2/jylee/topology/IllustrisTNG/combinatorial/tensors_test/"
+    checkpoint_dir = "/data2/jylee/topology/IllustrisTNG/combinatorial/optimize_inv_rerun2/"
     label_filename = "/data2/jylee/topology/CosmoAstroSeed_IllustrisTNG_L25n256_LH.txt"
     
     device_num = 2

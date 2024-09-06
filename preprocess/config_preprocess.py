@@ -14,7 +14,7 @@ r_link = 0.015
 MINCLUSTER = 7 #>10 Found no clusters made in some catalogs. 
 
 ## OPTIONS
-ENABLE_PROFILING = True
+ENABLE_PROFILING = False
 
 # Define your directories and file paths
 in_dir = "/data2/jylee/topology/IllustrisTNG/data/"

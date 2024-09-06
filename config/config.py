@@ -8,11 +8,11 @@ args = Namespace(
 
     # Directories
     data_dir="/data2/jylee/topology/IllustrisTNG/combinatorial/tensors_inv/",
-    checkpoint_dir="/data2/jylee/topology/IllustrisTNG/combinatorial/optimize_inv/",
+    checkpoint_dir="/data2/jylee/topology/IllustrisTNG/combinatorial/optimize_inv_enhanced/",
     label_filename="/data2/jylee/topology/CosmoAstroSeed_IllustrisTNG_L25n256_LH.txt",
 
     # Model Architecture
-    in_channels=[3, 4, 4, 8, 3],
+    in_channels=[4, 3, 5, 7, 3],
     hidden_dim = 32,
     num_layers=3,
     layerType = "Normal",
