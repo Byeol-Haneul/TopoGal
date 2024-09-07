@@ -6,6 +6,17 @@ from torch.nn.parameter import Parameter
 
 from topomodelx.base.aggregation import Aggregation
 
+def sparse_hadamard(A, B):
+    assert A.get_device() == B.get_device()
+    A = A.coalesce()
+    B = B.coalesce()
+
+    return torch.sparse_coo_tensor(
+        indices=A.indices(),
+        values=A.values() * B.values(),
+        size=A.shape,
+        device=A.get_device(),
+    )
 
 def sparse_row_norm(sparse_tensor):
     r"""Normalize a sparse tensor by row dividing each row by its sum.
@@ -178,6 +189,18 @@ class HBNS(torch.nn.Module):
             torch.Tensor(self.target_in_channels, self.source_out_channels)
         )
 
+        self.w_s_cci = torch.nn.ParameterList(
+            [Parameter(
+                torch.Tensor(self.source_in_channels, self.target_out_channels)
+            )] * 2
+        )
+
+        self.w_t_cci = torch.nn.ParameterList(
+            [Parameter(
+                torch.Tensor(self.target_in_channels, self.source_out_channels)
+            )] * 2
+        )
+
         self.att_weight = Parameter(
             torch.Tensor(self.target_out_channels + self.source_out_channels, 1)
         )
@@ -201,14 +224,13 @@ class HBNS(torch.nn.Module):
             Gain for the weight initialization. Default is 1.414.
         """
         if self.initialization == "xavier_uniform":
-            torch.nn.init.xavier_uniform_(self.w_s, gain=gain)
-            torch.nn.init.xavier_uniform_(self.w_t, gain=gain)
-            torch.nn.init.xavier_uniform_(self.att_weight.view(-1, 1), gain=gain)
+            for w in ([self.w_s, self.w_t, self.att_weight.view(-1, 1)] + list(self.w_s_cci) + list(self.w_t_cci)):
+                torch.nn.init.xavier_uniform_(w, gain=gain)
+
 
         elif self.initialization == "xavier_normal":
-            torch.nn.init.xavier_normal_(self.w_s, gain=gain)
-            torch.nn.init.xavier_normal_(self.w_t, gain=gain)
-            torch.nn.init.xavier_normal_(self.att_weight.view(-1, 1), gain=gain)
+            for w in ([self.w_s, self.w_t, self.att_weight.view(-1, 1)] + list(self.w_s_cci) + list(self.w_t_cci)):
+                torch.nn.init.xavier_normal_(w, gain=gain)
         else:
             raise RuntimeError(
                 "Initialization method not recognized."
@@ -338,7 +360,7 @@ class HBNS(torch.nn.Module):
         return sparse_row_norm(e), sparse_row_norm(f)
 
     def forward(
-        self, x_source: torch.Tensor, x_target: torch.Tensor, neighborhood: torch.Tensor
+        self, x_source: torch.Tensor, x_target: torch.Tensor, neighborhood: torch.Tensor, cci = None
     ) -> tuple[torch.Tensor, torch.Tensor]:
         r"""Compute forward pass.
 
@@ -377,9 +399,13 @@ class HBNS(torch.nn.Module):
         _ :math:`Y_t` : torch.Tensor, shape=[target_cells, target_out_channels]
             Output features of the layer for the target cells.
         """
-        s_message = torch.mm(x_source, self.w_s)  # [n_source_cells, d_t_out]
-        t_message = torch.mm(x_target, self.w_t)  # [n_target_cells, d_s_out]
 
+        if cci is not None:
+            assert neighborhood.shape == cci.shape
+
+        s_message, s_message2, s_message3 = torch.mm(x_source, self.w_s), torch.mm(x_source, self.w_s_cci[0]), torch.mm(x_source, self.w_s_cci[1])  # [n_source_cells, d_t_out]
+        t_message, t_message2, t_message3 = torch.mm(x_target, self.w_t), torch.mm(x_target, self.w_t_cci[0]), torch.mm(x_target, self.w_t_cci[1])  # [n_target_cells, d_s_out]
+        
         neighborhood_s_to_t = (
             neighborhood.coalesce()
         )  # [n_target_cells, n_source_cells]
@@ -420,8 +446,9 @@ class HBNS(torch.nn.Module):
                 device=self.get_device(),
             )
 
-        message_on_source = torch.mm(neighborhood_t_to_s_att, t_message)
-        message_on_target = torch.mm(neighborhood_s_to_t_att, s_message)
+        # ADD CROSS-CELL INFORMATION
+        message_on_source = torch.mm(neighborhood_t_to_s_att, t_message) + torch.mm(cci.T, t_message2) + torch.mm(sparse_hadamard(cci.T, neighborhood_t_to_s), t_message3) 
+        message_on_target = torch.mm(neighborhood_s_to_t_att, s_message) + torch.mm(cci, s_message2) + torch.mm(sparse_hadamard(cci, neighborhood_s_to_t), s_message3)
 
         if self.update_func is None:
             return message_on_source, message_on_target
@@ -555,6 +582,24 @@ class HBS(torch.nn.Module):
             ]
         )
 
+        self.weight2 = torch.nn.ParameterList(
+            [
+                Parameter(
+                    torch.Tensor(self.source_in_channels, self.source_out_channels)
+                )
+                for _ in range(self.m_hop)
+            ]
+        )
+
+        self.weight3 = torch.nn.ParameterList(
+            [
+                Parameter(
+                    torch.Tensor(self.source_in_channels, self.source_out_channels)
+                )
+                for _ in range(self.m_hop)
+            ]
+        )
+
         self.att_weight = torch.nn.ParameterList(
             [
                 Parameter(torch.Tensor(2 * self.source_out_channels, 1))
@@ -579,22 +624,22 @@ class HBS(torch.nn.Module):
             Gain for the weight initialization. Default is 1.414.
         """
 
-        def reset_p_hop_parameters(weight, att_weight):
+        def reset_p_hop_parameters(weight, weight2, weight3, att_weight):
             if self.initialization == "xavier_uniform":
-                torch.nn.init.xavier_uniform_(weight, gain=gain)
-                torch.nn.init.xavier_uniform_(att_weight.view(-1, 1), gain=gain)
+                for w in [weight, weight2, weight3, att_weight.view(-1, 1)]:
+                    torch.nn.init.xavier_uniform_(w, gain=gain)
 
             elif self.initialization == "xavier_normal":
-                torch.nn.init.xavier_normal_(weight, gain=gain)
-                torch.nn.init.xavier_normal_(att_weight.view(-1, 1), gain=gain)
+                for w in [weight, weight2, weight3, att_weight.view(-1, 1)]:
+                    torch.nn.init.xavier_normal_(w, gain=gain)
             else:
                 raise RuntimeError(
                     "Initialization method not recognized. "
                     "Should be either xavier_uniform or xavier_normal."
                 )
 
-        for w, a in zip(self.weight, self.att_weight, strict=True):
-            reset_p_hop_parameters(w, a)
+        for w, w2, w3, a in zip(self.weight, self.weight2, self.weight3, self.att_weight, strict=True):
+            reset_p_hop_parameters(w, w2, w3, a)
 
     def update(self, message: torch.Tensor) -> torch.Tensor:
         r"""Update signal features on each cell with an activation function.
@@ -660,7 +705,7 @@ class HBS(torch.nn.Module):
         )
 
     def forward(
-        self, x_source: torch.Tensor, neighborhood: torch.Tensor
+        self, x_source: torch.Tensor, neighborhood: torch.Tensor, cci = None
     ) -> torch.Tensor:
         r"""Compute forward pass.
 
@@ -685,8 +730,12 @@ class HBS(torch.nn.Module):
         _ : Tensor, shape=[n_cells, source_out_channels]
             Output features of the layer.
         """
-        message = [
-            torch.mm(x_source, w) for w in self.weight
+        if cci is not None:
+            assert neighborhood.shape == cci.shape
+
+        message, message2, message3 = [
+            [torch.mm(x_source, w) for w in weights]
+            for weights in [self.weight, self.weight2, self.weight3]
         ]  # [m-hop, n_source_cells, d_t_out]
 
         # Create a torch.eye with the device of x_source
@@ -707,14 +756,6 @@ class HBS(torch.nn.Module):
                 )
             ]
 
-            def sparse_hadamard(A_p, att_p):
-                return torch.sparse_coo_tensor(
-                    indices=A_p.indices(),
-                    values=att_p.values() * A_p.values(),
-                    size=A_p.shape,
-                    device=self.get_device(),
-                )
-
             att_m_hop_matrices = [
                 sparse_hadamard(A_p, att_p)
                 for A_p, att_p in zip(m_hop_matrices, att, strict=True)
@@ -724,11 +765,27 @@ class HBS(torch.nn.Module):
                 torch.mm(n_p, m_p)
                 for n_p, m_p in zip(att_m_hop_matrices, message, strict=True)
             ]
-            
-        result = torch.zeros_like(message[0])
 
-        for m_p in message:
-            result += m_p
+        else: 
+            message = [
+                torch.mm(n_p, m_p)
+                for n_p, m_p in zip(m_hop_matrices, message, strict=True)
+            ]
+
+            message2 = [
+                torch.mm(cci, m_p)
+                for n_p, m_p in zip(m_hop_matrices, message2, strict=True)
+            ]
+
+            message3 = [
+                torch.mm(sparse_hadamard(n_p, cci), m_p)
+                for n_p, m_p in zip(m_hop_matrices, message3, strict=True)
+            ]
+            
+
+        result = torch.zeros_like(message[0])
+        for m_p, m_p2, m_p3 in zip(message, message2, message3):
+            result += (m_p + m_p2 + m_p3)
 
         if self.update_func is None:
             return result

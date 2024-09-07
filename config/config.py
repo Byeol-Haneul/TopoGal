@@ -7,14 +7,14 @@ args = Namespace(
     only_positions=True,
 
     # Directories
-    data_dir="/data2/jylee/topology/IllustrisTNG/combinatorial/tensors_inv/",
-    checkpoint_dir="/data2/jylee/topology/IllustrisTNG/combinatorial/optimize_inv_enhanced/",
+    data_dir="/data2/jylee/topology/IllustrisTNG/combinatorial/tensors_test/",
+    checkpoint_dir="/data2/jylee/topology/IllustrisTNG/combinatorial/optimize_test/",
     label_filename="/data2/jylee/topology/CosmoAstroSeed_IllustrisTNG_L25n256_LH.txt",
 
     # Model Architecture
-    in_channels=[4, 3, 5, 7, 3],
-    hidden_dim = 32,
-    num_layers=3,
+    in_channels=[1, 3, 5, 7, 3],
+    hidden_dim = 64,
+    num_layers=1,
     layerType = "Normal",
     attention_flag = False,
     residual_flag = True,
@@ -25,7 +25,7 @@ args = Namespace(
     # Training Hyperparameters
     num_epochs=100,
     test_interval=5,
-    learning_rate=0.00006714467820021703,#1e-5,
+    learning_rate=1e-4,#1e-5,
     weight_decay=0.000003548299217253911,
 
     # Device
@@ -36,7 +36,7 @@ args = Namespace(
     batch_size=1,
     val_size=0.15,
     test_size=0.15,
-    random_seed=12345,
+    random_seed=0,
 
     # Features & Neighborhood Functions
     feature_sets = [
@@ -47,6 +47,12 @@ args = Namespace(
         'n1_to_2', 'n1_to_3', 'n1_to_4',
         'n2_to_3', 'n2_to_4',
         'n3_to_4',
+
+        'euclidean_0_to_0', 'euclidean_1_to_1', 'euclidean_2_to_2', 'euclidean_3_to_3', 'euclidean_4_to_4',
+        'euclidean_0_to_1', 'euclidean_0_to_2', 'euclidean_0_to_3', 'euclidean_0_to_4',
+        'euclidean_1_to_2', 'euclidean_1_to_3', 'euclidean_1_to_4',
+        'euclidean_2_to_3', 'euclidean_2_to_4',
+        'euclidean_3_to_4',
 
         'global_feature'
     ],

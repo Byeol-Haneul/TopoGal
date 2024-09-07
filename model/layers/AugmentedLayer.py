@@ -193,15 +193,21 @@ class AugmentedHMCLayer(torch.nn.Module):
         incidence_0_1, incidence_0_2, incidence_0_3, incidence_0_4,
         incidence_1_2, incidence_1_3, incidence_1_4,
         incidence_2_3, incidence_2_4,
-        incidence_3_4
+        incidence_3_4,
+
+        cci_0_to_0, cci_1_to_1, cci_2_to_2, cci_3_to_3, cci_4_to_4,
+        cci_0_to_1, cci_0_to_2, cci_0_to_3, cci_0_to_4,
+        cci_1_to_2, cci_1_to_3, cci_1_to_4,
+        cci_2_to_3, cci_2_to_4,
+        cci_3_to_4,
     ):
         # Computing messages from Higher Order Attention Blocks Level 1
-        x_0_to_0 = self.hbs_0_level1(x_0, adjacency_0)
-        x_3_to_3 = self.hbs_3_level1(x_3, adjacency_3)
-        x_0_to_1, x_1_to_0 = self.hbns_0_1_level1(x_1, x_0, incidence_0_1)
-        x_1_to_2, x_2_to_1 = self.hbns_1_2_level1(x_2, x_1, incidence_1_2)
-        x_2_to_3, x_3_to_2 = self.hbns_2_3_level1(x_3, x_2, incidence_2_3)
-        x_3_to_4, x_4_to_3 = self.hbns_3_4_level1(x_4, x_3, incidence_3_4)
+        x_0_to_0 = self.hbs_0_level1(x_0, adjacency_0, cci_0_to_0)
+        x_3_to_3 = self.hbs_3_level1(x_3, adjacency_3, cci_3_to_3)
+        x_0_to_1, x_1_to_0 = self.hbns_0_1_level1(x_1, x_0, incidence_0_1, cci_0_to_1)
+        x_1_to_2, x_2_to_1 = self.hbns_1_2_level1(x_2, x_1, incidence_1_2, cci_1_to_2)
+        x_2_to_3, x_3_to_2 = self.hbns_2_3_level1(x_3, x_2, incidence_2_3, cci_2_to_3)
+        x_3_to_4, x_4_to_3 = self.hbns_3_4_level1(x_4, x_3, incidence_3_4, cci_3_to_4)
 
         x_0_level1 = self.aggr([x_0_to_0, x_1_to_0])
         x_1_level1 = self.aggr([x_0_to_1, x_2_to_1])
@@ -210,15 +216,15 @@ class AugmentedHMCLayer(torch.nn.Module):
         x_4_level1 = self.aggr([x_3_to_4])
 
         # Computing messages from Higher Order Attention Blocks Level 2
-        x_0_to_0 = self.hbs_0_level2(x_0_level1, adjacency_0)
-        x_1_to_1 = self.hbs_1_level2(x_1_level1, adjacency_1)
-        x_2_to_2 = self.hbs_2_level2(x_2_level1, adjacency_2)
-        x_3_to_3 = self.hbs_3_level2(x_3_level1, adjacency_3)
+        x_0_to_0 = self.hbs_0_level2(x_0_level1, adjacency_0, cci_0_to_0)
+        x_1_to_1 = self.hbs_1_level2(x_1_level1, adjacency_1, cci_1_to_1)
+        x_2_to_2 = self.hbs_2_level2(x_2_level1, adjacency_2, cci_2_to_2)
+        x_3_to_3 = self.hbs_3_level2(x_3_level1, adjacency_3, cci_3_to_3)
 
-        x_0_to_1, _ = self.hbns_0_1_level2(x_1_level1, x_0_level1, incidence_0_1)
-        x_1_to_2, _ = self.hbns_1_2_level2(x_2_level1, x_1_level1, incidence_1_2)
-        x_2_to_3, _ = self.hbns_2_3_level2(x_3_level1, x_2_level1, incidence_2_3)
-        x_3_to_4, _ = self.hbns_3_4_level2(x_4_level1, x_3_level1, incidence_3_4)
+        x_0_to_1, _ = self.hbns_0_1_level2(x_1_level1, x_0_level1, incidence_0_1, cci_0_to_1)
+        x_1_to_2, _ = self.hbns_1_2_level2(x_2_level1, x_1_level1, incidence_1_2, cci_1_to_2)
+        x_2_to_3, _ = self.hbns_2_3_level2(x_3_level1, x_2_level1, incidence_2_3, cci_2_to_3)
+        x_3_to_4, _ = self.hbns_3_4_level2(x_4_level1, x_3_level1, incidence_3_4, cci_3_to_4)
 
         x_0_level2 = self.aggr([x_0_to_0])
         x_1_level2 = self.aggr([x_0_to_1, x_1_to_1])

@@ -62,7 +62,13 @@ class GNNLayer(torch.nn.Module):
         incidence_0_1, incidence_0_2, incidence_0_3, incidence_0_4,
         incidence_1_2, incidence_1_3, incidence_1_4,
         incidence_2_3, incidence_2_4,
-        incidence_3_4
+        incidence_3_4,
+
+        cci_0_to_0, cci_1_to_1, cci_2_to_2, cci_3_to_3, cci_4_to_4,
+        cci_0_to_1, cci_0_to_2, cci_0_to_3, cci_0_to_4,
+        cci_1_to_2, cci_1_to_3, cci_1_to_4,
+        cci_2_to_3, cci_2_to_4,
+        cci_3_to_4,
     ):
         x_0_to_0 = self.hbs_0_level1(x_0, adjacency_0)
         x_1_to_1 = self.hbs_1_level1(x_1, adjacency_1)

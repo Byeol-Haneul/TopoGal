@@ -77,6 +77,23 @@ class Network(nn.Module):
         n2_to_3 = batch['n2_to_3']
         n2_to_4 = batch['n2_to_4']
         n3_to_4 = batch['n3_to_4']
+
+        # Cross-cell Invariants
+        cci0_to_0 = batch['euclidean_0_to_0']
+        cci0_to_1 = batch['euclidean_0_to_1']
+        cci0_to_2 = batch['euclidean_0_to_2']
+        cci0_to_3 = batch['euclidean_0_to_3']
+        cci0_to_4 = batch['euclidean_0_to_4']
+        cci1_to_1 = batch['euclidean_1_to_1']
+        cci1_to_2 = batch['euclidean_1_to_2']
+        cci1_to_3 = batch['euclidean_1_to_3']
+        cci1_to_4 = batch['euclidean_1_to_4']
+        cci2_to_2 = batch['euclidean_2_to_2']
+        cci2_to_3 = batch['euclidean_2_to_3']
+        cci2_to_4 = batch['euclidean_2_to_4']
+        cci3_to_3 = batch['euclidean_3_to_3']
+        cci3_to_4 = batch['euclidean_3_to_4']
+        cci4_to_4 = batch['euclidean_4_to_4']
        
         # global feature
         global_feature = batch['global_feature']
@@ -84,11 +101,18 @@ class Network(nn.Module):
         # Forward pass through the base model
         x_0, x_1, x_2, x_3, x_4 = self.base_model(
             x_0, x_1, x_2, x_3, x_4, 
+
             n0_to_0, n1_to_1, n2_to_2, n3_to_3, n4_to_4,
             n0_to_1, n0_to_2, n0_to_3, n0_to_4,
             n1_to_2, n1_to_3, n1_to_4,
             n2_to_3, n2_to_4,
-            n3_to_4
+            n3_to_4, 
+
+            cci0_to_0, cci1_to_1, cci2_to_2, cci3_to_3, cci4_to_4,
+            cci0_to_1, cci0_to_2, cci0_to_3, cci0_to_4,
+            cci1_to_2, cci1_to_3, cci1_to_4,
+            cci2_to_3, cci2_to_4,
+            cci3_to_4
         )
 
         def global_aggregations(x):
@@ -193,16 +217,30 @@ class CustomHMC(torch.nn.Module):
         neighborhood_0_to_1, neighborhood_0_to_2, neighborhood_0_to_3, neighborhood_0_to_4,
         neighborhood_1_to_2, neighborhood_1_to_3, neighborhood_1_to_4,
         neighborhood_2_to_3, neighborhood_2_to_4,
-        neighborhood_3_to_4
+        neighborhood_3_to_4,
+
+        cci_0_to_0, cci_1_to_1, cci_2_to_2, cci_3_to_3, cci_4_to_4,
+        cci_0_to_1, cci_0_to_2, cci_0_to_3, cci_0_to_4,
+        cci_1_to_2, cci_1_to_3, cci_1_to_4,
+        cci_2_to_3, cci_2_to_4,
+        cci_3_to_4,
     ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:
         for layer_num, layer in enumerate(self.layers):
+
             h_0, h_1, h_2, h_3, h_4 = layer(
                 x_0, x_1, x_2, x_3, x_4,
+
                 neighborhood_0_to_0, neighborhood_1_to_1, neighborhood_2_to_2, neighborhood_3_to_3, neighborhood_4_to_4,
                 neighborhood_0_to_1, neighborhood_0_to_2, neighborhood_0_to_3, neighborhood_0_to_4,
                 neighborhood_1_to_2, neighborhood_1_to_3, neighborhood_1_to_4,
                 neighborhood_2_to_3, neighborhood_2_to_4,
-                neighborhood_3_to_4
+                neighborhood_3_to_4,
+
+                cci_0_to_0, cci_1_to_1, cci_2_to_2, cci_3_to_3, cci_4_to_4,
+                cci_0_to_1, cci_0_to_2, cci_0_to_3, cci_0_to_4,
+                cci_1_to_2, cci_1_to_3, cci_1_to_4,
+                cci_2_to_3, cci_2_to_4,
+                cci_3_to_4,
             )
 
             residual_condition = self.residual_flag and layer_num > 1
