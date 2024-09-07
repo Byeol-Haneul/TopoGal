@@ -23,7 +23,7 @@ class Network(nn.Module):
         self.base_model = CustomHMC(layerType, channels_per_layer, attention_flag=attention_flag, residual_flag=residual_flag)   
 
         penultimate_layer = channels_per_layer[-1][-1][0]
-        num_aggregators = 4         # sum, max, min, avg
+        num_aggregators = 3        # max, min, avg
 
         if layerType == "Master" or layerType == "Normal":
             num_ranks_pooling = 5
@@ -93,10 +93,10 @@ class Network(nn.Module):
 
         def global_aggregations(x):
             x_avg = torch.mean(x, dim=0, keepdim=True)
-            x_sum = torch.sum(x, dim=0, keepdim=True)
+            #x_sum = torch.sum(x, dim=0, keepdim=True)
             x_max, _ = torch.max(x, dim=0, keepdim=True)
             x_min, _ = torch.min(x, dim=0, keepdim=True)
-            x = torch.cat((x_avg, x_sum, x_max, x_min), dim=1)
+            x = torch.cat((x_avg, x_max, x_min), dim=1)
             return x
         
         # Apply global aggregations to each feature set
