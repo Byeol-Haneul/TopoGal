@@ -8,7 +8,7 @@ args = Namespace(
 
     # Directories
     data_dir="/data2/jylee/topology/IllustrisTNG/combinatorial/tensors_test/",
-    checkpoint_dir="/data2/jylee/topology/IllustrisTNG/combinatorial/optimize_test/",
+    checkpoint_dir="/data2/jylee/topology/IllustrisTNG/combinatorial/optimize_abc/",
     label_filename="/data2/jylee/topology/CosmoAstroSeed_IllustrisTNG_L25n256_LH.txt",
 
     # Model Architecture

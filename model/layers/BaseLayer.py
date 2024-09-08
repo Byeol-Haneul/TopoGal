@@ -447,8 +447,12 @@ class HBNS(torch.nn.Module):
             )
 
         # ADD CROSS-CELL INFORMATION
-        message_on_source = torch.mm(neighborhood_t_to_s_att, t_message) + torch.mm(cci.T, t_message2) + torch.mm(sparse_hadamard(cci.T, neighborhood_t_to_s), t_message3) 
-        message_on_target = torch.mm(neighborhood_s_to_t_att, s_message) + torch.mm(cci, s_message2) + torch.mm(sparse_hadamard(cci, neighborhood_s_to_t), s_message3)
+        if cci is not None:
+            message_on_source = torch.mm(neighborhood_t_to_s_att, t_message) + torch.mm(cci.T, t_message2) + torch.mm(sparse_hadamard(cci.T, neighborhood_t_to_s), t_message3) 
+            message_on_target = torch.mm(neighborhood_s_to_t_att, s_message) + torch.mm(cci, s_message2) + torch.mm(sparse_hadamard(cci, neighborhood_s_to_t), s_message3)
+        else:
+            message_on_source = torch.mm(neighborhood_t_to_s_att, t_message) 
+            message_on_target = torch.mm(neighborhood_s_to_t_att, s_message) 
 
         if self.update_func is None:
             return message_on_source, message_on_target
@@ -772,20 +776,25 @@ class HBS(torch.nn.Module):
                 for n_p, m_p in zip(m_hop_matrices, message, strict=True)
             ]
 
-            message2 = [
-                torch.mm(cci, m_p)
-                for n_p, m_p in zip(m_hop_matrices, message2, strict=True)
-            ]
+            if cci is not None:
+                message2 = [
+                    torch.mm(cci, m_p)
+                    for n_p, m_p in zip(m_hop_matrices, message2, strict=True)
+                ]
 
-            message3 = [
-                torch.mm(sparse_hadamard(n_p, cci), m_p)
-                for n_p, m_p in zip(m_hop_matrices, message3, strict=True)
-            ]
+                message3 = [
+                    torch.mm(sparse_hadamard(n_p, cci), m_p)
+                    for n_p, m_p in zip(m_hop_matrices, message3, strict=True)
+                ]
             
 
         result = torch.zeros_like(message[0])
-        for m_p, m_p2, m_p3 in zip(message, message2, message3):
-            result += (m_p + m_p2 + m_p3)
+        if cci is not None:
+            for m_p, m_p2, m_p3 in zip(message, message2, message3):
+                result += (m_p + m_p2 + m_p3)
+        else:
+            for m_p in message:
+                result += m_p
 
         if self.update_func is None:
             return result

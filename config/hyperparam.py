@@ -16,8 +16,8 @@ class HyperparameterTuner:
 
     def objective(self, trial):
         hidden_dim = trial.suggest_categorical('hidden_dim', [32, 64, 128])
-        num_layers = trial.suggest_int('num_layers', 1, 5)
-        learning_rate = trial.suggest_float('learning_rate', 1e-7, 1e-4, log=True)
+        num_layers = trial.suggest_int('num_layers', 1, 3)
+        learning_rate = trial.suggest_float('learning_rate', 1e-6, 1e-4, log=True)
         weight_decay = trial.suggest_float('weight_decay', 1e-8, 1e-4, log=True)
         layer_type = trial.suggest_categorical('layerType', ['GNN', 'Normal'])
 
@@ -81,13 +81,21 @@ class HyperparameterTuner:
             random_seed=12345,
 
             # Features & Neighborhood Functions
-            feature_sets=[
+            feature_sets = [
                 'x_0', 'x_1', 'x_2', 'x_3', 'x_4',
+
                 'n0_to_0', 'n1_to_1', 'n2_to_2', 'n3_to_3', 'n4_to_4',
                 'n0_to_1', 'n0_to_2', 'n0_to_3', 'n0_to_4',
                 'n1_to_2', 'n1_to_3', 'n1_to_4',
                 'n2_to_3', 'n2_to_4',
                 'n3_to_4',
+
+                'euclidean_0_to_0', 'euclidean_1_to_1', 'euclidean_2_to_2', 'euclidean_3_to_3', 'euclidean_4_to_4',
+                'euclidean_0_to_1', 'euclidean_0_to_2', 'euclidean_0_to_3', 'euclidean_0_to_4',
+                'euclidean_1_to_2', 'euclidean_1_to_3', 'euclidean_1_to_4',
+                'euclidean_2_to_3', 'euclidean_2_to_4',
+                'euclidean_3_to_4',
+
                 'global_feature'
             ],
         )
