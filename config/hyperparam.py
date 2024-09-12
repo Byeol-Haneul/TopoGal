@@ -69,13 +69,13 @@ class HyperparameterTuner:
             test_interval=30,
             learning_rate=learning_rate,
             weight_decay=weight_decay,
+            batch_size=32,
 
             # Device
             device_num=self.device_num,
             device=torch.device(f"cuda:{self.device_num}" if torch.cuda.is_available() else "cpu"),
 
             # Fixed Values
-            batch_size=1,
             val_size=0.15,
             test_size=0.15,
             random_seed=12345,

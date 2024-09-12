@@ -7,8 +7,8 @@ args = Namespace(
     only_positions=True,
 
     # Directories
-    data_dir="/data2/jylee/topology/IllustrisTNG/combinatorial/tensors_test/",
-    checkpoint_dir="/data2/jylee/topology/IllustrisTNG/combinatorial/optimize_abc/",
+    data_dir="/data2/jylee/topology/IllustrisTNG/combinatorial/tensors_standard/",
+    checkpoint_dir="/data2/jylee/topology/IllustrisTNG/combinatorial/optimize_standard/",
     label_filename="/data2/jylee/topology/CosmoAstroSeed_IllustrisTNG_L25n256_LH.txt",
 
     # Model Architecture
@@ -23,17 +23,17 @@ args = Namespace(
     target_labels = ["Omega0", "sigma8", "ASN1", "AAGN1", "ASN2", "AAGN2"],
 
     # Training Hyperparameters
-    num_epochs=100,
-    test_interval=5,
-    learning_rate=1e-4,#1e-5,
-    weight_decay=0.000003548299217253911,
+    num_epochs=3000,
+    test_interval=10,
+    learning_rate=1e-5,#1e-5,
+    weight_decay=1e-5,
+    batch_size=32,
 
     # Device
     device_num=1,
 
     # dummies / fixed values 
     device = None, 
-    batch_size=1,
     val_size=0.15,
     test_size=0.15,
     random_seed=0,
