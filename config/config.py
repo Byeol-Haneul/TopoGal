@@ -1,5 +1,6 @@
 import torch
 from argparse import Namespace
+from machine import BASE_DIR
 
 args = Namespace(
     # mode
@@ -7,14 +8,14 @@ args = Namespace(
     only_positions=True,
 
     # Directories
-    data_dir="/data2/jylee/topology/IllustrisTNG/combinatorial/tensors_standard/",
-    checkpoint_dir="/data2/jylee/topology/IllustrisTNG/combinatorial/optimize_standard/",
-    label_filename="/data2/jylee/topology/CosmoAstroSeed_IllustrisTNG_L25n256_LH.txt",
+    data_dir=BASE_DIR+"/IllustrisTNG/combinatorial/tensors/",
+    checkpoint_dir=BASE_DIR+"/IllustrisTNG/combinatorial/results/long_run/",
+    label_filename=BASE_DIR+"/CosmoAstroSeed_IllustrisTNG_L25n256_LH.txt",
 
     # Model Architecture
     in_channels=[1, 3, 5, 7, 3],
     hidden_dim = 64,
-    num_layers=1,
+    num_layers=3,
     layerType = "Normal",
     attention_flag = False,
     residual_flag = True,

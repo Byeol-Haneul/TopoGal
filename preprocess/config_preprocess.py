@@ -1,4 +1,8 @@
 import os
+import sys
+
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+from config.machine import BASE_DIR
 
 # ---- CONSTANTS ---- #
 BOXSIZE = 25e3
@@ -16,11 +20,10 @@ MINCLUSTER = 7 #>10 Found no clusters made in some catalogs.
 ## OPTIONS
 ENABLE_PROFILING = False
 
-# Define your directories and file paths
-in_dir = "/data2/jylee/topology/IllustrisTNG/data/"
-cc_dir = "/data2/jylee/topology/IllustrisTNG/combinatorial/cc_test/"
-tensor_dir = "/data2/jylee/topology/IllustrisTNG/combinatorial/tensors_test/"
-label_filename = "/data2/jylee/topology/CosmoAstroSeed_IllustrisTNG_L25n256_LH.txt"
+in_dir = BASE_DIR + "/IllustrisTNG/data/"
+cc_dir = BASE_DIR + "/IllustrisTNG/combinatorial/cc/"
+tensor_dir = BASE_DIR + "/IllustrisTNG/combinatorial/tensors/"
+label_filename = BASE_DIR + "/CosmoAstroSeed_IllustrisTNG_L25n256_LH.txt"
 
 # Create the directories if they don't exist
 os.makedirs(cc_dir, exist_ok=True)
