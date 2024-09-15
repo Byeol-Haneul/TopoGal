@@ -5,6 +5,7 @@ import os
 import pandas as pd
 from torch.utils.data import DataLoader
 from config.param_config import PARAM_STATS, PARAM_ORDER, denormalize_params
+from utils.augmentation import augment_batch
 
 def save_checkpoint(model, optimizer, epoch, loss, path):
     state = {
@@ -55,6 +56,7 @@ def train(model, train_loader, val_loader, test_loader, loss_fn, opt, args, chec
         opt.zero_grad()
 
         for batch_idx, batch in enumerate(train_loader):
+            batch = augment_batch(batch, args.drop_prob) # data augmentation
             batch = batch_to_device(batch, device)
             y = batch['y']
             

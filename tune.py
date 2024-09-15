@@ -3,9 +3,9 @@ from config.hyperparam import HyperparameterTuner, run_optuna_study
 from config.machine import BASE_DIR
 
 def tune():
-    data_dir = BASE_DIR+"/IllustrisTNG/combinatorial/tensors/"
-    checkpoint_dir = BASE_DIR+"/IllustrisTNG/combinatorial/results/optimize/"
-    label_filename = BASE_DIR+"/topology/CosmoAstroSeed_IllustrisTNG_L25n256_LH.txt"
+    data_dir = BASE_DIR+"/IllustrisTNG/combinatorial/tensors_test/"
+    checkpoint_dir = BASE_DIR+"/IllustrisTNG/combinatorial/results/optimize_augmentation/"
+    label_filename = BASE_DIR+"/CosmoAstroSeed_IllustrisTNG_L25n256_LH.txt"
     
     device_num = 2
     n_trials = 50

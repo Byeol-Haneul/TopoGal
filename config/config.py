@@ -1,6 +1,6 @@
 import torch
 from argparse import Namespace
-from machine import BASE_DIR
+from config.machine import BASE_DIR
 
 args = Namespace(
     # mode
@@ -8,15 +8,15 @@ args = Namespace(
     only_positions=True,
 
     # Directories
-    data_dir=BASE_DIR+"/IllustrisTNG/combinatorial/tensors/",
-    checkpoint_dir=BASE_DIR+"/IllustrisTNG/combinatorial/results/long_run/",
+    data_dir=BASE_DIR+"/IllustrisTNG/combinatorial/tensors_test/",
+    checkpoint_dir=BASE_DIR+"/IllustrisTNG/combinatorial/augmentation_test/",
     label_filename=BASE_DIR+"/CosmoAstroSeed_IllustrisTNG_L25n256_LH.txt",
 
     # Model Architecture
     in_channels=[1, 3, 5, 7, 3],
     hidden_dim = 64,
-    num_layers=3,
-    layerType = "Normal",
+    num_layers=1,
+    layerType = "GNN",
     attention_flag = False,
     residual_flag = True,
 
@@ -29,6 +29,7 @@ args = Namespace(
     learning_rate=1e-5,#1e-5,
     weight_decay=1e-5,
     batch_size=32,
+    drop_prob=0.1,
 
     # Device
     device_num=1,

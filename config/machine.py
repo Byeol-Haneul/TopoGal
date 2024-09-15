@@ -1,6 +1,6 @@
 # SPECIFY MACHINE TO USE
 
-MACHINE = "RUSTY" # "HAPPINESS"
+MACHINE = "HAPPINESS" #"RUSTY" # 
 
 if MACHINE == "HAPPINESS":
     BASE_DIR = "/data2/jylee/topology/"

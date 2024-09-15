@@ -19,6 +19,7 @@ class HyperparameterTuner:
         num_layers = trial.suggest_int('num_layers', 1, 3)
         learning_rate = trial.suggest_float('learning_rate', 1e-6, 1e-4, log=True)
         weight_decay = trial.suggest_float('weight_decay', 1e-8, 1e-4, log=True)
+        drop_prob = trial.suggest_float('drop_prob', 0, 0.2)
         layer_type = trial.suggest_categorical('layerType', ['GNN', 'Normal'])
 
         # Include trial number in checkpoint directory
@@ -31,6 +32,7 @@ class HyperparameterTuner:
             learning_rate=learning_rate,
             weight_decay=weight_decay,
             layer_type=layer_type,
+            drop_prob=drop_prob,
             checkpoint_dir=trial_checkpoint_dir
         )
 
@@ -42,7 +44,7 @@ class HyperparameterTuner:
 
         return val_loss
 
-    def create_args(self, hidden_dim, num_layers, learning_rate, weight_decay, layer_type, checkpoint_dir):        
+    def create_args(self, hidden_dim, num_layers, learning_rate, weight_decay, layer_type, drop_prob, checkpoint_dir):        
         return Namespace(
             # mode
             tuning=True,
@@ -70,6 +72,7 @@ class HyperparameterTuner:
             learning_rate=learning_rate,
             weight_decay=weight_decay,
             batch_size=32,
+            drop_prob=drop_prob,
 
             # Device
             device_num=self.device_num,
