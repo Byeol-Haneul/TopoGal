@@ -24,8 +24,8 @@ from config_preprocess import *
 # ---- FEATURES ---- #
 # NODES:        4 (Mstar, Rstar, Metal, Vmax)
 # EDGES:        3 (distance, angle1, angle2)
-# TETRA:        5 (4 areas, volume)
-# CLUSTERS:     7 (e1, e2, e3, gyradius, angle1, angle2, num_galaxies)
+# TETRA:        5 (volume, 4 areas)
+# CLUSTERS:     7 (num_galaxies, e1, e2, e3, gyradius, angle1, angle2)
 # HYPERCLUSTER: 3 (distance, angle1, angle2)
 # ------------------ #
 

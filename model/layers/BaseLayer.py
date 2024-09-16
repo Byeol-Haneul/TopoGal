@@ -1,10 +1,12 @@
 """Higher-Order Attentional NN Layer for Mesh Classification."""
 
 import torch
+import torch.nn as nn
 import torch.nn.functional as F
 from torch.nn.parameter import Parameter
 
 from topomodelx.base.aggregation import Aggregation
+from model.aggregators import PNAAggregator
 
 def sparse_hadamard(A, B):
     assert A.get_device() == B.get_device()
@@ -179,6 +181,10 @@ class HBNS(torch.nn.Module):
             target_in_channels,
             target_out_channels,
         )
+
+        # Aggregators!!
+        self.source_aggregators = nn.ModuleList([PNAAggregator(source_out_channels, source_out_channels), PNAAggregator(source_out_channels, source_out_channels), PNAAggregator(source_out_channels, source_out_channels)])
+        self.target_aggregators = nn.ModuleList([PNAAggregator(target_out_channels, target_out_channels), PNAAggregator(target_out_channels, target_out_channels), PNAAggregator(target_out_channels, target_out_channels)])
 
         self.update_func = update_func
 
@@ -405,7 +411,7 @@ class HBNS(torch.nn.Module):
 
         s_message, s_message2, s_message3 = torch.mm(x_source, self.w_s), torch.mm(x_source, self.w_s_cci[0]), torch.mm(x_source, self.w_s_cci[1])  # [n_source_cells, d_t_out]
         t_message, t_message2, t_message3 = torch.mm(x_target, self.w_t), torch.mm(x_target, self.w_t_cci[0]), torch.mm(x_target, self.w_t_cci[1])  # [n_target_cells, d_s_out]
-        
+
         neighborhood_s_to_t = (
             neighborhood.coalesce()
         )  # [n_target_cells, n_source_cells]
@@ -448,8 +454,8 @@ class HBNS(torch.nn.Module):
 
         # ADD CROSS-CELL INFORMATION
         if cci is not None:
-            message_on_source = torch.mm(neighborhood_t_to_s_att, t_message) + torch.mm(cci.T, t_message2) + torch.mm(sparse_hadamard(cci.T, neighborhood_t_to_s), t_message3) 
-            message_on_target = torch.mm(neighborhood_s_to_t_att, s_message) + torch.mm(cci, s_message2) + torch.mm(sparse_hadamard(cci, neighborhood_s_to_t), s_message3)
+            message_on_source = self.source_aggregators[0](neighborhood_t_to_s_att, t_message) + self.source_aggregators[1](cci.T, t_message2) + self.source_aggregators[2](sparse_hadamard(cci.T, neighborhood_t_to_s), t_message3) 
+            message_on_target = self.target_aggregators[0](neighborhood_s_to_t_att, s_message) + self.target_aggregators[1](cci, s_message2) + self.target_aggregators[2](sparse_hadamard(cci, neighborhood_s_to_t), s_message3)
         else:
             message_on_source = torch.mm(neighborhood_t_to_s_att, t_message) 
             message_on_target = torch.mm(neighborhood_s_to_t_att, s_message) 
@@ -573,6 +579,8 @@ class HBS(torch.nn.Module):
 
         self.source_in_channels = source_in_channels
         self.source_out_channels = source_out_channels
+
+        self.source_aggregators = nn.ModuleList([PNAAggregator(source_out_channels, source_out_channels), PNAAggregator(source_out_channels, source_out_channels), PNAAggregator(source_out_channels, source_out_channels)])
 
         self.m_hop = m_hop
         self.update_func = update_func
@@ -752,7 +760,7 @@ class HBS(torch.nn.Module):
             A_p = torch.sparse.mm(A_p, neighborhood)
             m_hop_matrices.append(A_p)
         
-        if self.attention_flag:
+        if self.attention_flag: # We have not updated this since we are not using!!
             att = [
                 self.attention(m_p, A_p, a_p)
                 for m_p, A_p, a_p in zip(
@@ -772,18 +780,18 @@ class HBS(torch.nn.Module):
 
         else: 
             message = [
-                torch.mm(n_p, m_p)
+                self.source_aggregators[0](n_p, m_p)
                 for n_p, m_p in zip(m_hop_matrices, message, strict=True)
             ]
 
             if cci is not None:
                 message2 = [
-                    torch.mm(cci, m_p)
+                    self.source_aggregators[1](cci, m_p)
                     for n_p, m_p in zip(m_hop_matrices, message2, strict=True)
                 ]
 
                 message3 = [
-                    torch.mm(sparse_hadamard(n_p, cci), m_p)
+                    self.source_aggregators[2](sparse_hadamard(n_p, cci), m_p)
                     for n_p, m_p in zip(m_hop_matrices, message3, strict=True)
                 ]
             

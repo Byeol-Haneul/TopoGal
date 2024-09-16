@@ -9,14 +9,14 @@ args = Namespace(
 
     # Directories
     data_dir=BASE_DIR+"/IllustrisTNG/combinatorial/tensors_test/",
-    checkpoint_dir=BASE_DIR+"/IllustrisTNG/combinatorial/augmentation_test/",
+    checkpoint_dir=BASE_DIR+"/IllustrisTNG/combinatorial/results/aggregator_test/",
     label_filename=BASE_DIR+"/CosmoAstroSeed_IllustrisTNG_L25n256_LH.txt",
 
     # Model Architecture
     in_channels=[1, 3, 5, 7, 3],
     hidden_dim = 64,
-    num_layers=1,
-    layerType = "GNN",
+    num_layers=2,
+    layerType = "Normal",
     attention_flag = False,
     residual_flag = True,
 

@@ -114,7 +114,7 @@ def main(passed_args=None):
 
     # Basic Configurations
     fix_random_seed(args.random_seed)
-    num_list = [i for i in range(1000)]
+    num_list = [i for i in range(10)]
     
     os.environ["CUDA_DEVICE_ORDER"]="PCI_BUS_ID"
     os.environ["CUDA_VISIBLE_DEVICES"]= str(args.device_num)
