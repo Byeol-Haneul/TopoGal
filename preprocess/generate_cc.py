@@ -44,8 +44,8 @@ def load_catalog(directory, filename):
     pos[np.where(pos>1.0)]-=1.0
 
     # Select only galaxies with more than Nstar_th star particles
-    #indexes = np.where(Nstar>Nstar_th)[0]
-    indexes = np.where(Mstar>MASS_CUT)[0]
+    indexes = np.where(Nstar>Nstar_th)[0]
+    #indexes = np.where(Mstar>MASS_CUT)[0]
     pos     = pos[indexes]
     Mstar   = Mstar[indexes]
     Rstar   = Rstar[indexes]
@@ -169,6 +169,7 @@ class Tetrahedron(AbstractCells):  # Inherit from AbstractCells
         mat[:, :3] = self.node_position
         mat[:, 3] = 1.0
         self.volume = np.abs(np.linalg.det(mat)) / 6
+        #self.volume_flag = self.volume < np.sqrt(2)/12 * ((r_link/3) ** 3)
         self.volume = normalize(self.volume, "ISVOLUME")
 
     def add_features(self):
@@ -398,9 +399,11 @@ def create_cc(in_dir, in_filename):
         hyperclusters[hypercluster_label] = hypercluster
     
     ##########################
-    NUMPOINTS = pos.shape[0]
-    NUMEDGES = len(edge_set)
-    NUMTETRA = len(tetrahedra)
+    global NUMPOINTS, NUMEDGES, NUMTETRA
+
+    NUMPOINTS = pos.shape[0] if NUMPOINTS == -1 else NUMPOINTS
+    NUMEDGES = len(edge_set) if NUMEDGES == -1 else NUMEDGES
+    NUMTETRA = len(tetrahedra) if NUMTETRA == -1 else NUMTETRA
     
     # 5. Generate Combinatorial Complex
     print(f"""[LOG] We will select {NUMEDGES} edges and {NUMTETRA} tetra""", file=sys.stderr)
@@ -416,6 +419,7 @@ def create_cc(in_dir, in_filename):
 
     ## 5-2 ADD EDGES ##
     edges = list(edge_set)
+    edges = sorted(edges, key=lambda edge: edge.distance)[:NUMEDGES]
 
     for edge in edges:
         cc.add_cell(edge.nodes, rank=1)
@@ -423,6 +427,8 @@ def create_cc(in_dir, in_filename):
     edge_data = {edge.nodes: edge.features for edge in edges}
 
     ## 5-3 ADD TETRA ##
+    tetrahedra = sorted(tetrahedra, key=lambda tetra: tetra.volume)[:NUMTETRA]
+
     for tetra in tetrahedra:
         cc.add_cell(list(tetra.nodes), rank=2)
 
@@ -435,6 +441,7 @@ def create_cc(in_dir, in_filename):
     cluster_data = {tuple(cluster.nodes): cluster.features for cluster in clusters.values()}
 
     # 5-5 ADD HyperCluster ##
+    hyperclusters = remove_subset_clusters(hyperclusters)
     for hypercluster in hyperclusters.values():
         cc.add_cell(list(hypercluster.nodes), rank=4)
 
@@ -544,7 +551,6 @@ def main(array):
 
 
 if __name__ == "__main__":
-    #num_array = [7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 113, 114, 115, 116, 117, 118, 119, 120, 121, 122, 123, 124, 125, 154, 155, 156, 157, 158, 159, 160, 161, 162, 163, 164, 165, 166, 167, 196, 197, 198, 199, 200, 201, 202, 203, 204, 205, 206, 207, 208, 209, 314, 356, 573, 574, 575, 576, 577, 578, 579, 580, 581, 582, 583, 584, 585, 586, 587, 707, 708, 709, 710, 711, 712, 713, 805, 806, 807, 808, 809, 810, 811, 812, 813, 814, 815, 816, 817, 818, 874, 875, 876, 877, 878, 879]
     num_array = list(range(1000))
     main(num_array)
 

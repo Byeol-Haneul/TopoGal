@@ -13,9 +13,13 @@ MASS_CUT = 1e8
 modes = {"ISDISTANCE": 1, "ISAREA": 2, "ISVOLUME": 3}
 
 global_centroid = None # to be updated.
+
 # --- HYPERPARAMS --- #
 r_link = 0.015
-MINCLUSTER = 7 #>10 Found no clusters made in some catalogs. 
+MINCLUSTER = 5 #>10 Found no clusters made in some catalogs. 
+NUMPOINTS = -1
+NUMEDGES = -1
+NUMTETRA = 500
 
 ## OPTIONS
 ENABLE_PROFILING = False

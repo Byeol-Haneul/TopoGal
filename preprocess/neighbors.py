@@ -63,7 +63,7 @@ def get_neighbors(num, cc):
         results['n1_to_1'] = torch.from_numpy(n1_to_1.todense()).to_sparse()
 
         print(f"[LOG] Computing n2_to_2 (adjacency) for num {num}", file=sys.stderr)
-        n2_to_2 = cc.coadjacency_matrix(rank=2, via_rank=0)
+        n2_to_2 = cc.adjacency_matrix(rank=2, via_rank=3)
         results['n2_to_2'] = torch.from_numpy(n2_to_2.todense()).to_sparse()
 
         print(f"[LOG] Computing n3_to_3 (adjacency) for num {num}", file=sys.stderr)
