@@ -8,15 +8,15 @@ args = Namespace(
     only_positions=True,
 
     # Directories
-    data_dir=BASE_DIR+"/IllustrisTNG/combinatorial/tensors_test/",
-    checkpoint_dir=BASE_DIR+"/IllustrisTNG/combinatorial/results/aggregator_test/",
+    data_dir=BASE_DIR+"/IllustrisTNG/combinatorial/tensors/",
+    checkpoint_dir=BASE_DIR+"/IllustrisTNG/combinatorial/results/test/",
     label_filename=BASE_DIR+"/CosmoAstroSeed_IllustrisTNG_L25n256_LH.txt",
 
     # Model Architecture
     in_channels=[1, 3, 5, 7, 3],
     hidden_dim = 64,
     num_layers=2,
-    layerType = "Normal",
+    layerType = "GNN",
     attention_flag = False,
     residual_flag = True,
 
@@ -26,7 +26,7 @@ args = Namespace(
     # Training Hyperparameters
     num_epochs=3000,
     test_interval=10,
-    learning_rate=1e-5,#1e-5,
+    learning_rate=1e-4,#1e-5,
     weight_decay=1e-5,
     batch_size=32,
     drop_prob=0.1,

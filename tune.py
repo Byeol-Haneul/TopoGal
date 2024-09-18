@@ -3,12 +3,12 @@ from config.hyperparam import HyperparameterTuner, run_optuna_study
 from config.machine import BASE_DIR
 
 def tune():
-    data_dir = BASE_DIR+"/IllustrisTNG/combinatorial/tensors_test/"
-    checkpoint_dir = BASE_DIR+"/IllustrisTNG/combinatorial/results/optimize_augmentation/"
+    data_dir = BASE_DIR+"/IllustrisTNG/combinatorial/tensors/"
+    checkpoint_dir = BASE_DIR+"/IllustrisTNG/combinatorial/results/longtrial/"
     label_filename = BASE_DIR+"/CosmoAstroSeed_IllustrisTNG_L25n256_LH.txt"
     
     device_num = 2
-    n_trials = 50
+    n_trials = 100
     only_positions = True
 
     run_optuna_study(data_dir, checkpoint_dir, label_filename, device_num, n_trials, only_positions)

@@ -56,7 +56,7 @@ def train(model, train_loader, val_loader, test_loader, loss_fn, opt, args, chec
         opt.zero_grad()
 
         for batch_idx, batch in enumerate(train_loader):
-            batch = augment_batch(batch, args.drop_prob) # data augmentation
+            #batch = augment_batch(batch, args.drop_prob) # data augmentation
             batch = batch_to_device(batch, device)
             y = batch['y']
             

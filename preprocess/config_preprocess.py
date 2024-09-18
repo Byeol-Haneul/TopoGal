@@ -9,7 +9,7 @@ BOXSIZE = 25e3
 DIM = 3
 MASS_UNIT = 1e10
 Nstar_th = 20 # not used
-MASS_CUT = 1e8
+MASS_CUT = 2e8
 modes = {"ISDISTANCE": 1, "ISAREA": 2, "ISVOLUME": 3}
 
 global_centroid = None # to be updated.
@@ -19,7 +19,7 @@ r_link = 0.015
 MINCLUSTER = 5 #>10 Found no clusters made in some catalogs. 
 NUMPOINTS = -1
 NUMEDGES = -1
-NUMTETRA = 500
+NUMTETRA = -1
 
 ## OPTIONS
 ENABLE_PROFILING = False

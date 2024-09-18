@@ -16,10 +16,10 @@ class HyperparameterTuner:
 
     def objective(self, trial):
         hidden_dim = trial.suggest_categorical('hidden_dim', [32, 64, 128])
-        num_layers = trial.suggest_int('num_layers', 1, 3)
+        num_layers = trial.suggest_int('num_layers', 1, 5)
         learning_rate = trial.suggest_float('learning_rate', 1e-6, 1e-4, log=True)
-        weight_decay = trial.suggest_float('weight_decay', 1e-8, 1e-4, log=True)
-        drop_prob = trial.suggest_float('drop_prob', 0, 0.2)
+        weight_decay = trial.suggest_float('weight_decay', 1e-6, 1e-4, log=True)
+        drop_prob = 0 #trial.suggest_float('drop_prob', 0, 0.1)
         layer_type = trial.suggest_categorical('layerType', ['GNN', 'Normal'])
 
         # Include trial number in checkpoint directory

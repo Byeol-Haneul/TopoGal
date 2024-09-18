@@ -106,7 +106,7 @@ def main(passed_args=None):
             pass 
 
     # Basic Logging
-    logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(levelname)s - %(message)s', 
+    logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s', 
                         handlers=[logging.FileHandler(args.checkpoint_dir + '/' + 'training.log'), logging.StreamHandler()])
 
     for key, value in vars(args).items():
@@ -114,7 +114,7 @@ def main(passed_args=None):
 
     # Basic Configurations
     fix_random_seed(args.random_seed)
-    num_list = [i for i in range(10)]
+    num_list = [i for i in range(1000)]
     
     os.environ["CUDA_DEVICE_ORDER"]="PCI_BUS_ID"
     os.environ["CUDA_VISIBLE_DEVICES"]= str(args.device_num)

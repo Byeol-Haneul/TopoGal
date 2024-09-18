@@ -56,23 +56,23 @@ def get_neighbors(num, cc):
         # ADJACENCY
         print(f"[LOG] Computing n0_to_0 for num {num}", file=sys.stderr)
         n0_to_0 = cc.adjacency_matrix(rank=0, via_rank=1) # nodes in the same cluster
-        results['n0_to_0'] = torch.from_numpy(n0_to_0.todense()).to_sparse()
+        results['n0_to_0'] = torch.from_numpy(n0_to_0.todense()+np.eye(n0_to_0.shape[0])).to_sparse()
 
         print(f"[LOG] Computing n1_to_1 for num {num}", file=sys.stderr)
         n1_to_1 = cc.adjacency_matrix(rank=1, via_rank=2)
-        results['n1_to_1'] = torch.from_numpy(n1_to_1.todense()).to_sparse()
+        results['n1_to_1'] = torch.from_numpy(n1_to_1.todense()+np.eye(n1_to_1.shape[0])).to_sparse()
 
         print(f"[LOG] Computing n2_to_2 (adjacency) for num {num}", file=sys.stderr)
         n2_to_2 = cc.adjacency_matrix(rank=2, via_rank=3)
-        results['n2_to_2'] = torch.from_numpy(n2_to_2.todense()).to_sparse()
+        results['n2_to_2'] = torch.from_numpy(n2_to_2.todense()+np.eye(n2_to_2.shape[0])).to_sparse()
 
         print(f"[LOG] Computing n3_to_3 (adjacency) for num {num}", file=sys.stderr)
         n3_to_3 = cc.adjacency_matrix(rank=3, via_rank=4) # Clusters sharing edges
-        results['n3_to_3'] = torch.from_numpy(n3_to_3.todense()).to_sparse()
+        results['n3_to_3'] = torch.from_numpy(n3_to_3.todense()+np.eye(n3_to_3.shape[0])).to_sparse()
 
         print(f"[LOG] Computing n4_to_4 (coadjacency) for num {num}", file=sys.stderr)
         n4_to_4 = cc.coadjacency_matrix(rank=4, via_rank=3) # Clusters sharing edges
-        results['n4_to_4'] = torch.from_numpy(n4_to_4.todense()).to_sparse()
+        results['n4_to_4'] = torch.from_numpy(n4_to_4.todense()+np.eye(n4_to_4.shape[0])).to_sparse()
 
         ## INCIDENCE
         print(f"[LOG] Computing n0_to_1 for num {num}", file=sys.stderr)

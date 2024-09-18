@@ -3,7 +3,7 @@ import torch.nn as nn
 import sys
 
 class PNAAggregator(nn.Module):
-    def __init__(self, in_channels, out_channels, aggregators=['mean', 'max'], scalers=['identity', 'amplification', 'attenuation'], delta=0.1):
+    def __init__(self, in_channels, out_channels, aggregators=['mean', 'std'], scalers=['identity', 'amplification', 'attenuation']):
         """
         PNA Aggregator for hypergraphs.
         
@@ -17,10 +17,10 @@ class PNAAggregator(nn.Module):
         super(PNAAggregator, self).__init__()
         self.aggregators = aggregators
         self.scalers = scalers
-        self.delta = delta
 
         # Linear layer to transform the aggregated features
         self.mlp = nn.Linear(len(aggregators) * len(scalers) * in_channels, out_channels)
+        self.leaky_relu = nn.LeakyReLU(negative_slope=0.2)
 
     def forward(self, neighborhood_matrix, node_features):
         """
@@ -34,6 +34,8 @@ class PNAAggregator(nn.Module):
             Aggregated features (MxD)
         """
         aggregated_features = []
+        self.degrees = torch.sparse.sum(neighborhood_matrix, dim=1).to_dense().unsqueeze(1)
+        self.mean = None
 
         # Apply each aggregation method
         for agg in self.aggregators:
@@ -49,7 +51,7 @@ class PNAAggregator(nn.Module):
         
         # Pass through a linear transformation to get the final output
         output = self.mlp(combined_aggregation)
-        
+        output = self.leaky_relu(output)
         return output
 
     def aggregate(self, neighborhood_matrix, node_features, aggregation_type):
@@ -69,7 +71,8 @@ class PNAAggregator(nn.Module):
 
     def mean_aggregation(self, neighborhood_matrix, node_features):
         """ Mean aggregation using sparse matrix multiplication. """
-        return torch.sparse.mm(neighborhood_matrix, node_features)
+        self.mean = torch.sparse.mm(neighborhood_matrix, node_features) / self.degrees
+        return self.mean
 
     def max_aggregation(self, neighborhood_matrix, node_features):
         """Max aggregation using sparse matrix structure."""
@@ -116,33 +119,21 @@ class PNAAggregator(nn.Module):
         return min_features
 
     def std_aggregation(self, neighborhood_matrix, node_features):
-        """ Standard deviation aggregation based on mean. """
-        mean_features = self.mean_aggregation(neighborhood_matrix, node_features)
-        squared_diff = torch.zeros_like(mean_features)
-
-        indices = neighborhood_matrix._indices()
-        row, col = indices[0], indices[1]
-
-        for i in range(row.size(0)):  # Loop over non-zero entries
-            diff = node_features[col[i]] - mean_features[row[i]]
-            squared_diff[row[i]] += diff ** 2
-        
-        count = torch.sparse.sum(neighborhood_matrix, dim=1).to_dense().unsqueeze(1).clamp(min=1)  # Avoid division by zero
-        std_features = torch.sqrt(squared_diff / count)
-
+        mean_features = self.mean  # Use the mean calculated from the mean_aggregation
+        feat_squared = torch.sparse.mm(neighborhood_matrix, node_features**2) / self.degrees  # M x D
+        std_features = torch.sqrt(torch.clamp(feat_squared - mean_features**2, min=0))  # Numerical stability
         return std_features
 
     def scale(self, agg_features, scaler, neighborhood_matrix):
         """
         Scale the aggregated features using one of the scaling functions.
         """
-        degrees = torch.sparse.sum(neighborhood_matrix, dim=1).to_dense().unsqueeze(1)  # Mx1
-        
+        self.delta = torch.mean(torch.log10(self.degrees+2))
         if scaler == 'identity':
             return agg_features
         elif scaler == 'amplification':
-            return agg_features * (degrees + self.delta)
+            return agg_features * (torch.log10(self.degrees+2)/self.delta)
         elif scaler == 'attenuation':
-            return agg_features / (degrees + self.delta)
+            return agg_features / (torch.log10(self.degrees+2)/self.delta)
         else:
             raise ValueError(f"Unsupported scaler type: {scaler}")
