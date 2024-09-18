@@ -3,7 +3,7 @@ import torch.nn as nn
 import sys
 
 class PNAAggregator(nn.Module):
-    def __init__(self, in_channels, out_channels, aggregators=['mean', 'std'], scalers=['identity', 'amplification', 'attenuation']):
+    def __init__(self, in_channels, out_channels, aggregators=['mean'], scalers=['identity', 'amplification', 'attenuation']):
         """
         PNA Aggregator for hypergraphs.
         
@@ -35,6 +35,7 @@ class PNAAggregator(nn.Module):
         """
         aggregated_features = []
         self.degrees = torch.sparse.sum(neighborhood_matrix, dim=1).to_dense().unsqueeze(1)
+        self.valid_degrees = (self.degrees > 0).squeeze()
         self.mean = None
 
         # Apply each aggregation method
@@ -71,7 +72,8 @@ class PNAAggregator(nn.Module):
 
     def mean_aggregation(self, neighborhood_matrix, node_features):
         """ Mean aggregation using sparse matrix multiplication. """
-        self.mean = torch.sparse.mm(neighborhood_matrix, node_features) / self.degrees
+        self.mean = torch.sparse.mm(neighborhood_matrix, node_features) 
+        self.mean[self.valid_degrees] /= self.degrees[self.valid_degrees]
         return self.mean
 
     def max_aggregation(self, neighborhood_matrix, node_features):
@@ -120,7 +122,8 @@ class PNAAggregator(nn.Module):
 
     def std_aggregation(self, neighborhood_matrix, node_features):
         mean_features = self.mean  # Use the mean calculated from the mean_aggregation
-        feat_squared = torch.sparse.mm(neighborhood_matrix, node_features**2) / self.degrees  # M x D
+        feat_squared = torch.sparse.mm(neighborhood_matrix, node_features**2)
+        feat_squared[self.valid_degrees] /= self.degrees[self.valid_degrees]
         std_features = torch.sqrt(torch.clamp(feat_squared - mean_features**2, min=0))  # Numerical stability
         return std_features
 

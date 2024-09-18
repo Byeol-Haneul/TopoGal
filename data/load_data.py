@@ -54,8 +54,8 @@ def load_tensors(num_list, data_dir, label_filename, args, target_labels=None, f
                 feature_index = int(feature.split('_')[-1])
                 tensor = tensor[:, :args.in_channels[feature_index]]  # Slice based on in_channels
 
-                if args.only_positions and feature_index == 0: #If we only use positions, x_0 will be filled with zeros.
-                    tensor = torch.zeros_like(tensor)
+                if args.only_positions and feature_index == 0: #If we only use positions, x_0 will be filled with random vals
+                    tensor = torch.rand_like(tensor)
 
             tensor_dict[feature].append(tensor)
 
