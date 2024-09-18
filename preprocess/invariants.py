@@ -4,6 +4,8 @@ import cProfile
 import pstats
 from config_preprocess import *
 
+eps = 1e-20
+
 class Invariants:
     def __init__(self, cell1, cell2):
         self.cell1 = cell1
@@ -12,7 +14,7 @@ class Invariants:
     def cell_euclidean_distance(self):
         centroid1 = torch.tensor(self.cell1.centroid)
         centroid2 = torch.tensor(self.cell2.centroid)
-        return torch.norm(centroid1 - centroid2)
+        return torch.norm(centroid1 - centroid2) + eps
 
     def cell_hausdorff_distance(self):
         node_pos1 = torch.tensor(self.cell1.node_position)
@@ -28,7 +30,7 @@ class Invariants:
         # The Hausdorff distance is the maximum of the directed distances
         hausdorff_distance = torch.max(hausdorff_dist_1, hausdorff_dist_2)
 
-        return hausdorff_distance
+        return hausdorff_distance + eps
 
     def all_distances(self):
         distances = {

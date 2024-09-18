@@ -8,7 +8,7 @@ def tune():
     label_filename = BASE_DIR+"/CosmoAstroSeed_IllustrisTNG_L25n256_LH.txt"
     
     device_num = 2
-    n_trials = 100
+    n_trials = 200
     only_positions = True
 
     run_optuna_study(data_dir, checkpoint_dir, label_filename, device_num, n_trials, only_positions)
