@@ -2,7 +2,7 @@ import torch
 import torch.nn.functional as F
 from torch.nn.parameter import Parameter
 from .BaseLayer import sparse_row_norm, HBNS, HBS
-from topomodelx.base.aggregation import Aggregation
+from model.aggregators import NormalAggregator, Aggregation
 
 class GNNLayer(torch.nn.Module):
     def __init__(
@@ -53,6 +53,20 @@ class GNNLayer(torch.nn.Module):
             attention_flag=attention_flag
         )
 
+        '''
+        self.mlp_0 = torch.nn.Sequential(
+            torch.nn.Linear(inout_channels_0 * 2, inout_channels_0),
+            torch.nn.LeakyReLU(negative_slope=negative_slope)
+        )
+        self.mlp_1 = torch.nn.Sequential(
+            torch.nn.Linear(inout_channels_1 * 2, inout_channels_1),
+            torch.nn.LeakyReLU(negative_slope=negative_slope)
+        )
+
+        self.aggr = Aggregation(aggr_func="sum", update_func=update_func_aggregation)
+        '''
+        #self.aggr0 = NormalAggregator(inout_channels_0, inout_channels_0)
+        #self.aggr1 = NormalAggregator(inout_channels_0, inout_channels_0)
         self.aggr = Aggregation(aggr_func="sum", update_func=update_func_aggregation)
 
     def forward(
@@ -74,7 +88,8 @@ class GNNLayer(torch.nn.Module):
         x_1_to_1 = self.hbs_1_level1(x_1, adjacency_1)
         x_0_to_1, x_1_to_0 = self.hbns_0_1_level1(x_1, x_0, incidence_0_1)
         
+        #x_0_level1 = self.mlp_0(torch.cat([x_0_to_0, x_1_to_0], dim=-1))
+        #x_1_level1 = self.mlp_1(torch.cat([x_1_to_1, x_0_to_1], dim=-1))
         x_0_level1 = self.aggr([x_0_to_0, x_1_to_0])
-        x_1_level1 = self.aggr([x_0_to_1, x_1_to_1])
-        
+        x_1_level1 = self.aggr([x_1_to_1, x_0_to_1])
         return x_0_level1, x_1_level1, x_2, x_3, x_4

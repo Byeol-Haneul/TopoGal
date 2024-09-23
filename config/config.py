@@ -9,14 +9,14 @@ args = Namespace(
 
     # Directories
     data_dir=BASE_DIR+"/IllustrisTNG/combinatorial/tensors/",
-    checkpoint_dir=BASE_DIR+"/IllustrisTNG/combinatorial/results/test/",
+    checkpoint_dir=BASE_DIR+"/IllustrisTNG/combinatorial/results/test_gnn_nomlp_max/",
     label_filename=BASE_DIR+"/CosmoAstroSeed_IllustrisTNG_L25n256_LH.txt",
 
     # Model Architecture
     in_channels=[1, 3, 5, 7, 3],
-    hidden_dim = 32,
+    hidden_dim = 64,
     num_layers=2,
-    layerType = "Normal",
+    layerType = "GNN",
     attention_flag = False,
     residual_flag = True,
 
@@ -38,7 +38,7 @@ args = Namespace(
     device = None, 
     val_size=0.15,
     test_size=0.15,
-    random_seed=0,
+    random_seed=1212,
 
     # Features & Neighborhood Functions
     feature_sets = [

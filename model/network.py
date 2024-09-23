@@ -37,15 +37,12 @@ class Network(nn.Module):
 
         # FCL
         self.fc1 = nn.Linear(penultimate_layer * num_ranks_pooling * num_aggregators + global_feature_size, 512)
-        #self.ln1 = nn.LayerNorm(512)
         self.leaky_relu1 = nn.LeakyReLU(negative_slope=0.2)
         
         self.fc2 = nn.Linear(512, 256)
-        #self.ln2 = nn.LayerNorm(256)
         self.leaky_relu2 = nn.LeakyReLU(negative_slope=0.2)
         
         self.fc3 = nn.Linear(256, 128)
-        #self.ln3 = nn.LayerNorm(128)
         self.leaky_relu3 = nn.LeakyReLU(negative_slope=0.2)
         
         self.fc4 = nn.Linear(128, final_output_layer)
