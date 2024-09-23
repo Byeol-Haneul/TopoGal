@@ -228,7 +228,7 @@ class AugmentedHMCLayer(torch.nn.Module):
 
         x_0 = self.leaky_relu(self.fc_0(x_0_level2))
         x_1 = self.leaky_relu(self.fc_1(x_1_level2))
-        x_2 = self.leaky_relu(self.fc_0(x_2_level2))
-        x_3 = self.leaky_relu(self.fc_1(x_3_level2))        
-        x_4 = self.leaky_relu(self.fc_1(x_4_level2))        
+        x_2 = self.leaky_relu(self.fc_2(x_2_level2))
+        x_3 = self.leaky_relu(self.fc_3(x_3_level2))        
+        x_4 = self.leaky_relu(self.fc_4(x_4_level2))        
         return x_0, x_1, x_2, x_3, x_4

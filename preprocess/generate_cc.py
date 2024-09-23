@@ -38,7 +38,7 @@ MINCLUSTER = 7 #>10 Found no clusters made in some catalogs.
 # ------------------ #
 
 in_dir = "/data2/jylee/topology/IllustrisTNG/data/"
-out_dir = "/data2/jylee/topology/IllustrisTNG/combinatorial/cc_inv/"
+out_dir = "/data2/jylee/topology/IllustrisTNG/brief/cc_inv/"
 
 os.makedirs(out_dir, exist_ok=True)
 
@@ -78,8 +78,8 @@ def load_catalog(directory, filename):
     pos[np.where(pos>1.0)]-=1.0
 
     # Select only galaxies with more than Nstar_th star particles
-    #indexes = np.where(Nstar>Nstar_th)[0]
-    indexes = np.where(Mstar>MASS_CUT)[0]
+    indexes = np.where(Nstar>Nstar_th)[0]
+    #indexes = np.where(Mstar>MASS_CUT)[0]
     pos     = pos[indexes]
     Mstar   = Mstar[indexes]
     Rstar   = Rstar[indexes]

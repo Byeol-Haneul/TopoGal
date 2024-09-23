@@ -7,12 +7,12 @@ args = Namespace(
     only_positions=True,
 
     # Directories
-    data_dir="/data2/jylee/topology/IllustrisTNG/combinatorial/tensors_inv/",
-    checkpoint_dir="/data2/jylee/topology/IllustrisTNG/combinatorial/optimize_inv/",
+    data_dir="/data2/jylee/topology/IllustrisTNG/brief/tensors_inv/",
+    checkpoint_dir="/data2/jylee/topology/IllustrisTNG/brief/optimize_inv/",
     label_filename="/data2/jylee/topology/CosmoAstroSeed_IllustrisTNG_L25n256_LH.txt",
 
     # Model Architecture
-    in_channels=[3, 4, 4, 8, 3],
+    in_channels=[1, 4, 4, 8, 3],
     hidden_dim = 32,
     num_layers=3,
     layerType = "Normal",
@@ -33,7 +33,7 @@ args = Namespace(
 
     # dummies / fixed values 
     device = None, 
-    batch_size=1,
+    batch_size=32,
     val_size=0.15,
     test_size=0.15,
     random_seed=12345,
