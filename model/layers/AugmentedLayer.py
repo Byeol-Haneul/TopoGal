@@ -31,9 +31,9 @@ class AugmentedHMCLayer(torch.nn.Module):
             attention_flag=attention_flag
         )
 
-        self.hbs_3_level1 = HBS(
-            source_in_channels=in_channels_3,
-            source_out_channels=inout_channels_3,
+        self.hbs_4_level1 = HBS(
+            source_in_channels=in_channels_4,
+            source_out_channels=inout_channels_4,
             negative_slope=negative_slope,
             softmax=softmax_attention,
             update_func=update_func_attention,
@@ -177,6 +177,16 @@ class AugmentedHMCLayer(torch.nn.Module):
             attention_flag=attention_flag
         )
 
+        self.hbs_4_level2 = HBS(
+            source_in_channels=inout_channels_4,
+            source_out_channels=inout_channels_4,
+            negative_slope=negative_slope,
+            softmax=softmax_attention,
+            update_func=update_func_attention,
+            initialization=initialization,
+            attention_flag=attention_flag
+        )
+
         self.fc_0 = torch.nn.Linear(inout_channels_0, inout_channels_0)
         self.fc_1 = torch.nn.Linear(inout_channels_1, inout_channels_1)
         self.fc_2 = torch.nn.Linear(inout_channels_2, inout_channels_2)
@@ -204,7 +214,8 @@ class AugmentedHMCLayer(torch.nn.Module):
 
         # Computing messages from Higher Order Attention Blocks Level 1        
         x_0_to_0 = self.hbs_0_level1(x_0, adjacency_0, cci_0_to_0)
-        x_3_to_3 = self.hbs_3_level1(x_3, adjacency_3, cci_3_to_3)
+        x_4_to_4 = self.hbs_4_level1(x_3, adjacency_3, cci_3_to_3)
+
         x_0_to_1, x_1_to_0 = self.hbns_0_1_level1(x_1, x_0, incidence_0_1, cci_0_to_1)
         x_1_to_2, x_2_to_1 = self.hbns_1_2_level1(x_2, x_1, incidence_1_2, cci_1_to_2)
         x_2_to_3, x_3_to_2 = self.hbns_2_3_level1(x_3, x_2, incidence_2_3, cci_2_to_3)
@@ -214,13 +225,14 @@ class AugmentedHMCLayer(torch.nn.Module):
         x_1_level1 = self.aggr([x_0_to_1, x_2_to_1])
         x_2_level1 = self.aggr([x_1_to_2, x_3_to_2])
         x_3_level1 = self.aggr([x_2_to_3, x_4_to_3])
-        x_4_level1 = self.aggr([x_3_to_4])
+        x_4_level1 = self.aggr([x_3_to_4, x_4_to_4])
 
         # Computing messages from Higher Order Attention Blocks Level 2
         x_0_to_0 = self.hbs_0_level2(x_0_level1, adjacency_0, cci_0_to_0)
         x_1_to_1 = self.hbs_1_level2(x_1_level1, adjacency_1, cci_1_to_1)
         x_2_to_2 = self.hbs_2_level2(x_2_level1, adjacency_2, cci_2_to_2)
         x_3_to_3 = self.hbs_3_level2(x_3_level1, adjacency_3, cci_3_to_3)
+        x_4_to_4 = self.hbs_4_level2(x_4_level1, adjacency_4, cci_4_to_4)
 
         x_0_to_1, _ = self.hbns_0_1_level2(x_1_level1, x_0_level1, incidence_0_1, cci_0_to_1)
         x_1_to_2, _ = self.hbns_1_2_level2(x_2_level1, x_1_level1, incidence_1_2, cci_1_to_2)
@@ -231,6 +243,6 @@ class AugmentedHMCLayer(torch.nn.Module):
         x_1_level2 = self.aggr([x_0_to_1, x_1_to_1])
         x_2_level2 = self.aggr([x_1_to_2, x_2_to_2])
         x_3_level2 = self.aggr([x_2_to_3, x_3_to_3])
-        x_4_level2 = self.aggr([x_3_to_4])
+        x_4_level2 = self.aggr([x_3_to_4, x_4_to_4])
     
         return x_0_level2, x_1_level2, x_2_level2, x_3_level2, x_4_level2
