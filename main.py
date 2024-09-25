@@ -115,7 +115,6 @@ def main(passed_args=None):
     # Basic Configurations
     fix_random_seed(args.random_seed)
     num_list = [i for i in range(1000)]
-    
     os.environ["CUDA_DEVICE_ORDER"]="PCI_BUS_ID"
     os.environ["CUDA_VISIBLE_DEVICES"]= str(args.device_num)
     args.device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
@@ -127,7 +126,8 @@ def main(passed_args=None):
     # Define loss function and optimizer
     loss_fn = implicit_likelihood_loss
     opt = torch.optim.Adam(model.parameters(), lr=args.learning_rate, weight_decay=args.weight_decay)
-    
+    #opt = torch.optim.SGD(model.parameters(), lr=args.learning_rate, momentum=0.9, nesterov=True, weight_decay=args.weight_decay)
+
     # Define checkpoint path
     checkpoint_path = os.path.join(args.checkpoint_dir, 'model_checkpoint.pth')
 

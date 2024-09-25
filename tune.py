@@ -4,11 +4,11 @@ from config.machine import BASE_DIR
 
 def tune():
     data_dir = BASE_DIR+"/IllustrisTNG/combinatorial/tensors/"
-    checkpoint_dir = BASE_DIR+"/IllustrisTNG/combinatorial/results/optimize_gnn/"
+    checkpoint_dir = BASE_DIR+"/IllustrisTNG/combinatorial/results/optimize_gnn_stable/"
     label_filename = BASE_DIR+"/CosmoAstroSeed_IllustrisTNG_L25n256_LH.txt"
     
-    device_num = 0
-    n_trials = 70
+    device_num = 2
+    n_trials = 30
     only_positions = True
 
     run_optuna_study(data_dir, checkpoint_dir, label_filename, device_num, n_trials, only_positions)

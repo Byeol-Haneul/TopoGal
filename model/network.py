@@ -23,7 +23,7 @@ class Network(nn.Module):
         self.base_model = CustomHMC(layerType, channels_per_layer, attention_flag=attention_flag, residual_flag=residual_flag)   
 
         penultimate_layer = channels_per_layer[-1][-1][0]
-        num_aggregators = 3        # max, min, avg
+        num_aggregators = 4
 
         if layerType == "Master" or layerType == "Normal":
             num_ranks_pooling = 5
@@ -36,17 +36,13 @@ class Network(nn.Module):
         global_feature_size = 4     # x_0.shape[0], x_1.shape[0], x_2.shape[0], x_3.shape[0]
 
         # FCL
-        self.fc1 = nn.Linear(penultimate_layer * num_ranks_pooling * num_aggregators + global_feature_size, 512)
-        self.leaky_relu1 = nn.LeakyReLU(negative_slope=0.2)
-        
-        self.fc2 = nn.Linear(512, 256)
-        self.leaky_relu2 = nn.LeakyReLU(negative_slope=0.2)
-        
-        self.fc3 = nn.Linear(256, 128)
-        self.leaky_relu3 = nn.LeakyReLU(negative_slope=0.2)
-        
-        self.fc4 = nn.Linear(128, final_output_layer)
+        self.fc1 = nn.Linear(penultimate_layer * num_ranks_pooling * num_aggregators + global_feature_size, 512)           
+        self.fc2 = nn.Linear(512, 128)
+        self.fc3 = nn.Linear(128, 64)
+        self.fc4 = nn.Linear(64, final_output_layer)
 
+        self.activation = nn.Tanh()
+        self.leaky_relu = nn.LeakyReLU(negative_slope=0.01)
 
     def forward(self, batch) -> torch.Tensor:
         # features
@@ -114,10 +110,10 @@ class Network(nn.Module):
 
         def global_aggregations(x):
             x_avg = torch.mean(x, dim=0, keepdim=True)
-            #x_sum = torch.sum(x, dim=0, keepdim=True)
+            x_std = torch.std(x, dim=0, keepdim=True)
             x_max, _ = torch.max(x, dim=0, keepdim=True)
             x_min, _ = torch.min(x, dim=0, keepdim=True)
-            x = torch.cat((x_avg, x_max, x_min), dim=1)
+            x = torch.cat((x_avg, x_std, x_max, x_min), dim=1)
             return x
         
         # Apply global aggregations to each feature set
@@ -139,16 +135,13 @@ class Network(nn.Module):
 
         # Forward pass through fully connected layers with LeakyReLU activations
         x = self.fc1(x)
-        #x = self.ln1(x)
-        x = self.leaky_relu1(x)
+        x = self.activation(x)
 
         x = self.fc2(x)
-        #x = self.ln2(x)
-        x = self.leaky_relu2(x)
+        x = self.activation(x)
 
         x = self.fc3(x)
-        #x = self.ln3(x)
-        x = self.leaky_relu3(x)
+        x = self.leaky_relu(x)
 
         x = self.fc4(x)
         return x
@@ -159,9 +152,9 @@ class CustomHMC(torch.nn.Module):
         self,
         layerType,
         channels_per_layer,
-        negative_slope=0.2,
+        negative_slope=0.01,
         update_func_attention="relu",
-        update_func_aggregation="tanh", #"relu"
+        update_func_aggregation="tanh",
         attention_flag: bool = False,
         residual_flag: bool = True
     ) -> None:
@@ -181,7 +174,6 @@ class CustomHMC(torch.nn.Module):
             self.base_layer = AugmentedHMCLayer
         elif layerType == "Hier":
             self.base_layer = HierLayer
-            #assert len(channels_per_layer) == 1
         elif layerType == "GNN":
             self.base_layer = GNNLayer
         elif layerType == "Master":

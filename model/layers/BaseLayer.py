@@ -182,10 +182,6 @@ class HBNS(torch.nn.Module):
             target_out_channels,
         )
 
-        # Aggregators!!
-        self.source_aggregator = PNAAggregator(source_out_channels, source_out_channels)
-        self.target_aggregator = PNAAggregator(target_out_channels, target_out_channels)
-
         self.update_func = update_func
 
         self.w_s = Parameter(
@@ -216,6 +212,11 @@ class HBNS(torch.nn.Module):
         self.softmax = softmax
 
         self.reset_parameters()
+
+        # Aggregators!!
+        #self.source_aggregators = nn.ModuleList([PNAAggregator(source_out_channels, source_out_channels) for _ in range(3)])
+        #self.target_aggregators = nn.ModuleList([PNAAggregator(target_out_channels, target_out_channels) for _ in range(3)])
+
 
     def get_device(self) -> torch.device:
         """Get device on which the layer's learnable parameters are stored."""
@@ -454,8 +455,8 @@ class HBNS(torch.nn.Module):
 
         # ADD CROSS-CELL INFORMATION
         if cci is not None:
-            message_on_source = self.source_aggregator(neighborhood_t_to_s_att, t_message) + torch.mm(cci.T, t_message2) + torch.mm(sparse_hadamard(cci.T, neighborhood_t_to_s), t_message3) 
-            message_on_target = self.target_aggregator(neighborhood_s_to_t_att, s_message) + torch.mm(cci, s_message2) + torch.mm(sparse_hadamard(cci, neighborhood_s_to_t), s_message3)
+            message_on_source = torch.mm(neighborhood_t_to_s_att, t_message) + torch.mm(cci.T, t_message2) + torch.mm(sparse_hadamard(cci.T, neighborhood_t_to_s), t_message3) 
+            message_on_target = torch.mm(neighborhood_s_to_t_att, s_message) + torch.mm(cci, s_message2) + torch.mm(sparse_hadamard(cci, neighborhood_s_to_t), s_message3)
         else:
             message_on_source = torch.mm(neighborhood_t_to_s_att, t_message) 
             message_on_target = torch.mm(neighborhood_s_to_t_att, s_message) 
@@ -580,8 +581,6 @@ class HBS(torch.nn.Module):
         self.source_in_channels = source_in_channels
         self.source_out_channels = source_out_channels
 
-        self.source_aggregator = PNAAggregator(source_out_channels, source_out_channels)
-
         self.m_hop = m_hop
         self.update_func = update_func
 
@@ -622,6 +621,8 @@ class HBS(torch.nn.Module):
         self.softmax = softmax
 
         self.reset_parameters()
+        self.source_aggregators = nn.ModuleList([PNAAggregator(source_out_channels, source_out_channels) for _ in range(3)])
+
 
     def get_device(self) -> torch.device:
         """Get device on which the layer's learnable parameters are stored."""
@@ -780,7 +781,7 @@ class HBS(torch.nn.Module):
 
         else: 
             message = [
-                self.source_aggregator(n_p, m_p)
+                torch.mm(n_p, m_p)
                 for n_p, m_p in zip(m_hop_matrices, message, strict=True)
             ]
 

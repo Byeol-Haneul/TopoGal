@@ -3,6 +3,7 @@ import torch.nn.functional as F
 from torch.nn.parameter import Parameter
 from .BaseLayer import sparse_row_norm, HBNS, HBS
 from model.aggregators import NormalAggregator, Aggregation
+import time 
 
 class GNNLayer(torch.nn.Module):
     def __init__(
@@ -56,18 +57,19 @@ class GNNLayer(torch.nn.Module):
         '''
         self.mlp_0 = torch.nn.Sequential(
             torch.nn.Linear(inout_channels_0 * 2, inout_channels_0),
-            torch.nn.LeakyReLU(negative_slope=negative_slope)
+            torch.nn.Tanh()
         )
         self.mlp_1 = torch.nn.Sequential(
             torch.nn.Linear(inout_channels_1 * 2, inout_channels_1),
-            torch.nn.LeakyReLU(negative_slope=negative_slope)
+            torch.nn.Tanh()
         )
-
-        self.aggr = Aggregation(aggr_func="sum", update_func=update_func_aggregation)
         '''
-        #self.aggr0 = NormalAggregator(inout_channels_0, inout_channels_0)
-        #self.aggr1 = NormalAggregator(inout_channels_0, inout_channels_0)
+        
         self.aggr = Aggregation(aggr_func="sum", update_func=update_func_aggregation)
+        
+        #self.aggr0 = NormalAggregator(inout_channels_0, inout_channels_0)
+        #self.aggr1 = NormalAggregator(inout_channels_1, inout_channels_1)
+        #self.aggr = Aggregation(aggr_func="sum", update_func=update_func_aggregation)
 
     def forward(
         self,

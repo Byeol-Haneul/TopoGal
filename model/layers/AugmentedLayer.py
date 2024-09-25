@@ -201,7 +201,8 @@ class AugmentedHMCLayer(torch.nn.Module):
         cci_2_to_3, cci_2_to_4,
         cci_3_to_4,
     ):
-        # Computing messages from Higher Order Attention Blocks Level 1
+
+        # Computing messages from Higher Order Attention Blocks Level 1        
         x_0_to_0 = self.hbs_0_level1(x_0, adjacency_0, cci_0_to_0)
         x_3_to_3 = self.hbs_3_level1(x_3, adjacency_3, cci_3_to_3)
         x_0_to_1, x_1_to_0 = self.hbns_0_1_level1(x_1, x_0, incidence_0_1, cci_0_to_1)
@@ -231,10 +232,5 @@ class AugmentedHMCLayer(torch.nn.Module):
         x_2_level2 = self.aggr([x_1_to_2, x_2_to_2])
         x_3_level2 = self.aggr([x_2_to_3, x_3_to_3])
         x_4_level2 = self.aggr([x_3_to_4])
-
-        x_0 = self.leaky_relu(self.fc_0(x_0_level2))
-        x_1 = self.leaky_relu(self.fc_1(x_1_level2))
-        x_2 = self.leaky_relu(self.fc_2(x_2_level2))
-        x_3 = self.leaky_relu(self.fc_3(x_3_level2))        
-        x_4 = self.leaky_relu(self.fc_4(x_4_level2))        
-        return x_0, x_1, x_2, x_3, x_4
+    
+        return x_0_level2, x_1_level2, x_2_level2, x_3_level2, x_4_level2
