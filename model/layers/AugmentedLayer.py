@@ -214,7 +214,7 @@ class AugmentedHMCLayer(torch.nn.Module):
 
         # Computing messages from Higher Order Attention Blocks Level 1        
         x_0_to_0 = self.hbs_0_level1(x_0, adjacency_0, cci_0_to_0)
-        x_4_to_4 = self.hbs_4_level1(x_3, adjacency_3, cci_3_to_3)
+        x_4_to_4 = self.hbs_4_level1(x_4, adjacency_4, cci_4_to_4)
 
         x_0_to_1, x_1_to_0 = self.hbns_0_1_level1(x_1, x_0, incidence_0_1, cci_0_to_1)
         x_1_to_2, x_2_to_1 = self.hbns_1_2_level1(x_2, x_1, incidence_1_2, cci_1_to_2)
