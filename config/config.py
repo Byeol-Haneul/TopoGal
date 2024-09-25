@@ -1,6 +1,6 @@
 import torch
 from argparse import Namespace
-from config.machine import BASE_DIR
+from config.machine import BASE_DIR, DATA_DIR, RESULT_DIR
 
 args = Namespace(
     # mode
@@ -8,8 +8,8 @@ args = Namespace(
     only_positions=True,
 
     # Directories
-    data_dir=BASE_DIR+"/IllustrisTNG/combinatorial/tensors/",
-    checkpoint_dir=BASE_DIR+"/IllustrisTNG/combinatorial/results/test_normal_yescci/",
+    data_dir=DATA_DIR+"/tensors/",
+    checkpoint_dir=RESULT_DIR+"/test_normal_yescci/",
     label_filename=BASE_DIR+"/CosmoAstroSeed_IllustrisTNG_L25n256_LH.txt",
 
     # Model Architecture

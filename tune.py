@@ -1,10 +1,10 @@
 import os
 from config.hyperparam import HyperparameterTuner, run_optuna_study
-from config.machine import BASE_DIR
+from config.machine import BASE_DIR, DATA_DIR, RESULT_DIR
 
 def tune():
-    data_dir = BASE_DIR+"/IllustrisTNG/combinatorial/tensors/"
-    checkpoint_dir = BASE_DIR+"/IllustrisTNG/combinatorial/results/optimize_gnn_stable/"
+    data_dir = DATA_DIR+"/tensors/"
+    checkpoint_dir = RESULT_DIR+"/optimize_gnn_stable/"
     label_filename = BASE_DIR+"/CosmoAstroSeed_IllustrisTNG_L25n256_LH.txt"
     
     device_num = 2
