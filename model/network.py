@@ -25,7 +25,7 @@ class Network(nn.Module):
         penultimate_layer = channels_per_layer[-1][-1][0]
         num_aggregators = 4
 
-        if layerType == "Master" or layerType == "Normal":
+        if layerType == "Master":
             num_ranks_pooling = 5
         elif layerType == "Test":
             num_ranks_pooling = 2
@@ -126,9 +126,9 @@ class Network(nn.Module):
         # Concatenate features from different inputs along with global features
         if self.layerType == "Hier":
             x = torch.cat((x_3, global_feature), dim=1)
-        if self.layerType == "Test":
+        elif self.layerType == "Test":
             x = torch.cat((x_0, x_3, global_feature), dim=1)
-        elif self.layerType == "Master" or self.layerType == "Normal":
+        elif self.layerType == "Master":
             x = torch.cat((x_0, x_1, x_2, x_3, x_4, global_feature), dim=1)
         else:
             x = torch.cat((x_0, global_feature), dim=1)

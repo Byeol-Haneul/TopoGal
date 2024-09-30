@@ -54,16 +54,14 @@ class GNNLayer(torch.nn.Module):
             attention_flag=attention_flag
         )
 
-        '''
         self.mlp_0 = torch.nn.Sequential(
             torch.nn.Linear(inout_channels_0 * 2, inout_channels_0),
-            torch.nn.Tanh()
+            torch.nn.LeakyReLU(negative_slope=0.01)
         )
         self.mlp_1 = torch.nn.Sequential(
             torch.nn.Linear(inout_channels_1 * 2, inout_channels_1),
-            torch.nn.Tanh()
+            torch.nn.LeakyReLU(negative_slope=0.01)
         )
-        '''
         
         self.aggr = Aggregation(aggr_func="sum", update_func=update_func_aggregation)
         
