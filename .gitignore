@@ -2,3 +2,4 @@ training.log
 preprocess/*.o*
 preprocess/stderr
 preprocess/stdout
+**/__pycache__
