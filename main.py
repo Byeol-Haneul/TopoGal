@@ -26,8 +26,9 @@ def implicit_likelihood_loss(output, target):
     y_out, err_out = output[:,:num_params], output[:,num_params:]
     loss_mse = torch.mean(torch.sum((y_out - target)**2., axis=1), axis=0)
     loss_ili = torch.mean(torch.sum(((y_out - target)**2. - err_out**2.)**2., axis=1), axis=0)
-    loss = torch.log(loss_mse) + torch.log(loss_ili)
-    return loss #torch.mean(loss)
+    #loss = torch.log(loss_mse) + torch.log(loss_ili)
+    loss = loss_mse + loss_ili
+    return loss
 
 def load_and_prepare_data(num_list, args):
     data_dir, label_filename, test_size, val_size, target_labels, feature_sets = (
