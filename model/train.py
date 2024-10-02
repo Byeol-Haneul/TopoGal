@@ -30,8 +30,8 @@ def load_checkpoint(model, optimizer, path, device):
         logging.error(f"No checkpoint found at {path}")
         return model, optimizer, 0, float('inf')
 
-def batch_to_device(batch, device):
-    return {key: tensor.float().to(device) for key, tensor in batch.items()}
+def data_to_device(data, device):
+    return {key: tensor.float().to(device) for key, tensor in data.items()}
 
 def train(model, train_loader, val_loader, test_loader, loss_fn, opt, args, checkpoint_path):
     # args setting
@@ -55,30 +55,36 @@ def train(model, train_loader, val_loader, test_loader, loss_fn, opt, args, chec
         model.train()
         opt.zero_grad()
 
-        for batch_idx, batch in enumerate(train_loader):
-            #batch = augment_batch(batch, args.drop_prob) # data augmentation
-            batch = batch_to_device(batch, device)
-            y = batch['y']
-            
-            y_hat = model(batch)
+        shuffled_indices = np.arange(len(train_loader))
+        np.random.shuffle(shuffled_indices)
+
+        for data_idx in range(len(shuffled_indices)):
+            idx = shuffled_indices[data_idx]            
+            data = train_loader[idx]
+            #data = augment_data(data, args.drop_prob) # data augmentation
+
+            data = data_to_device(data, device)
+            y = data['y']
+
+            y_hat = model(data)
 
             loss = loss_fn(y_hat, y) / accumulation_steps
             loss.backward()
 
-            if (batch_idx + 1) % accumulation_steps == 0 or (batch_idx + 1) == len(train_loader):
+            if (data_idx + 1) % accumulation_steps == 0 or (data_idx + 1) == len(train_loader):
                 opt.step()
                 opt.zero_grad()
 
             epoch_loss.append(loss.item() * accumulation_steps) # store the full loss
-            logging.debug(f"Epoch: {epoch_i}, Train Iteration: {batch_idx + 1}, Loss: {loss.item()*accumulation_steps:.4f}")
+            logging.debug(f"Epoch: {epoch_i}, Train Iteration: {data_idx + 1}, Loss: {loss.item()*accumulation_steps:.6f}")
         
         avg_train_loss = np.mean(epoch_loss)
-        logging.info(f"Epoch: {epoch_i}, Train Loss: {avg_train_loss:.4f}")
+        logging.info(f"Epoch: {epoch_i}, Train Loss: {avg_train_loss:.6f}")
         train_losses.append(avg_train_loss)
         
         # Validate the model
         val_loss = validate(model, val_loader, loss_fn, device, epoch_i)
-        logging.info(f"Epoch: {epoch_i}, Validation Loss: {val_loss:.4f}")
+        logging.info(f"Epoch: {epoch_i}, Validation Loss: {val_loss:.6f}")
         val_losses.append(val_loss)
         
         # Save current checkpoint
@@ -111,14 +117,14 @@ def validate(model, val_loader, loss_fn, device, epoch_i):
     model.eval()
     val_loss = []
     with torch.no_grad():
-        for batch_idx, batch in enumerate(val_loader):
-            batch = batch_to_device(batch, device)
-            y = batch['y']
+        for data_idx, data in enumerate(val_loader):
+            data = data_to_device(data, device)
+            y = data['y']
         
-            y_hat = model(batch)
+            y_hat = model(data)
             loss = loss_fn(y_hat, y)
             val_loss.append(loss.item())
-            logging.debug(f"Epoch: {epoch_i}, Validation Iteration: {batch_idx + 1}, Loss: {loss.item():.4f}")
+            logging.debug(f"Epoch: {epoch_i}, Validation Iteration: {data_idx + 1}, Loss: {loss.item():.6f}")
     
     return np.mean(val_loss)
 
@@ -127,14 +133,14 @@ def evaluate(model, test_loader, device, pred_filename, target_labels):
     predictions = []
     real_values = []
     with torch.no_grad():
-        for batch_idx, batch in enumerate(test_loader):
-            batch = batch_to_device(batch, device)
-            y = batch['y']
+        for data_idx, data in enumerate(test_loader):
+            data = data_to_device(data, device)
+            y = data['y']
 
-            y_hat = model(batch)
+            y_hat = model(data)
             predictions.extend(y_hat.cpu().numpy())
             real_values.append(y.cpu().numpy())
-            logging.debug(f"Test Iteration: {batch_idx + 1}, Real: {y.cpu().numpy()}, Pred: {y_hat.cpu().numpy()}")
+            logging.debug(f"Test Iteration: {data_idx + 1}, Real: {y.cpu().numpy()}, Pred: {y_hat.cpu().numpy()}")
     
     # Denormalize predictions and real values
     denormalized_predictions = denormalize_params(np.array(predictions), target_labels)
