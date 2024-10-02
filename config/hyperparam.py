@@ -44,7 +44,7 @@ class HyperparameterTuner:
             label_filename=self.label_filename,
 
             # Training Hyperparameters
-            num_epochs=1,
+            num_epochs=300,
             test_interval=30,
             batch_size=32,
 
