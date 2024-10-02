@@ -14,6 +14,15 @@ from data.dataset import CustomDataset, custom_collate_fn
 
 from config.param_config import PARAM_STATS, PARAM_ORDER, normalize_params, denormalize_params
 
+def setup_logger(log_filename):
+    for handler in logging.root.handlers[:]:
+        logging.root.removeHandler(handler)
+
+    logging.basicConfig(level=logging.INFO,
+                        format='%(asctime)s - %(levelname)s - %(message)s',
+                        handlers=[logging.FileHandler(log_filename), logging.StreamHandler()])
+
+
 def fix_random_seed(seed):
     seed = seed if (seed is not None) else 12345
     torch.manual_seed(seed)
@@ -24,10 +33,12 @@ def fix_random_seed(seed):
 def implicit_likelihood_loss(output, target):
     num_params = len(target)
     y_out, err_out = output[:,:num_params], output[:,num_params:]
-    loss_mse = torch.mean(torch.sum((y_out - target)**2., axis=1), axis=0)
-    loss_ili = torch.mean(torch.sum(((y_out - target)**2. - err_out**2.)**2., axis=1), axis=0)
+    #loss_mse = torch.mean(torch.sum((y_out - target)**2., axis=1), axis=0)
+    #loss_ili = torch.mean(torch.sum(((y_out - target)**2. - err_out**2.)**2., axis=1), axis=0)
     #loss = torch.log(loss_mse) + torch.log(loss_ili)
-    loss = loss_mse + loss_ili
+    loss_mse = torch.mean(torch.sum(torch.abs(y_out - target), axis=1), axis=0)
+    loss_ili = torch.mean(torch.sum(torch.abs(torch.abs(y_out - target) - err_out), axis=1), axis=0)
+    loss = loss_mse * loss_ili
     return loss
 
 def load_and_prepare_data(num_list, args):
@@ -88,7 +99,7 @@ def initialize_model(args):
     model = Network(args.layerType, channels_per_layer, final_output_layer, args.attention_flag, args.residual_flag).to(args.device)
     return model
 
-def main(passed_args=None):
+def main(passed_args=None, dataset=None):
     # Use external args if provided, otherwise use the default config.args
     if passed_args is None:
         from config.config import args  # Import only if not passed
@@ -106,9 +117,8 @@ def main(passed_args=None):
         except OSError:
             pass 
 
-    # Basic Logging
-    logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s', 
-                        handlers=[logging.FileHandler(args.checkpoint_dir + '/' + 'training.log'), logging.StreamHandler()])
+    log_filename = os.path.join(args.checkpoint_dir, f'training.log')
+    setup_logger(log_filename)
 
     for key, value in vars(args).items():
         logging.info(f"{key}: {value}")
@@ -120,7 +130,10 @@ def main(passed_args=None):
     os.environ["CUDA_VISIBLE_DEVICES"]= str(args.device_num)
     args.device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
     
-    train_dataset, val_dataset, test_dataset = load_and_prepare_data(num_list, args)
+    if args.tuning:
+        train_dataset, val_dataset, test_dataset = dataset
+    else:
+        train_dataset, val_dataset, test_dataset = load_and_prepare_data(num_list, args)
 
     model = initialize_model(args) 
     

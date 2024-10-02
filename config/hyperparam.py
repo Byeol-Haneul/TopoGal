@@ -6,7 +6,11 @@ import threading
 import json
 
 from argparse import Namespace
-from main import main
+from main import main, load_and_prepare_data
+
+import os
+from types import SimpleNamespace as Namespace
+import torch
 
 class HyperparameterTuner:
     def __init__(self, data_dir, checkpoint_dir, label_filename, device_num, only_positions):
@@ -15,48 +19,19 @@ class HyperparameterTuner:
         self.label_filename = label_filename
         self.device_num = device_num
         self.only_positions = only_positions
+        
+        # Create a fixed base args for loading data
+        self.base_args = self.create_base_args()
+        self.dataset = self.load_data()
 
-    def objective(self, trial):
-        hidden_dim = trial.suggest_categorical('hidden_dim', [32, 64, 128])
-        num_layers = trial.suggest_int('num_layers', 1, 4)
-        learning_rate = trial.suggest_float('learning_rate', 1e-6, 1e-4, log=True)
-        weight_decay = trial.suggest_float('weight_decay', 1e-6, 1e-4, log=True)
-        drop_prob = 0 #trial.suggest_float('drop_prob', 0, 0.15)
-        layer_type = trial.suggest_categorical('layerType', ['GNN', 'Normal']) #"Normal"
-
-        # Include trial number in checkpoint directory
-        trial_checkpoint_dir = os.path.join(self.checkpoint_dir, f'trial_{trial.number}')
-        os.makedirs(trial_checkpoint_dir, exist_ok=True)
-
-        self.args = self.create_args(
-            hidden_dim=hidden_dim,
-            num_layers=num_layers,
-            learning_rate=learning_rate,
-            weight_decay=weight_decay,
-            layer_type=layer_type,
-            drop_prob=drop_prob,
-            checkpoint_dir=trial_checkpoint_dir
-        )
-
-        try:
-            val_loss = self.train_and_evaluate(self.args)
-        except Exception as e:
-            print(f"An error occurred during training: {e}")
-            val_loss = float('inf')  # Penalize failed trials
-
-        return val_loss
-
-    def create_args(self, hidden_dim, num_layers, learning_rate, weight_decay, layer_type, drop_prob, checkpoint_dir):        
+    def create_base_args(self):
         return Namespace(
-            # mode
+            # Mode
             tuning=True,
             only_positions=self.only_positions,
-
+            
             # Model Architecture
-            in_channels=[1, 3, 5, 7, 3],             # naive positions: in_channels=[3, 4, 4, 8, 3],
-            hidden_dim=hidden_dim,
-            num_layers=num_layers,
-            layerType=layer_type,  # Add layer type here
+            in_channels=[1, 3, 5, 7, 3],
             attention_flag=False,
             residual_flag=True,
 
@@ -65,16 +40,13 @@ class HyperparameterTuner:
 
             # Directories
             data_dir=self.data_dir,
-            checkpoint_dir=checkpoint_dir,
+            checkpoint_dir=self.checkpoint_dir,
             label_filename=self.label_filename,
 
             # Training Hyperparameters
-            num_epochs=200,
+            num_epochs=1,
             test_interval=30,
-            learning_rate=learning_rate,
-            weight_decay=weight_decay,
             batch_size=32,
-            drop_prob=drop_prob,
 
             # Device
             device_num=self.device_num,
@@ -86,27 +58,65 @@ class HyperparameterTuner:
             random_seed=12345,
 
             # Features & Neighborhood Functions
-            feature_sets = [
+            feature_sets=[
                 'x_0', 'x_1', 'x_2', 'x_3', 'x_4',
-
                 'n0_to_0', 'n1_to_1', 'n2_to_2', 'n3_to_3', 'n4_to_4',
                 'n0_to_1', 'n0_to_2', 'n0_to_3', 'n0_to_4',
                 'n1_to_2', 'n1_to_3', 'n1_to_4',
                 'n2_to_3', 'n2_to_4',
                 'n3_to_4',
-
                 'euclidean_0_to_0', 'euclidean_1_to_1', 'euclidean_2_to_2', 'euclidean_3_to_3', 'euclidean_4_to_4',
                 'euclidean_0_to_1', 'euclidean_0_to_2', 'euclidean_0_to_3', 'euclidean_0_to_4',
                 'euclidean_1_to_2', 'euclidean_1_to_3', 'euclidean_1_to_4',
                 'euclidean_2_to_3', 'euclidean_2_to_4',
                 'euclidean_3_to_4',
-
                 'global_feature'
             ],
         )
 
+    def objective(self, trial):
+        # Suggest hyperparameters
+        hidden_dim = trial.suggest_categorical('hidden_dim', [32, 64, 128])
+        num_layers = trial.suggest_int('num_layers', 1, 4)
+        learning_rate = trial.suggest_float('learning_rate', 1e-6, 1e-4, log=True)
+        weight_decay = trial.suggest_float('weight_decay', 1e-6, 1e-4, log=True)
+        drop_prob = 0  # Fixed for now; you can uncomment if needed
+        layer_type = trial.suggest_categorical('layerType', ['GNN', 'Normal'])
+
+        # Include trial number in checkpoint directory
+        trial_checkpoint_dir = os.path.join(self.checkpoint_dir, f'trial_{trial.number}')
+        os.makedirs(trial_checkpoint_dir, exist_ok=True)
+
+        # Create args by updating the base args with trial-specific hyperparameters
+        self.args = self.create_args(trial_checkpoint_dir, hidden_dim, num_layers, learning_rate, weight_decay, layer_type, drop_prob)
+
+        try:
+            val_loss = self.train_and_evaluate(self.args)
+        except Exception as e:
+            print(f"An error occurred during training: {e}")
+            val_loss = float('inf')  # Penalize failed trials
+
+        return val_loss
+
+    def create_args(self, checkpoint_dir, hidden_dim, num_layers, learning_rate, weight_decay, layer_type, drop_prob):
+        # Create a new Namespace by updating the base args with hyperparameters
+        args = Namespace(**self.base_args.__dict__)
+        args.hidden_dim = hidden_dim
+        args.num_layers = num_layers
+        args.learning_rate = learning_rate
+        args.weight_decay = weight_decay
+        args.layerType = layer_type
+        args.drop_prob = drop_prob
+        args.checkpoint_dir = checkpoint_dir
+        return args
+
+    def load_data(self):
+        num_list = [i for i in range(1000)]
+        return load_and_prepare_data(num_list, self.base_args)
+
     def train_and_evaluate(self, args):
-        return main(args)
+        return main(args, self.dataset)
+
 
 def run_heartbeat(interval):
     """Heartbeat function to indicate the script is still running."""
