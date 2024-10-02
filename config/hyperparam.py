@@ -2,9 +2,11 @@ import optuna
 import torch
 import time
 import os
+import threading 
+import json
+
 from argparse import Namespace
 from main import main
-import json
 
 class HyperparameterTuner:
     def __init__(self, data_dir, checkpoint_dir, label_filename, device_num, only_positions):
@@ -20,7 +22,7 @@ class HyperparameterTuner:
         learning_rate = trial.suggest_float('learning_rate', 1e-6, 1e-4, log=True)
         weight_decay = trial.suggest_float('weight_decay', 1e-6, 1e-4, log=True)
         drop_prob = 0 #trial.suggest_float('drop_prob', 0, 0.15)
-        layer_type = trial.suggest_categorical('layerType', ['GNN']) #"Normal"
+        layer_type = trial.suggest_categorical('layerType', ['GNN', 'Normal']) #"Normal"
 
         # Include trial number in checkpoint directory
         trial_checkpoint_dir = os.path.join(self.checkpoint_dir, f'trial_{trial.number}')
@@ -106,19 +108,35 @@ class HyperparameterTuner:
     def train_and_evaluate(self, args):
         return main(args)
 
-def run_optuna_study(data_dir, checkpoint_dir, label_filename, device_num, n_trials=50, only_positions=True):
+def run_heartbeat(interval):
+    """Heartbeat function to indicate the script is still running."""
+    while True:
+        print(f"Heartbeat: System running at {time.strftime('%Y-%m-%d %H:%M:%S')}")
+        time.sleep(interval)
+
+def run_optuna_study(data_dir, checkpoint_dir, label_filename, device_num, n_trials=50, only_positions=True, heartbeat_interval=1200, study_name="my_study"):
     tuner = HyperparameterTuner(data_dir, checkpoint_dir, label_filename, device_num, only_positions)
-    
+
+    # Start the heartbeat thread
+    heartbeat_thread = threading.Thread(target=run_heartbeat, args=(heartbeat_interval,))
+    heartbeat_thread.daemon = True
+    heartbeat_thread.start()
+
     # Create directory to save the best results
     timestamp = time.strftime("%Y%m%d_%H%M%S")
     result_dir = os.path.join(checkpoint_dir, f"optuna_results_{timestamp}")
     os.makedirs(result_dir, exist_ok=True)
 
-    checkpoint_path = os.path.join(checkpoint_dir, 'model_checkpoint.pth')
+    # Set up the database URL (for SQLite)
+    db_url = f'sqlite:///{os.path.join(checkpoint_dir, "optuna_study.db")}'
 
-    # Run the Optuna study
+    # Run the Optuna study with RDB storage
     sampler = optuna.samplers.TPESampler(seed=12345)
-    study = optuna.create_study(direction='minimize', sampler=sampler)
+    
+    # Create or load a study using the specified study name
+    study = optuna.create_study(direction='minimize', sampler=sampler, storage=db_url, study_name=study_name, load_if_exists=True)
+    
+    # Optimize the study
     study.optimize(tuner.objective, n_trials=n_trials)
 
     # Print the best hyperparameters
