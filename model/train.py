@@ -33,7 +33,7 @@ def load_checkpoint(model, optimizer, path, device):
 def data_to_device(data, device):
     return {key: tensor.float().to(device) for key, tensor in data.items()}
 
-def train(model, train_loader, val_loader, test_loader, loss_fn, opt, args, checkpoint_path):
+def train(model, train_set, val_set, test_set, loss_fn, opt, args, checkpoint_path):
     # args setting
     num_epochs, test_interval, device = args.num_epochs, args.test_interval, args.device
     accumulation_steps = args.batch_size # gradient accumulation
@@ -55,12 +55,12 @@ def train(model, train_loader, val_loader, test_loader, loss_fn, opt, args, chec
         model.train()
         opt.zero_grad()
 
-        shuffled_indices = np.arange(len(train_loader))
+        shuffled_indices = np.arange(len(train_set))
         np.random.shuffle(shuffled_indices)
 
         for data_idx in range(len(shuffled_indices)):
             idx = shuffled_indices[data_idx]            
-            data = train_loader[idx]
+            data = train_set[idx]
             #data = augment_data(data, args.drop_prob) # data augmentation
 
             data = data_to_device(data, device)
@@ -71,7 +71,7 @@ def train(model, train_loader, val_loader, test_loader, loss_fn, opt, args, chec
             loss = loss_fn(y_hat, y) / accumulation_steps
             loss.backward()
 
-            if (data_idx + 1) % accumulation_steps == 0 or (data_idx + 1) == len(train_loader):
+            if (data_idx + 1) % accumulation_steps == 0 or (data_idx + 1) == len(train_set):
                 opt.step()
                 opt.zero_grad()
 
@@ -83,7 +83,7 @@ def train(model, train_loader, val_loader, test_loader, loss_fn, opt, args, chec
         train_losses.append(avg_train_loss)
         
         # Validate the model
-        val_loss = validate(model, val_loader, loss_fn, device, epoch_i)
+        val_loss = validate(model, val_set, loss_fn, device, epoch_i)
         logging.info(f"Epoch: {epoch_i}, Validation Loss: {val_loss:.6f}")
         val_losses.append(val_loss)
         
@@ -106,18 +106,18 @@ def train(model, train_loader, val_loader, test_loader, loss_fn, opt, args, chec
             current_model_state = model.state_dict()
             current_opt_state = opt.state_dict()
             model, opt, _, _ = load_checkpoint(model, opt, best_checkpoint_path, device)
-            evaluate(model, test_loader, device, os.path.join(os.path.dirname(best_checkpoint_path), "pred.txt"), args.target_labels)
+            evaluate(model, test_set, device, os.path.join(os.path.dirname(best_checkpoint_path), "pred.txt"), args.target_labels)
             # Restore the current training state
             model.load_state_dict(current_model_state)
             opt.load_state_dict(current_opt_state)
     
     return best_validation_loss
 
-def validate(model, val_loader, loss_fn, device, epoch_i):
+def validate(model, val_set, loss_fn, device, epoch_i):
     model.eval()
     val_loss = []
     with torch.no_grad():
-        for data_idx, data in enumerate(val_loader):
+        for data_idx, data in enumerate(val_set):
             data = data_to_device(data, device)
             y = data['y']
         
@@ -128,12 +128,12 @@ def validate(model, val_loader, loss_fn, device, epoch_i):
     
     return np.mean(val_loss)
 
-def evaluate(model, test_loader, device, pred_filename, target_labels):
+def evaluate(model, test_set, device, pred_filename, target_labels):
     model.eval()
     predictions = []
     real_values = []
     with torch.no_grad():
-        for data_idx, data in enumerate(test_loader):
+        for data_idx, data in enumerate(test_set):
             data = data_to_device(data, device)
             y = data['y']
 

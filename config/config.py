@@ -9,35 +9,35 @@ args = Namespace(
 
     # Directories
     data_dir=DATA_DIR+"/tensors/",
-    checkpoint_dir=RESULT_DIR+"/test_normal_addhypercluster/",
+    checkpoint_dir=RESULT_DIR+"/test_normal3_multiply_abs2/",
     label_filename=BASE_DIR+"/CosmoAstroSeed_IllustrisTNG_L25n256_LH.txt",
 
     # Model Architecture
     in_channels=[1, 3, 5, 7, 3],
-    hidden_dim = 64,
+    hidden_dim = 128,
     num_layers=3,
     layerType = "Normal",
     attention_flag = False,
     residual_flag = True,
 
     # Target Labels
-    target_labels = ["Omega0", "sigma8", "ASN1", "AAGN1", "ASN2", "AAGN2"],
+    target_labels = ["Omega0"],
 
     # Training Hyperparameters
     num_epochs=3000,
     test_interval=10,
-    learning_rate=1e-4,#1e-5,
+    learning_rate=5e-4,#1e-5,
     weight_decay=1e-5,
-    batch_size=32,
+    batch_size=64,
     drop_prob=0.1,
 
     # Device
-    device_num=1,
+    device_num="0,1",
 
     # dummies / fixed values 
     device = None, 
-    val_size=0.15,
-    test_size=0.15,
+    val_size=0.1,
+    test_size=0.1,
     random_seed=0,
 
     # Features & Neighborhood Functions

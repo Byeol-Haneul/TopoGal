@@ -22,6 +22,29 @@ def setup_logger(log_filename):
                         format='%(asctime)s - %(levelname)s - %(message)s',
                         handlers=[logging.FileHandler(log_filename), logging.StreamHandler()])
 
+def file_cleanup(args):
+    os.makedirs(args.checkpoint_dir, exist_ok=True)
+    if args.tuning:
+        try:
+            os.remove(os.path.join(args.checkpoint_dir, 'model_checkpoint.pth'))
+            os.remove(os.path.join(args.checkpoint_dir, 'pred.txt'))
+            os.remove(os.path.join(args.checkpoint_dir, 'train_losses.csv'))
+            os.remove(os.path.join(args.checkpoint_dir, 'val_losses.csv'))
+            os.remove(os.path.join(args.checkpoint_dir, 'training.log'))
+        except OSError:
+            pass 
+
+    log_filename = os.path.join(args.checkpoint_dir, f'training.log')
+    setup_logger(log_filename)
+
+    for key, value in vars(args).items():
+        logging.info(f"{key}: {value}")
+
+def gpu_setup(args):
+    os.environ["CUDA_DEVICE_ORDER"]="PCI_BUS_ID"
+    os.environ["CUDA_VISIBLE_DEVICES"]= str(args.device_num)
+    args.device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+    
 
 def fix_random_seed(seed):
     seed = seed if (seed is not None) else 12345
@@ -96,8 +119,15 @@ def initialize_model(args):
     logging.info("Initializing model")
     final_output_layer = len(args.target_labels) * 2
 
-    model = Network(args.layerType, channels_per_layer, final_output_layer, args.attention_flag, args.residual_flag).to(args.device)
-    return model
+    model = Network(args.layerType, channels_per_layer, final_output_layer, args.attention_flag, args.residual_flag)
+    
+    # Wrap the model for multi-GPU
+    '''
+    if torch.cuda.is_available() and torch.cuda.device_count() > 1:
+        model = torch.nn.DataParallel(model)
+    '''
+    return model.to(args.device)
+
 
 def main(passed_args=None, dataset=None):
     # Use external args if provided, otherwise use the default config.args
@@ -106,35 +136,20 @@ def main(passed_args=None, dataset=None):
     else:
         args = passed_args
 
-    os.makedirs(args.checkpoint_dir, exist_ok=True)
-    if args.tuning:
-        try:
-            os.remove(os.path.join(args.checkpoint_dir, 'model_checkpoint.pth'))
-            os.remove(os.path.join(args.checkpoint_dir, 'pred.txt'))
-            os.remove(os.path.join(args.checkpoint_dir, 'train_losses.csv'))
-            os.remove(os.path.join(args.checkpoint_dir, 'val_losses.csv'))
-            os.remove(os.path.join(args.checkpoint_dir, 'training.log'))
-        except OSError:
-            pass 
-
-    log_filename = os.path.join(args.checkpoint_dir, f'training.log')
-    setup_logger(log_filename)
-
-    for key, value in vars(args).items():
-        logging.info(f"{key}: {value}")
-
-    # Basic Configurations
+    ## BASIC SETUP ##
+    file_cleanup(args)
     fix_random_seed(args.random_seed)
+    gpu_setup(args)
+
+
     num_list = [i for i in range(1000)]
-    os.environ["CUDA_DEVICE_ORDER"]="PCI_BUS_ID"
-    os.environ["CUDA_VISIBLE_DEVICES"]= str(args.device_num)
-    args.device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
-    
+
     if args.tuning:
         train_dataset, val_dataset, test_dataset = dataset
     else:
         train_dataset, val_dataset, test_dataset = load_and_prepare_data(num_list, args)
 
+    #################
     model = initialize_model(args) 
     
     # Define loss function and optimizer

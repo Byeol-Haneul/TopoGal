@@ -49,7 +49,7 @@ def load_tensors(num_list, data_dir, label_filename, args, target_labels=None, f
                 continue
 
             tensor = normalize(torch.load(os.path.join(data_dir, f"{feature}_{num}.pt")))
-
+            
             if feature[0] == 'x':
                 feature_index = int(feature.split('_')[-1])
                 tensor = tensor[:, :args.in_channels[feature_index]]  # Slice based on in_channels
