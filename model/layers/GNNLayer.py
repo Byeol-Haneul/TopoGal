@@ -1,7 +1,7 @@
 import torch
 import torch.nn.functional as F
 from torch.nn.parameter import Parameter
-from .BaseLayer import sparse_row_norm, HBNS, HBS
+from .BaseLayer import *
 from model.aggregators import NormalAggregator, Aggregation
 import time 
 

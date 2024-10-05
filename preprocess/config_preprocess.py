@@ -25,8 +25,8 @@ NUMTETRA = -1
 ENABLE_PROFILING = False
 
 in_dir = BASE_DIR + "/IllustrisTNG/data/"
-cc_dir = BASE_DIR + "/IllustrisTNG/combinatorial/cc/"
-tensor_dir = BASE_DIR + "/IllustrisTNG/combinatorial/tensors/"
+cc_dir = BASE_DIR + "/IllustrisTNG/combinatorial/cc_dense/"
+tensor_dir = BASE_DIR + "/IllustrisTNG/combinatorial/tensors_dense/"
 label_filename = BASE_DIR + "/CosmoAstroSeed_IllustrisTNG_L25n256_LH.txt"
 
 # Create the directories if they don't exist

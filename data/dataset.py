@@ -22,48 +22,39 @@ class CustomDataset(Dataset):
         return feature_dict
 
 
-def pad_sparse_tensors(tensors):
-    tensors = [t.to_dense() if t.is_sparse else t for t in tensors]
-    max_size = tuple(max(s) for s in zip(*[t.size() for t in tensors]))
-    padded_tensors = []
-    for t in tensors:
-        padded_tensor = torch.zeros(max_size, dtype=t.dtype)
-        padded_tensor[:t.size(0), :t.size(1)] = t
-        padded_tensors.append(padded_tensor.to_sparse())
+def collate_fn(data_batch):
+    batched_data = {}
     
-    return torch.stack(padded_tensors)
+    for key in data_batch[0].keys():
+        key_data = [item[key] for item in data_batch]
 
-def custom_collate_fn(batch):
-    # Extract and pad tensors that require padding
-    x_0_batch = pad_sparse_tensors([item['x_0'] for item in batch])
-    x_1_batch = pad_sparse_tensors([item['x_1'] for item in batch])
-    x_2_batch = pad_sparse_tensors([item['x_2'] for item in batch])
-    x_3_batch = pad_sparse_tensors([item['x_3'] for item in batch])
-    
-    n0_to_0_batch = pad_sparse_tensors([item['n0_to_0'] for item in batch])
-    n1_to_1_batch = pad_sparse_tensors([item['n1_to_1'] for item in batch])
-    n2_to_2_batch = pad_sparse_tensors([item['n2_to_2'] for item in batch])
-    n3_to_3_batch = pad_sparse_tensors([item['n3_to_3'] for item in batch])
-    
-    n0_to_1_batch = pad_sparse_tensors([item['n0_to_1'] for item in batch])
-    n1_to_2_batch = pad_sparse_tensors([item['n1_to_2'] for item in batch])
-    n2_to_3_batch = pad_sparse_tensors([item['n2_to_3'] for item in batch])
+        # If the key starts with 'x_' or 'y_', treat it as N*F tensor (variable N, fixed F)
+        if key.startswith('y') or key.startswith('global'):
+            batched_data[key] = torch.stack(key_data, dim=0)
+            continue
+        elif key.startswith('x'):
+            max_N = max([x.shape[0] for x in key_data])
+            F = key_data[0].shape[1]  # F is fixed (number of features)
 
-    global_feature_batch = torch.stack([item['global_feature'] for item in batch])
-    y_batch = torch.stack([item['y'] for item in batch])
+            # Pad each tensor along the N dimension (rows)
+            padded_key_data = [torch.cat([x, torch.zeros(max_N - x.shape[0], F)], dim=0) for x in key_data]
+            batched_data[key] = torch.stack(padded_key_data, dim=0)
 
-    return {
-        'x_0': x_0_batch,
-        'x_1': x_1_batch,
-        'x_2': x_2_batch,
-        'x_3': x_3_batch,
-        'n0_to_0': n0_to_0_batch,
-        'n1_to_1': n1_to_1_batch,
-        'n2_to_2': n2_to_2_batch,
-        'n3_to_3': n3_to_3_batch,
-        'n0_to_1': n0_to_1_batch,
-        'n1_to_2': n1_to_2_batch,
-        'n2_to_3': n2_to_3_batch,
-        'global_feature': global_feature_batch,
-        'y': y_batch
-    }
+        else:
+            key_data = [key.to_dense() for key in key_data]
+            max_M = max([n.shape[0] for n in key_data])
+            max_N = max([n.shape[1] for n in key_data])
+
+            # Pad each matrix to match max_M * max_N
+            padded_key_data = [
+                torch.cat([n, torch.zeros(max_M - n.shape[0], n.shape[1])], dim=0) if n.shape[0] < max_M else n
+                for n in key_data
+            ]
+            padded_key_data = [
+                torch.cat([n, torch.zeros(n.shape[0], max_N - n.shape[1])], dim=1) for n in padded_key_data
+            ]
+            
+            # Stack them into a batch
+            batched_data[key] = torch.stack(padded_key_data, dim=0)
+
+    return batched_data

@@ -109,10 +109,10 @@ class Network(nn.Module):
         )
 
         def global_aggregations(x):
-            x_avg = torch.mean(x, dim=0, keepdim=True)
-            x_std = torch.std(x, dim=0, keepdim=True)
-            x_max, _ = torch.max(x, dim=0, keepdim=True)
-            x_min, _ = torch.min(x, dim=0, keepdim=True)
+            x_avg = torch.mean(x, dim=1, keepdim=False)
+            x_std = torch.std(x, dim=1, keepdim=False)
+            x_max, _ = torch.max(x, dim=1, keepdim=False)
+            x_min, _ = torch.min(x, dim=1, keepdim=False)
             x = torch.cat((x_avg, x_std, x_max, x_min), dim=1)
             return x
         
@@ -124,6 +124,7 @@ class Network(nn.Module):
         x_4 = global_aggregations(x_4)
        
         # Concatenate features from different inputs along with global features
+        global_feature = global_feature.squeeze(dim=1)
         if self.layerType == "Hier":
             x = torch.cat((x_3, global_feature), dim=1)
         elif self.layerType == "Test":

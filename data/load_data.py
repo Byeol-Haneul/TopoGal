@@ -8,23 +8,6 @@ from config.param_config import PARAM_STATS, PARAM_ORDER
 
 def normalize(tensor):
     return tensor
-    '''
-    if tensor.is_sparse:
-        tensor = tensor.coalesce()
-        values = tensor.values()
-        max_val = values.max()
-        normalized_values = values / max_val
-
-        return torch.sparse_coo_tensor(
-            tensor.indices(),
-            normalized_values,
-            tensor.size()
-        )
-    else:
-        max_val = tensor.max()
-        return tensor / max_val
-    return tensor
-    '''
     
 
 def load_tensors(num_list, data_dir, label_filename, args, target_labels=None, feature_sets=None):

@@ -4,13 +4,15 @@ import os
 import random
 import pandas as pd
 import numpy as np
+import sys
+
 
 from torch.utils.data import DataLoader
 
 from data.load_data import load_tensors, split_data
 from model.network import Network
 from model.train import train, evaluate, save_checkpoint, load_checkpoint
-from data.dataset import CustomDataset, custom_collate_fn
+from data.dataset import CustomDataset, collate_fn
 
 from config.param_config import PARAM_STATS, PARAM_ORDER, normalize_params, denormalize_params
 
@@ -18,7 +20,7 @@ def setup_logger(log_filename):
     for handler in logging.root.handlers[:]:
         logging.root.removeHandler(handler)
 
-    logging.basicConfig(level=logging.INFO,
+    logging.basicConfig(level=logging.DEBUG,
                         format='%(asctime)s - %(levelname)s - %(message)s',
                         handlers=[logging.FileHandler(log_filename), logging.StreamHandler()])
 
@@ -54,9 +56,8 @@ def fix_random_seed(seed):
     logging.info(f"Random seed fixed to {seed}.")
 
 def implicit_likelihood_loss(output, target):
-    num_params = len(target)
+    num_params = target.shape[-1]
     y_out, err_out = output[:,:num_params], output[:,num_params:]
-    #loss_mse = torch.mean(torch.sum((y_out - target)**2., axis=1), axis=0)
     #loss_ili = torch.mean(torch.sum(((y_out - target)**2. - err_out**2.)**2., axis=1), axis=0)
     #loss = torch.log(loss_mse) + torch.log(loss_ili)
     loss_mse = torch.mean(torch.sum(torch.abs(y_out - target), axis=1), axis=0)
@@ -160,9 +161,14 @@ def main(passed_args=None, dataset=None):
     # Define checkpoint path
     checkpoint_path = os.path.join(args.checkpoint_dir, 'model_checkpoint.pth')
 
+
+    train_loader = DataLoader(train_dataset, batch_size=args.batch_size, shuffle=True, collate_fn=collate_fn)
+    val_loader = DataLoader(val_dataset, batch_size=args.batch_size, shuffle=False, collate_fn=collate_fn)
+    test_loader = DataLoader(test_dataset, batch_size=args.batch_size, shuffle=False, collate_fn=collate_fn)
+    
     # Training
     logging.info("Starting training")
-    best_loss = train(model, train_dataset, val_dataset, test_dataset, loss_fn, opt, args, checkpoint_path)
+    best_loss = train(model, train_loader, val_loader, test_loader, loss_fn, opt, args, checkpoint_path)
     
     # Evaluation
     logging.info("Starting evaluation")

@@ -9,14 +9,14 @@ args = Namespace(
 
     # Directories
     data_dir=DATA_DIR+"/tensors/",
-    checkpoint_dir=RESULT_DIR+"/test_normal3_multiply_abs2/",
+    checkpoint_dir=RESULT_DIR+"/test_gnn_batching/",
     label_filename=BASE_DIR+"/CosmoAstroSeed_IllustrisTNG_L25n256_LH.txt",
 
     # Model Architecture
     in_channels=[1, 3, 5, 7, 3],
-    hidden_dim = 128,
-    num_layers=3,
-    layerType = "Normal",
+    hidden_dim = 4,
+    num_layers=2,
+    layerType = "GNN",
     attention_flag = False,
     residual_flag = True,
 
@@ -28,7 +28,7 @@ args = Namespace(
     test_interval=10,
     learning_rate=5e-4,#1e-5,
     weight_decay=1e-5,
-    batch_size=64,
+    batch_size=16,
     drop_prob=0.1,
 
     # Device
