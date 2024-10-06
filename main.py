@@ -20,7 +20,7 @@ def setup_logger(log_filename):
     for handler in logging.root.handlers[:]:
         logging.root.removeHandler(handler)
 
-    logging.basicConfig(level=logging.DEBUG,
+    logging.basicConfig(level=logging.INFO,
                         format='%(asctime)s - %(levelname)s - %(message)s',
                         handlers=[logging.FileHandler(log_filename), logging.StreamHandler()])
 
@@ -157,7 +157,7 @@ def initialize_model(args, local_rank):
     if torch.cuda.is_available() and torch.cuda.device_count() > 1:
         model = torch.nn.parallel.DistributedDataParallel(
             model, device_ids=[local_rank], output_device=local_rank,
-            find_unused_parameters=True
+            #find_unused_parameters=True
         )
 
     return model
@@ -181,7 +181,7 @@ def main(passed_args=None, dataset=None):
     
     gpu_setup(args, local_rank)
 
-    num_list = [i for i in range(100)]
+    num_list = [i for i in range(1000)]
 
     if args.tuning:
         train_dataset, val_dataset, test_dataset = dataset

@@ -73,17 +73,19 @@ def train(model, train_set, val_set, test_set, loss_fn, opt, args, checkpoint_pa
             loss = loss_fn(y_hat, y) / accumulation_steps
             loss.backward()
 
+            '''
             if local_rank == 0:
                 for name, param in model.named_parameters():
                     if param.grad is None:
                         print(name)
+            '''
 
             if (data_idx + 1) % accumulation_steps == 0 or (data_idx + 1) == len(train_set):
                 opt.step()
                 opt.zero_grad()
 
             epoch_loss.append(loss.item() * accumulation_steps)  # store the full loss
-            logging.debug(f"Epoch: {epoch_i}, Train Iteration: {data_idx + 1}, Loss: {loss.item() * accumulation_steps:.6f}")
+            logging.debug(f"[Rank{local_rank}] Epoch: {epoch_i}, Train Iteration: {data_idx + 1}, Loss: {loss.item() * accumulation_steps:.6f}")
 
         # Reduce the losses across all processes
         local_avg_train_loss = np.mean(epoch_loss)
