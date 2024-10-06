@@ -28,7 +28,7 @@ args = Namespace(
     test_interval=10,
     learning_rate=5e-4,#1e-5,
     weight_decay=1e-5,
-    batch_size=16,
+    batch_size=32,
     drop_prob=0.1,
 
     # Device

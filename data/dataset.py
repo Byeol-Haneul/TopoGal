@@ -1,5 +1,7 @@
 import torch
+from torch.nn.utils.rnn import pad_sequence
 from torch.utils.data import Dataset
+import time 
 
 class CustomDataset(Dataset):
     def __init__(self, data, feature_names):
@@ -22,6 +24,25 @@ class CustomDataset(Dataset):
         return feature_dict
 
 
+def timeit_wrapper(func):
+    def timed(*args, **kwargs):
+        start_time = time.time()
+        result = func(*args, **kwargs)
+        end_time = time.time()
+        elapsed_time = end_time - start_time
+        print(f"Function '{func.__name__}' took {elapsed_time:.6f} seconds")
+        return result
+    return timed
+
+'''
+@timeit_wrapper
+def collate_fn(data_batch):
+    batched_data = {}
+    for key in data_batch[0].keys():
+        batched_data[key] = torch.stack([item[key].to_dense() for item in data_batch], dim=0)
+    return batched_data
+'''
+@timeit_wrapper
 def collate_fn(data_batch):
     batched_data = {}
     
@@ -33,28 +54,23 @@ def collate_fn(data_batch):
             batched_data[key] = torch.stack(key_data, dim=0)
             continue
         elif key.startswith('x'):
-            max_N = max([x.shape[0] for x in key_data])
-            F = key_data[0].shape[1]  # F is fixed (number of features)
-
-            # Pad each tensor along the N dimension (rows)
-            padded_key_data = [torch.cat([x, torch.zeros(max_N - x.shape[0], F)], dim=0) for x in key_data]
-            batched_data[key] = torch.stack(padded_key_data, dim=0)
+            batched_data[key] = pad_sequence(key_data, batch_first=True)
 
         else:
-            key_data = [key.to_dense() for key in key_data]
             max_M = max([n.shape[0] for n in key_data])
             max_N = max([n.shape[1] for n in key_data])
 
-            # Pad each matrix to match max_M * max_N
-            padded_key_data = [
-                torch.cat([n, torch.zeros(max_M - n.shape[0], n.shape[1])], dim=0) if n.shape[0] < max_M else n
-                for n in key_data
-            ]
-            padded_key_data = [
-                torch.cat([n, torch.zeros(n.shape[0], max_N - n.shape[1])], dim=1) for n in padded_key_data
-            ]
-            
-            # Stack them into a batch
+            padded_key_data = []
+            for sparse_tensor in key_data:
+                new_sparse_tensor = torch.sparse_coo_tensor(
+                    sparse_tensor.indices(),  
+                    sparse_tensor.values(),   
+                    size=(max_M, max_N),     
+                    dtype=sparse_tensor.dtype,
+                    device=sparse_tensor.device
+                )
+                padded_key_data.append(new_sparse_tensor.to_dense())
+
             batched_data[key] = torch.stack(padded_key_data, dim=0)
 
     return batched_data

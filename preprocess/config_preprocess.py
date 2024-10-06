@@ -25,15 +25,36 @@ NUMTETRA = -1
 ENABLE_PROFILING = False
 
 in_dir = BASE_DIR + "/IllustrisTNG/data/"
-cc_dir = BASE_DIR + "/IllustrisTNG/combinatorial/cc_dense/"
-tensor_dir = BASE_DIR + "/IllustrisTNG/combinatorial/tensors_dense/"
+cc_dir = BASE_DIR + "/IllustrisTNG/combinatorial/cc/"
+tensor_dir = BASE_DIR + "/IllustrisTNG/combinatorial/tensors/"
+pad_dir = BASE_DIR + "/IllustrisTNG/combinatorial/padded/"
 label_filename = BASE_DIR + "/CosmoAstroSeed_IllustrisTNG_L25n256_LH.txt"
 
 # Create the directories if they don't exist
 os.makedirs(cc_dir, exist_ok=True)
 os.makedirs(tensor_dir, exist_ok=True)
+os.makedirs(pad_dir, exist_ok=True)
 
 ## HELPER FUNCTION! ##
 def normalize(value, option):
     power = modes[option]
     return value / (r_link)
+
+
+feature_sets = [
+    'x_0', 'x_1', 'x_2', 'x_3', 'x_4',
+
+    'n0_to_0', 'n1_to_1', 'n2_to_2', 'n3_to_3', 'n4_to_4',
+    'n0_to_1', 'n0_to_2', 'n0_to_3', 'n0_to_4',
+    'n1_to_2', 'n1_to_3', 'n1_to_4',
+    'n2_to_3', 'n2_to_4',
+    'n3_to_4',
+
+    'euclidean_0_to_0', 'euclidean_1_to_1', 'euclidean_2_to_2', 'euclidean_3_to_3', 'euclidean_4_to_4',
+    'euclidean_0_to_1', 'euclidean_0_to_2', 'euclidean_0_to_3', 'euclidean_0_to_4',
+    'euclidean_1_to_2', 'euclidean_1_to_3', 'euclidean_1_to_4',
+    'euclidean_2_to_3', 'euclidean_2_to_4',
+    'euclidean_3_to_4',
+
+    'global_feature'
+]
