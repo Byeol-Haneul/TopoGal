@@ -25,7 +25,7 @@ class Network(nn.Module):
         penultimate_layer = channels_per_layer[-1][-1][0]
         num_aggregators = 4
 
-        if layerType == "Master":
+        if layerType == "Master" or "Normal":
             num_ranks_pooling = 5
         elif layerType == "Test":
             num_ranks_pooling = 2
@@ -128,7 +128,7 @@ class Network(nn.Module):
             x = torch.cat((x_3, global_feature), dim=1)
         elif self.layerType == "Test":
             x = torch.cat((x_0, x_3, global_feature), dim=1)
-        elif self.layerType == "Master":
+        elif self.layerType == "Master" or "Normal":
             x = torch.cat((x_0, x_1, x_2, x_3, x_4, global_feature), dim=1)
         else:
             x = torch.cat((x_0, global_feature), dim=1)

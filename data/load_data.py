@@ -34,7 +34,7 @@ def load_tensors(num_list, data_dir, label_filename, args, target_labels=None, f
     tensor_dict = {feature: [] for feature in feature_sets}
     tensor_dict['y'] = []
 
-    for num in tqdm(num_list):
+    for num in num_list:
         y = torch.Tensor(label_file.loc[num].to_numpy()[1:-1].astype(float))
 
         if target_labels:
