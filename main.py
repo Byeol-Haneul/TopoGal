@@ -39,10 +39,9 @@ def file_cleanup(args):
     log_filename = os.path.join(args.checkpoint_dir, f'training.log')
     setup_logger(log_filename)
 
-    '''
+    
     for key, value in vars(args).items():
         logging.info(f"{key}: {value}")
-    '''
     
 def gpu_setup(args, local_rank):
     os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"

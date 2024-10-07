@@ -14,7 +14,7 @@ args = Namespace(
 
     # Model Architecture
     in_channels=[1, 3, 5, 7, 3],
-    hidden_dim = 4,
+    hidden_dim = 64,
     num_layers=2,
     layerType = "Normal",
     attention_flag = False,
