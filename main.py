@@ -98,25 +98,38 @@ def load_and_prepare_data(num_list, args, local_rank, world_size):
         args.data_dir, args.label_filename, args.target_labels, args.feature_sets
     )
 
-    logging.info(f"Loading tensors for {len(num_list)} samples from {data_dir}")
-    tensor_dict = load_tensors(
-        num_list, data_dir, label_filename, args, target_labels, feature_sets
+    # Load tensors only for the designated train indices
+    logging.info(f"Loading training tensors for {len(train_indices)} samples from {data_dir}")
+    train_tensor_dict = load_tensors(
+        [num_list[i] for i in train_indices], data_dir, label_filename, args, target_labels, feature_sets
     )
 
-    logging.info("Normalizing target parameters")
-    tensor_dict['y'] = normalize_params(tensor_dict['y'], target_labels)
+    logging.info("Normalizing target parameters for training")
+    train_tensor_dict['y'] = normalize_params(train_tensor_dict['y'], target_labels)
 
     # Prepare training data for all ranks
-    train_data = {feature: [tensor_dict[feature][i] for i in train_indices] for feature in feature_sets + ['y']}
+    train_data = {feature: train_tensor_dict[feature] for feature in feature_sets + ['y']}
     train_tuples = list(zip(*[train_data[feature] for feature in feature_sets + ['y']]))
-    
+
     logging.info(f"Created train dataset with {len(train_tuples)} samples")
     train_dataset = CustomDataset(train_tuples, feature_sets + ['y'])
 
     # Only rank 0 handles validation and test sets
     if local_rank == 0:
-        val_data = {feature: [tensor_dict[feature][i] for i in val_indices] for feature in feature_sets + ['y']}
-        test_data = {feature: [tensor_dict[feature][i] for i in test_indices] for feature in feature_sets + ['y']}
+        logging.info(f"Loading validation tensors for {len(val_indices)} samples from {data_dir}")
+        val_tensor_dict = load_tensors(
+            [num_list[i] for i in val_indices], data_dir, label_filename, args, target_labels, feature_sets
+        )
+        val_tensor_dict['y'] = normalize_params(val_tensor_dict['y'], target_labels)
+
+        logging.info(f"Loading test tensors for {len(test_indices)} samples from {data_dir}")
+        test_tensor_dict = load_tensors(
+            [num_list[i] for i in test_indices], data_dir, label_filename, args, target_labels, feature_sets
+        )
+        test_tensor_dict['y'] = normalize_params(test_tensor_dict['y'], target_labels)
+
+        val_data = {feature: val_tensor_dict[feature] for feature in feature_sets + ['y']}
+        test_data = {feature: test_tensor_dict[feature] for feature in feature_sets + ['y']}
 
         val_tuples = list(zip(*[val_data[feature] for feature in feature_sets + ['y']]))
         test_tuples = list(zip(*[test_data[feature] for feature in feature_sets + ['y']]))
@@ -131,6 +144,7 @@ def load_and_prepare_data(num_list, args, local_rank, world_size):
         test_dataset = None
 
     return train_dataset, val_dataset, test_dataset
+
 
 
 def initialize_model(args, local_rank):
