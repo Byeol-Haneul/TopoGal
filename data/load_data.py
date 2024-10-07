@@ -1,5 +1,6 @@
 import os
 import torch
+import torch.distributed as dist
 import pandas as pd
 from sklearn.model_selection import train_test_split
 from tqdm import tqdm
@@ -34,7 +35,7 @@ def load_tensors(num_list, data_dir, label_filename, args, target_labels=None, f
     tensor_dict = {feature: [] for feature in feature_sets}
     tensor_dict['y'] = []
 
-    for num in num_list:
+    for num in tqdm(num_list, disable=(dist.get_rank()!=0)):
         y = torch.Tensor(label_file.loc[num].to_numpy()[1:-1].astype(float))
 
         if target_labels:
