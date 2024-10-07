@@ -4,10 +4,10 @@ from config.machine import BASE_DIR, DATA_DIR, RESULT_DIR
 
 def tune():
     data_dir = DATA_DIR+"/tensors/"
-    checkpoint_dir = RESULT_DIR+"/testing/"
+    checkpoint_dir = RESULT_DIR+"/optimize_ddp_normal/"
     label_filename = BASE_DIR+"/CosmoAstroSeed_IllustrisTNG_L25n256_LH.txt"
     
-    device_num = 1
+    device_num = "0,1" #not necessary
     n_trials = 30
     only_positions = True
 

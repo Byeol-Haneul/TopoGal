@@ -179,7 +179,8 @@ def main(passed_args=None, dataset=None):
 
     fix_random_seed(args.random_seed)
     
-    gpu_setup(args, local_rank)
+    if not args.tuning:
+        gpu_setup(args, local_rank)
 
     num_list = [i for i in range(1000)]
 
@@ -210,7 +211,8 @@ def main(passed_args=None, dataset=None):
         logging.info("Starting evaluation")
         evaluate(model, test_dataset, args.device, os.path.join(os.path.dirname(checkpoint_path), "pred.txt"), args.target_labels)
     
-    dist.destroy_process_group()
+    if not args.tuning:
+        dist.destroy_process_group()
 
     if local_rank == 0:
         return best_loss

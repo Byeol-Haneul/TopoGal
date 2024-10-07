@@ -1,42 +1,47 @@
 import optuna
+import optuna_integration
 import torch
 import time
-import os
-import threading 
+import os, sys
+import threading
 import json
 
 from argparse import Namespace
 from main import main, load_and_prepare_data
+import torch.distributed as dist
 
-import os
-from types import SimpleNamespace as Namespace
-import torch
 
 class HyperparameterTuner:
-    def __init__(self, data_dir, checkpoint_dir, label_filename, device_num, only_positions):
+    def __init__(self, data_dir, checkpoint_dir, label_filename, device_num, only_positions, local_rank, world_size):
+        ## Distributed
+        self.local_rank = local_rank
+        self.world_size = world_size
+
+        ## Training Config
         self.data_dir = data_dir
         self.checkpoint_dir = checkpoint_dir
         self.label_filename = label_filename
         self.device_num = device_num
         self.only_positions = only_positions
-        
+
         # Create a fixed base args for loading data
         self.base_args = self.create_base_args()
         self.dataset = self.load_data()
+
 
     def create_base_args(self):
         return Namespace(
             # Mode
             tuning=True,
             only_positions=self.only_positions,
-            
+
             # Model Architecture
             in_channels=[1, 3, 5, 7, 3],
             attention_flag=False,
             residual_flag=True,
 
             # Target Labels
-            target_labels=["Omega0", "sigma8", "ASN1", "AAGN1", "ASN2", "AAGN2"],
+            target_labels=["Omega0"],
 
             # Directories
             data_dir=self.data_dir,
@@ -50,11 +55,11 @@ class HyperparameterTuner:
 
             # Device
             device_num=self.device_num,
-            device=torch.device(f"cuda:{self.device_num}" if torch.cuda.is_available() else "cpu"),
+            device=None,
 
             # Fixed Values
-            val_size=0.15,
-            test_size=0.15,
+            val_size=0.1,
+            test_size=0.1,
             random_seed=12345,
 
             # Features & Neighborhood Functions
@@ -74,32 +79,27 @@ class HyperparameterTuner:
             ],
         )
 
-    def objective(self, trial):
-        # Suggest hyperparameters
+    def objective(self, single_trial):
+        trial = optuna_integration.TorchDistributedTrial(single_trial)
         hidden_dim = trial.suggest_categorical('hidden_dim', [32, 64, 128])
         num_layers = trial.suggest_int('num_layers', 1, 4)
         learning_rate = trial.suggest_float('learning_rate', 1e-6, 1e-4, log=True)
         weight_decay = trial.suggest_float('weight_decay', 1e-6, 1e-4, log=True)
-        drop_prob = 0  # Fixed for now; you can uncomment if needed
-        layer_type = trial.suggest_categorical('layerType', ['GNN', 'Normal'])
-
-        # Include trial number in checkpoint directory
+        drop_prob = 0  # Fixed for now
+        layer_type = trial.suggest_categorical('layerType', ['Normal'])
         trial_checkpoint_dir = os.path.join(self.checkpoint_dir, f'trial_{trial.number}')
         os.makedirs(trial_checkpoint_dir, exist_ok=True)
 
-        # Create args by updating the base args with trial-specific hyperparameters
+
+        # Create args with the broadcasted hyperparameters
         self.args = self.create_args(trial_checkpoint_dir, hidden_dim, num_layers, learning_rate, weight_decay, layer_type, drop_prob)
 
-        try:
-            val_loss = self.train_and_evaluate(self.args)
-        except Exception as e:
-            print(f"An error occurred during training: {e}")
-            val_loss = float('inf')  # Penalize failed trials
-
+        # Train and evaluate
+        val_loss = self.train_and_evaluate(self.args)
         return val_loss
 
     def create_args(self, checkpoint_dir, hidden_dim, num_layers, learning_rate, weight_decay, layer_type, drop_prob):
-        # Create a new Namespace by updating the base args with hyperparameters
+        # Update the base args with hyperparameters
         args = Namespace(**self.base_args.__dict__)
         args.hidden_dim = hidden_dim
         args.num_layers = num_layers
@@ -112,10 +112,19 @@ class HyperparameterTuner:
 
     def load_data(self):
         num_list = [i for i in range(1000)]
-        return load_and_prepare_data(num_list, self.base_args)
+        return load_and_prepare_data(num_list, self.base_args, self.local_rank, self.world_size)
 
     def train_and_evaluate(self, args):
         return main(args, self.dataset)
+    
+    def gpu_setup(self):
+        os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"
+        visible_devices = ",".join(str(i) for i in range(torch.cuda.device_count()))
+        os.environ['CUDA_VISIBLE_DEVICES'] = visible_devices
+        torch.cuda.set_device(self.local_rank)
+        self.base_args.device = torch.device(f"cuda:{self.local_rank}")    
+        dist.init_process_group(backend="nccl", init_method='env://') 
+        print(f"[GPU SETUP] Process {self.local_rank} set up on device {self.base_args.device}", file = sys.stderr)
 
 
 def run_heartbeat(interval):
@@ -125,53 +134,53 @@ def run_heartbeat(interval):
         time.sleep(interval)
 
 def run_optuna_study(data_dir, checkpoint_dir, label_filename, device_num, n_trials=50, only_positions=True, heartbeat_interval=1200, study_name="my_study"):
-    tuner = HyperparameterTuner(data_dir, checkpoint_dir, label_filename, device_num, only_positions)
+    local_rank = int(os.environ['LOCAL_RANK'])
+    world_size = int(os.environ['WORLD_SIZE'])
 
-    # Start the heartbeat thread
-    heartbeat_thread = threading.Thread(target=run_heartbeat, args=(heartbeat_interval,))
-    heartbeat_thread.daemon = True
-    heartbeat_thread.start()
+    tuner = HyperparameterTuner(data_dir, checkpoint_dir, label_filename, device_num, only_positions, local_rank, world_size)
+    tuner.gpu_setup()
+    study = None
+    
+    if local_rank == 0:
+        # Start the heartbeat thread
+        heartbeat_thread = threading.Thread(target=run_heartbeat, args=(heartbeat_interval,))
+        heartbeat_thread.daemon = True
+        heartbeat_thread.start()
 
-    # Create directory to save the best results
-    timestamp = time.strftime("%Y%m%d_%H%M%S")
-    result_dir = os.path.join(checkpoint_dir, f"optuna_results_{timestamp}")
-    os.makedirs(result_dir, exist_ok=True)
+        # Create directory to save the best results
+        timestamp = time.strftime("%Y%m%d_%H%M%S")
+        result_dir = os.path.join(checkpoint_dir, f"optuna_results_{timestamp}")
+        os.makedirs(result_dir, exist_ok=True)
 
-    # Set up the database URL (for SQLite)
-    db_url = f'sqlite:///{os.path.join(checkpoint_dir, "optuna_study.db")}'
+        # Set up the database URL (for SQLite)
+        db_url = f'sqlite:///{os.path.join(checkpoint_dir, "optuna_study.db")}'
 
-    # Run the Optuna study with RDB storage
-    sampler = optuna.samplers.TPESampler(seed=12345)
-    
-    # Create or load a study using the specified study name
-    study = optuna.create_study(direction='minimize', sampler=sampler, storage=db_url, study_name=study_name, load_if_exists=True)
-    
-    # Optimize the study
-    study.optimize(tuner.objective, n_trials=n_trials)
+        sampler = optuna.samplers.TPESampler(seed=tuner.base_args.random_seed)
+        study = optuna.create_study(direction='minimize', sampler=sampler, storage=db_url, study_name=study_name, load_if_exists=True)
+        study.optimize(tuner.objective, n_trials=n_trials)
+    else:
+        for _ in range(n_trials):
+            tuner.objective(None)
 
-    # Print the best hyperparameters
-    print(f"Results saved to: {result_dir}")
-    print("Best Hyperparameters:", study.best_params)
-    
-    # After the study has completed
-    best_params_path = os.path.join(result_dir, 'best_params.json')
-    with open(best_params_path, 'w') as f:
-        json.dump(study.best_params, f, indent=4)
+    if local_rank == 0:
+        assert study is not None
 
-    # Save the study results (including all trials) to a CSV file
-    trials_df = study.trials_dataframe()
-    trials_csv_path = os.path.join(result_dir, 'trials.csv')
-    trials_df.to_csv(trials_csv_path, index=False)
-    
-    # Plot and save visualizations
-    plot_optimization_history_path = os.path.join(result_dir, 'optimization_history.png')
-    plot_param_importances_path = os.path.join(result_dir, 'param_importances.png')
-    plot_parallel_coordinate_path = os.path.join(result_dir, 'parallel_coordinate.png')
-    
-    optuna.visualization.matplotlib.plot_optimization_history(study).figure.savefig(plot_optimization_history_path)
-    optuna.visualization.matplotlib.plot_param_importances(study).figure.savefig(plot_param_importances_path)
-    optuna.visualization.matplotlib.plot_parallel_coordinate(study).figure.savefig(plot_parallel_coordinate_path)
-    
-    print(f"Optimization history saved to: {plot_optimization_history_path}")
-    print(f"Parameter importances saved to: {plot_param_importances_path}")
-    print(f"Parallel coordinate plot saved to: {plot_parallel_coordinate_path}")
+        # Save the best hyperparameters
+        best_params_path = os.path.join(result_dir, 'best_params.json')
+        with open(best_params_path, 'w') as f:
+            json.dump(study.best_params, f, indent=4)
+
+        # Save the study results (all trials) to CSV
+        trials_df = study.trials_dataframe()
+        trials_csv_path = os.path.join(result_dir, 'trials.csv')
+        trials_df.to_csv(trials_csv_path, index=False)
+
+        # Plot and save visualizations
+        optuna.visualization.matplotlib.plot_optimization_history(study).figure.savefig(os.path.join(result_dir, 'optimization_history.png'))
+        optuna.visualization.matplotlib.plot_param_importances(study).figure.savefig(os.path.join(result_dir, 'param_importances.png'))
+        optuna.visualization.matplotlib.plot_parallel_coordinate(study).figure.savefig(os.path.join(result_dir, 'parallel_coordinate.png'))
+
+        print(f"Results saved to: {result_dir}")
+        print("Best Hyperparameters:", study.best_params)
+
+    dist.destroy_process_group()
