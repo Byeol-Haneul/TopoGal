@@ -8,7 +8,7 @@ if MACHINE == "HAPPINESS":
     RESULT_DIR = BASE_DIR + "/IllustrisTNG/combinatorial/results/"
 elif MACHINE=="RUSTY":
     BASE_DIR = "/mnt/home/jlee2/ceph/topology/"
-    DATA_DIR = BASE_DIR + "/IllustrisTNG/combinatorial/"
+    DATA_DIR = "/mnt/home/jlee2/data_dir/"
     RESULT_DIR = "/mnt/home/jlee2/results/"
 else:
     raise Exception("Invalid Machine")
