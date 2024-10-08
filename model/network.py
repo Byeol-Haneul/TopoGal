@@ -108,9 +108,12 @@ class Network(nn.Module):
             cci3_to_4
         )
 
+
         def global_aggregations(x):
+            variance = torch.var(x, dim=0, unbiased=False)
+            variance = torch.where(variance == 0, torch.tensor(1e-6, device=x.device), variance)            
+            x_std = torch.sqrt(variance).unsqueeze(0)
             x_avg = torch.mean(x, dim=0, keepdim=True)
-            x_std = torch.std(x, dim=0, keepdim=True)
             x_max, _ = torch.max(x, dim=0, keepdim=True)
             x_min, _ = torch.min(x, dim=0, keepdim=True)
             x = torch.cat((x_avg, x_std, x_max, x_min), dim=1)
