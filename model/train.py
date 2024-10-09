@@ -3,7 +3,7 @@ import torch.distributed as dist
 
 import numpy as np
 import logging
-import os
+import os, sys
 import pandas as pd
 from torch.utils.data import DataLoader
 from config.param_config import PARAM_STATS, PARAM_ORDER, denormalize_params
@@ -18,20 +18,22 @@ def save_checkpoint(model, optimizer, epoch, loss, path):
     torch.save(state, path)
     logging.info(f"Checkpoint saved at {path}")
 
-def load_checkpoint(model, optimizer, path, device):
+def load_checkpoint(model, optimizer, path, device, eval_mode=False):
     if os.path.isfile(path):
         state = torch.load(path, map_location=device)
         model.load_state_dict(state['model'])
         optimizer.load_state_dict(state['optimizer'])
         epoch = state['epoch']
         loss = state['loss']
-        logging.info(f"Checkpoint loaded from {path}")   
+        logging.info(f"Checkpoint loaded from {path}")
     else:
         logging.error(f"No checkpoint found at {path}")
         epoch = 0
         loss = float("inf")
 
-    dist.barrier()
+    if not eval_mode:
+        dist.barrier()  # Ensure all processes reach this point
+    
     return model, optimizer, epoch, loss
 
 def data_to_device(data, device):
@@ -127,7 +129,7 @@ def train(model, train_set, val_set, test_set, loss_fn, opt, args, checkpoint_pa
             # Temporarily load the best checkpoint for evaluation
             current_model_state = model.state_dict()
             current_opt_state = opt.state_dict()
-            model, opt, _, _ = load_checkpoint(model, opt, best_checkpoint_path, device)
+            model, opt, _, _ = load_checkpoint(model, opt, best_checkpoint_path, device, eval_mode = True)
             evaluate(model, test_set, device, os.path.join(os.path.dirname(best_checkpoint_path), "pred.txt"), args.target_labels)
             # Restore the current training state
             model.load_state_dict(current_model_state)
@@ -143,7 +145,7 @@ def validate(model, val_set, loss_fn, device, epoch_i):
             data = data_to_device(data, device)
             y = data['y']
         
-            y_hat = model(data)
+            y_hat = model.module(data)
             loss = loss_fn(y_hat, y)
             val_loss.append(loss.item())
             logging.debug(f"Epoch: {epoch_i}, Validation Iteration: {data_idx + 1}, Loss: {loss.item():.6f}")
@@ -159,7 +161,7 @@ def evaluate(model, test_set, device, pred_filename, target_labels):
             data = data_to_device(data, device)
             y = data['y']
 
-            y_hat = model(data)
+            y_hat = model.module(data)
             predictions.extend(y_hat.cpu().numpy())
             real_values.append(y.cpu().numpy())
             logging.debug(f"Test Iteration: {data_idx + 1}, Real: {y.cpu().numpy()}, Pred: {y_hat.cpu().numpy()}")

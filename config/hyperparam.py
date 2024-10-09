@@ -122,11 +122,13 @@ class HyperparameterTuner:
     
     def gpu_setup(self):
         os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"
+        '''
         if socket.gethostname() == "node14":
             os.environ['CUDA_VISIBLE_DEVICES'] = "1,2"
         else:
             os.environ['CUDA_VISIBLE_DEVICES'] = ",".join(str(i) for i in range(torch.cuda.device_count()))
-
+        '''
+        os.environ['CUDA_VISIBLE_DEVICES'] = ",".join(str(i) for i in range(torch.cuda.device_count()))
         args.device = torch.device(f"cuda:{self.local_rank}")   
         torch.cuda.set_device(args.device)
         dist.init_process_group(backend="nccl", init_method='env://') 
