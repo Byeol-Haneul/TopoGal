@@ -132,9 +132,7 @@ class HyperparameterTuner:
         os.environ['CUDA_VISIBLE_DEVICES'] = ",".join(str(i) for i in range(torch.cuda.device_count()))
         self.base_args.device = torch.device(f"cuda:{self.local_rank}")   
         torch.cuda.set_device(self.base_args.device)
-        dist.init_process_group(backend="nccl", init_method='env://') 
         print(f"[GPU SETUP] Process {self.local_rank} set up on device {self.base_args.device}", file = sys.stderr)
-
 
 def run_heartbeat(interval):
     """Heartbeat function to indicate the script is still running."""
@@ -146,6 +144,7 @@ def run_optuna_study(data_dir, checkpoint_dir, label_filename, device_num, n_tri
     local_rank = int(os.environ['LOCAL_RANK'])
     world_size = int(os.environ['WORLD_SIZE'])
 
+    dist.init_process_group(backend="nccl", init_method='env://') 
     tuner = HyperparameterTuner(data_dir, checkpoint_dir, label_filename, device_num, only_positions, local_rank, world_size)
     study = None
     

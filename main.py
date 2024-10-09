@@ -236,9 +236,10 @@ def main(passed_args=None, dataset=None):
         evaluate(model, test_dataset, args.device, os.path.join(os.path.dirname(checkpoint_path), "pred.txt"), args.target_labels)
     
     ## CLEAN UP ##
-    dist.destroy_process_group()
-    torch.cuda.empty_cache()
+    if not args.tuning:
+        dist.destroy_process_group()
 
+    torch.cuda.empty_cache()
     return best_loss
 
 if __name__ == "__main__":
