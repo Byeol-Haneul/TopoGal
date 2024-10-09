@@ -7,7 +7,6 @@ import os
 import pandas as pd
 from torch.utils.data import DataLoader
 from config.param_config import PARAM_STATS, PARAM_ORDER, denormalize_params
-from utils.augmentation import augment_batch
 
 def save_checkpoint(model, optimizer, epoch, loss, path):
     state = {
@@ -26,11 +25,14 @@ def load_checkpoint(model, optimizer, path, device):
         optimizer.load_state_dict(state['optimizer'])
         epoch = state['epoch']
         loss = state['loss']
-        logging.info(f"Checkpoint loaded from {path}")
-        return model, optimizer, epoch, loss
+        logging.info(f"Checkpoint loaded from {path}")   
     else:
         logging.error(f"No checkpoint found at {path}")
-        return model, optimizer, 0, float('inf')
+        epoch = 0
+        loss = float("inf")
+
+    dist.barrier()
+    return model, optimizer, epoch, loss
 
 def data_to_device(data, device):
     return {key: tensor.float().to(device) for key, tensor in data.items()}
@@ -65,7 +67,6 @@ def train(model, train_set, val_set, test_set, loss_fn, opt, args, checkpoint_pa
             idx = shuffled_indices[data_idx]
             data = train_set[idx]
 
-            # data = augment_data(data, args.drop_prob)  # data augmentation
             data = data_to_device(data, device)
             y = data['y']
 
