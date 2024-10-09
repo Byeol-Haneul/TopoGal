@@ -53,7 +53,7 @@ class HyperparameterTuner:
 
             # Training Hyperparameters
             num_epochs=300,
-            test_interval=30,
+            test_interval=100,
             batch_size=32,
 
             # Device

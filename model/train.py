@@ -124,7 +124,7 @@ def train(model, train_set, val_set, test_set, loss_fn, opt, args, checkpoint_pa
             pd.DataFrame({"val_loss": val_losses}).to_csv(os.path.join(loss_dir, "val_losses.csv"), index=False)
 
         # Evaluation - only for rank 0
-        if not args.tuning and epoch_i % test_interval == 0 and local_rank == 0:
+        if epoch_i % test_interval == 0 and local_rank == 0:
             logging.info(f"Starting evaluation for epoch {epoch_i}")
             # Temporarily load the best checkpoint for evaluation
             current_model_state = model.state_dict()
