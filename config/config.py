@@ -9,13 +9,13 @@ args = Namespace(
 
     # Directories
     data_dir=DATA_DIR+"/tensors/",
-    checkpoint_dir=RESULT_DIR+"/test_ddp/",
+    checkpoint_dir=RESULT_DIR+"/normal_multiply_drop0.1/",
     label_filename=BASE_DIR+"/CosmoAstroSeed_IllustrisTNG_L25n256_LH.txt",
 
     # Model Architecture
     in_channels=[1, 3, 5, 7, 3],
     hidden_dim = 64,
-    num_layers=2,
+    num_layers=4,
     layerType = "Normal",
     attention_flag = False,
     residual_flag = True,
@@ -26,7 +26,7 @@ args = Namespace(
     # Training Hyperparameters
     num_epochs=3000,
     test_interval=10,
-    learning_rate=5e-4,#1e-5,
+    learning_rate=1e-4,#1e-5,
     weight_decay=1e-5,
     batch_size=16,
     drop_prob=0.1,
@@ -38,7 +38,7 @@ args = Namespace(
     device = None, 
     val_size=0.1,
     test_size=0.1,
-    random_seed=0,
+    random_seed=42424,
 
     # Features & Neighborhood Functions
     feature_sets = [

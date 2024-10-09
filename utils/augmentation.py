@@ -21,29 +21,17 @@ def generate_mask(sparse_tensor, drop_prob=0.1):
     return mask
 
 
-def augment_matrix(matrix, mask):
-    """
-    Augment a sparse matrix by applying the given mask to its non-zero values.
+def augment_matrix(matrix, drop_prob, mask=None):
+    if mask is None:
+        mask = generate_mask(matrix, drop_prob)
+    return matrix.sparse_mask(mask)
 
-    Args:
-    - matrix (torch.sparse_coo_tensor): Sparse COO matrix.
-    - mask (torch.sparse_coo_tensor): Sparse mask tensor.
-
-    Returns:
-    - Augmented sparse COO matrix.
-    """
-    # Apply the mask to the matrix using sparse_mask
-    augmented_matrix = matrix.sparse_mask(mask)
-    
-    # Filter out zeroed values
-    return augmented_matrix
-
-def augment_batch(batch, drop_prob=0.1):
+def augment_data(data, drop_prob=0.1):
     """
     Augments a dictionary of neighborhood matrices and cci matrices by making some nonzero elements zero.
 
     Args:
-    - batch (dict): Dictionary where keys are matrix names and values are sparse COO matrices.
+    - data (dict): Dictionary where keys are matrix names and values are sparse COO matrices.
     - drop_prob (float): Probability of dropping a connection.
     
     Returns:
@@ -71,16 +59,16 @@ def augment_batch(batch, drop_prob=0.1):
     augmented_dict = {}
 
     for neigh_key, cci_key in key_mapping.items():
-        if neigh_key in batch and cci_key in batch:
-            mask = generate_mask(batch[neigh_key], drop_prob)
-            augmented_dict[neigh_key] = augment_matrix(batch[neigh_key], mask)
-            augmented_dict[cci_key] = augment_matrix(batch[cci_key], mask)
-        elif cci_key in batch:
+        if neigh_key in data and cci_key in data:
+            mask = generate_mask(data[neigh_key], drop_prob)
+            augmented_dict[neigh_key] = augment_matrix(data[neigh_key], drop_prob, mask)
+            augmented_dict[cci_key] = augment_matrix(data[cci_key], drop_prob, mask)
+        elif cci_key in data:
             # If no matching neighborhood key, keep cci matrix unchanged
-            augmented_dict[cci_key] = batch[cci_key]
+            augmented_dict[cci_key] = data[cci_key]
 
-    for key in batch:
+    for key in data:
         if key not in neighborhood_keys and key not in cci_keys:
-            augmented_dict[key] = batch[key]
+            augmented_dict[key] = data[key]
     
     return augmented_dict

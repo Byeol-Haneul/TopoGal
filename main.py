@@ -202,11 +202,16 @@ def main(passed_args=None, dataset=None):
     else:
         train_dataset, val_dataset, test_dataset = load_and_prepare_data(num_list, args, local_rank, world_size)
 
+    ### NEIGHBORHOOD DROPPING ###
+    logging.info(f"Processing Augmentation with Drop Probability {args.drop_prob}")
+    for dataset in [train_dataset, val_dataset, test_dataset]:
+        if dataset is None:
+            continue
+        else:
+            dataset.augment(args.drop_prob)
+
     #################
     model = initialize_model(args, local_rank) 
-    
-    # Wrap the model with DDP
-    model = torch.nn.parallel.DistributedDataParallel(model, device_ids=[local_rank])
 
     # Define loss function and optimizer
     loss_fn = implicit_likelihood_loss
@@ -231,6 +236,5 @@ def main(passed_args=None, dataset=None):
         return best_loss
 
 if __name__ == "__main__":
-    world_size = torch.cuda.device_count()
     os.environ['MASTER_ADDR'] = '127.0.0.1'
     main()
