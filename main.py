@@ -15,6 +15,7 @@ from model.train import train, evaluate, save_checkpoint, load_checkpoint
 from data.dataset import CustomDataset, custom_collate_fn
 
 from config.param_config import PARAM_STATS, PARAM_ORDER, normalize_params, denormalize_params
+from config.machine import MACHINE
 
 def setup_logger(log_filename):
     for handler in logging.root.handlers[:]:
@@ -43,12 +44,17 @@ def file_cleanup(args):
     for key, value in vars(args).items():
         logging.info(f"{key}: {value}")
     
-def gpu_setup(args, local_rank):
+def gpu_setup(args, local_rank, world_size):
     os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"
+    if MACHINE == "HAPPINESS" and world_size+1 == torch.cuda.device_count():
+        device_num = local_rank + 1
+    else:
+        device_num = local_rank
+
     visible_devices = ",".join(str(i) for i in range(torch.cuda.device_count()))
     os.environ['CUDA_VISIBLE_DEVICES'] = visible_devices
-    torch.cuda.set_device(local_rank)
-    args.device = torch.device(f"cuda:{local_rank}")    
+    torch.cuda.set_device(device_num)
+    args.device = torch.device(f"cuda:{device_num}")    
     dist.init_process_group(backend="nccl", init_method='env://') 
     print(f"[GPU SETUP] Process {local_rank} set up on device {args.device}", file = sys.stderr)
 
@@ -193,7 +199,7 @@ def main(passed_args=None, dataset=None):
     fix_random_seed(args.random_seed)
     
     if not args.tuning:
-        gpu_setup(args, local_rank)
+        gpu_setup(args, local_rank, world_size)
 
     num_list = [i for i in range(1000)]
 
