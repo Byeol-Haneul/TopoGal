@@ -4,6 +4,7 @@ import os, sys
 import random
 import pandas as pd
 import numpy as np
+import socket 
 
 from torch.utils.data import DataLoader
 import torch.distributed as dist
@@ -46,18 +47,15 @@ def file_cleanup(args):
     
 def gpu_setup(args, local_rank, world_size):
     os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"
-    if MACHINE == "HAPPINESS" and world_size+1 == torch.cuda.device_count():
-        device_num = local_rank + 1
+    if socket.gethostname() == "node14":
+        os.environ['CUDA_VISIBLE_DEVICES'] = "1,2"
     else:
-        device_num = local_rank
+        os.environ['CUDA_VISIBLE_DEVICES'] = ",".join(str(i) for i in range(torch.cuda.device_count()))
 
-    visible_devices = ",".join(str(i) for i in range(torch.cuda.device_count()))
-    os.environ['CUDA_VISIBLE_DEVICES'] = visible_devices
-    torch.cuda.set_device(device_num)
-    args.device = torch.device(f"cuda:{device_num}")    
+    args.device = torch.device(f"cuda:{local_rank}")   
+    torch.cuda.set_device(args.device)
     dist.init_process_group(backend="nccl", init_method='env://') 
     print(f"[GPU SETUP] Process {local_rank} set up on device {args.device}", file = sys.stderr)
-
 
 def fix_random_seed(seed):
     seed = seed if (seed is not None) else 12345

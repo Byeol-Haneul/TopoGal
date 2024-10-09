@@ -4,7 +4,7 @@ import torch
 import torch.distributed as dist
 
 import time
-import os, sys
+import os, sys, socket
 import threading
 import json
 
@@ -122,15 +122,13 @@ class HyperparameterTuner:
     
     def gpu_setup(self):
         os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"
-        if MACHINE == "HAPPINESS" and self.world_size+1 == torch.cuda.device_count():
-            device_num = self.local_rank + 1
+        if socket.gethostname() == "node14":
+            os.environ['CUDA_VISIBLE_DEVICES'] = "1,2"
         else:
-            device_num = self.local_rank
-            
-        visible_devices = ",".join(str(i) for i in range(torch.cuda.device_count()))
-        os.environ['CUDA_VISIBLE_DEVICES'] = visible_devices
-        torch.cuda.set_device(device_num)
-        self.base_args.device = torch.device(f"cuda:{device_num}")    
+            os.environ['CUDA_VISIBLE_DEVICES'] = ",".join(str(i) for i in range(torch.cuda.device_count()))
+
+        args.device = torch.device(f"cuda:{self.local_rank}")   
+        torch.cuda.set_device(args.device)
         dist.init_process_group(backend="nccl", init_method='env://') 
         print(f"[GPU SETUP] Process {self.local_rank} set up on device {self.base_args.device}", file = sys.stderr)
 
