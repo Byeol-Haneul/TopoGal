@@ -135,7 +135,7 @@ def train(model, train_set, val_set, test_set, loss_fn, opt, args, checkpoint_pa
             model.load_state_dict(current_model_state)
             opt.load_state_dict(current_opt_state)
 
-    tensor_best_validation_loss = torch.tensor(best_validation_loss)
+    tensor_best_validation_loss = torch.tensor(best_validation_loss, device=args.device)
     dist.broadcast(tensor_best_validation_loss, src=0)
     best_validation_loss = tensor_best_validation_loss.item() 
     return best_validation_loss

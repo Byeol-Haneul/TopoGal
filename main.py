@@ -235,6 +235,7 @@ def main(passed_args=None, dataset=None):
         logging.info("Starting evaluation")
         evaluate(model, test_dataset, args.device, os.path.join(os.path.dirname(checkpoint_path), "pred.txt"), args.target_labels)
     
+    ## CLEAN UP ##
     dist.destroy_process_group()
     torch.cuda.empty_cache()
 

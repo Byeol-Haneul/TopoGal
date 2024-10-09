@@ -130,8 +130,8 @@ class HyperparameterTuner:
             os.environ['CUDA_VISIBLE_DEVICES'] = ",".join(str(i) for i in range(torch.cuda.device_count()))
         '''
         os.environ['CUDA_VISIBLE_DEVICES'] = ",".join(str(i) for i in range(torch.cuda.device_count()))
-        args.device = torch.device(f"cuda:{self.local_rank}")   
-        torch.cuda.set_device(args.device)
+        self.base_args.device = torch.device(f"cuda:{self.local_rank}")   
+        torch.cuda.set_device(self.base_args.device)
         dist.init_process_group(backend="nccl", init_method='env://') 
         print(f"[GPU SETUP] Process {self.local_rank} set up on device {self.base_args.device}", file = sys.stderr)
 
