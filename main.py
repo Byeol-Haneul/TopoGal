@@ -235,11 +235,10 @@ def main(passed_args=None, dataset=None):
         logging.info("Starting evaluation")
         evaluate(model, test_dataset, args.device, os.path.join(os.path.dirname(checkpoint_path), "pred.txt"), args.target_labels)
     
-    if not args.tuning:
-        dist.destroy_process_group()
+    dist.destroy_process_group()
+    torch.cuda.empty_cache()
 
-    if local_rank == 0:
-        return best_loss
+    return best_loss
 
 if __name__ == "__main__":
     os.environ['MASTER_ADDR'] = '127.0.0.1'

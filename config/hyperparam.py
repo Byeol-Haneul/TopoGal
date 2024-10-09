@@ -83,6 +83,7 @@ class HyperparameterTuner:
         )
 
     def objective(self, single_trial):
+        self.gpu_setup()
         trial = optuna_integration.TorchDistributedTrial(single_trial)
         hidden_dim = trial.suggest_categorical('hidden_dim', [32, 64, 128])
         num_layers = trial.suggest_int('num_layers', 1, 4)
@@ -146,7 +147,6 @@ def run_optuna_study(data_dir, checkpoint_dir, label_filename, device_num, n_tri
     world_size = int(os.environ['WORLD_SIZE'])
 
     tuner = HyperparameterTuner(data_dir, checkpoint_dir, label_filename, device_num, only_positions, local_rank, world_size)
-    tuner.gpu_setup()
     study = None
     
     if local_rank == 0:

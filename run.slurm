@@ -29,6 +29,4 @@ srun --ntasks=1 hostname
 echo
 
 # Run your program
-#python3 -m torch.distributed.launch --nproc_per_node=4 tune.py 
-#exit 0
-while true; do sleep 5; done
+python3 -m torch.distributed.launch --nproc_per_node=4 tune.py 
