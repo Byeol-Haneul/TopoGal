@@ -2,7 +2,7 @@ import torch
 import torch.nn.functional as F
 from torch.nn.parameter import Parameter
 from .BaseLayer import sparse_row_norm, HBNS, HBS
-from model.aggregators import NormalAggregator, Aggregation
+from model.aggregators import PNAAggregator, RankAggregator
 import time 
 
 class GNNLayer(torch.nn.Module):

@@ -56,7 +56,7 @@ def train(model, train_set, val_set, test_set, loss_fn, opt, args, checkpoint_pa
 
     train_losses = []
     val_losses = []
-
+    torch.cuda.empty_cache()
     for epoch_i in range(start_epoch, num_epochs + 1):
         epoch_loss = []
         model.train()

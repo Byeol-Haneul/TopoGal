@@ -9,7 +9,7 @@ args = Namespace(
 
     # Directories
     data_dir=DATA_DIR+"/tensors/",
-    checkpoint_dir=RESULT_DIR+"/normal_multiply_drop0.05/",
+    checkpoint_dir=RESULT_DIR+"/normal_full_pna//",
     label_filename=BASE_DIR+"/CosmoAstroSeed_IllustrisTNG_L25n256_LH.txt",
 
     # Model Architecture
@@ -25,11 +25,11 @@ args = Namespace(
 
     # Training Hyperparameters
     num_epochs=3000,
-    test_interval=10,
-    learning_rate=1e-4,#1e-5,
+    test_interval=20,
+    learning_rate=5e-4,#1e-5,
     weight_decay=1e-5,
-    batch_size=16,
-    drop_prob=0.05,
+    batch_size=64,
+    drop_prob=0,
 
     # Device
     device_num="0,1",

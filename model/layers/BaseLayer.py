@@ -6,7 +6,7 @@ import torch.nn.functional as F
 from torch.nn.parameter import Parameter
 
 from topomodelx.base.aggregation import Aggregation
-from model.aggregators import PNAAggregator
+from model.aggregators import *
 
 def sparse_hadamard(A, B):
     assert A.get_device() == B.get_device()
@@ -83,10 +83,9 @@ class HBNS(torch.nn.Module):
 
         self.reset_parameters()
 
-        # Aggregators!!
         #self.source_aggregators = nn.ModuleList([PNAAggregator(source_out_channels, source_out_channels) for _ in range(3)])
         #self.target_aggregators = nn.ModuleList([PNAAggregator(target_out_channels, target_out_channels) for _ in range(3)])
-
+        self.source_aggregators = self.target_aggregators = [default_agg] * 3
 
     def get_device(self) -> torch.device:
         """Get device on which the layer's learnable parameters are stored."""
@@ -129,8 +128,8 @@ class HBNS(torch.nn.Module):
         if cci is not None:
             assert neighborhood.shape == cci.shape
 
-        s_message, s_message2, s_message3 = torch.mm(x_source, self.w_s), torch.mm(x_source, self.w_s_cci[0]), torch.mm(x_source, self.w_s_cci[1])  # [n_source_cells, d_t_out]
-        t_message, t_message2, t_message3 = torch.mm(x_target, self.w_t), torch.mm(x_target, self.w_t_cci[0]), torch.mm(x_target, self.w_t_cci[1])  # [n_target_cells, d_s_out]
+        s_message, s_message2, s_message3  = torch.mm(x_source, self.w_s), torch.mm(x_source, self.w_s_cci[0]), torch.mm(x_source, self.w_s_cci[1])  # [n_source_cells, d_t_out]
+        t_message, t_message2, t_message3  = torch.mm(x_target, self.w_t), torch.mm(x_target, self.w_t_cci[0]), torch.mm(x_target, self.w_t_cci[1])  # [n_target_cells, d_s_out]
 
         neighborhood_s_to_t = (
             neighborhood.coalesce()
@@ -157,8 +156,8 @@ class HBNS(torch.nn.Module):
 
         # ADD CROSS-CELL INFORMATION
         if cci is not None:
-            message_on_source = torch.mm(neighborhood_t_to_s_att, t_message) + torch.mm(cci.T, t_message2) + torch.mm(sparse_hadamard(cci.T, neighborhood_t_to_s), t_message3) 
-            message_on_target = torch.mm(neighborhood_s_to_t_att, s_message) + torch.mm(cci, s_message2) + torch.mm(sparse_hadamard(cci, neighborhood_s_to_t), s_message3)
+            message_on_source = self.source_aggregators[0](neighborhood_t_to_s_att, t_message) + self.source_aggregators[1](cci.T, t_message2) + self.source_aggregators[2](sparse_hadamard(cci.T, neighborhood_t_to_s), t_message3) 
+            message_on_target = self.target_aggregators[0](neighborhood_s_to_t_att, s_message) + self.target_aggregators[1](cci, s_message2) + self.target_aggregators[2](sparse_hadamard(cci, neighborhood_s_to_t), s_message3)
         else:
             message_on_source = torch.mm(neighborhood_t_to_s_att, t_message) 
             message_on_target = torch.mm(neighborhood_s_to_t_att, s_message) 
@@ -192,38 +191,17 @@ class HBS(torch.nn.Module):
         self.m_hop = m_hop
         self.update_func = update_func
 
-        self.weight = torch.nn.ParameterList(
-            [
-                Parameter(
-                    torch.Tensor(self.source_in_channels, self.source_out_channels)
-                )
-                for _ in range(self.m_hop)
-            ]
-        )
+        self.weight = Parameter(torch.Tensor(self.source_in_channels, self.source_out_channels))
+        self.weight2 = Parameter(torch.Tensor(self.source_in_channels, self.source_out_channels))
+        self.weight3 = Parameter(torch.Tensor(self.source_in_channels, self.source_out_channels))
 
-        self.weight2 = torch.nn.ParameterList(
-            [
-                Parameter(
-                    torch.Tensor(self.source_in_channels, self.source_out_channels)
-                )
-                for _ in range(self.m_hop)
-            ]
-        )
-
-        self.weight3 = torch.nn.ParameterList(
-            [
-                Parameter(
-                    torch.Tensor(self.source_in_channels, self.source_out_channels)
-                )
-                for _ in range(self.m_hop)
-            ]
-        )
 
         self.negative_slope = negative_slope
         self.softmax = softmax
 
         self.reset_parameters()
         #self.source_aggregators = nn.ModuleList([PNAAggregator(source_out_channels, source_out_channels) for _ in range(3)])
+        self.source_aggregators = [default_agg] * 3
 
 
     def get_device(self) -> torch.device:
@@ -246,7 +224,7 @@ class HBS(torch.nn.Module):
                     "Should be either xavier_uniform or xavier_normal."
                 )
 
-        for w, w2, w3 in zip(self.weight, self.weight2, self.weight3, strict=True):
+        for w, w2, w3 in zip([self.weight], [self.weight2], [self.weight3], strict=True):
             reset_p_hop_parameters(w, w2, w3)
 
     def update(self, message: torch.Tensor) -> torch.Tensor:
@@ -268,47 +246,23 @@ class HBS(torch.nn.Module):
             assert neighborhood.shape == cci.shape
 
         message, message2, message3 = [
-            [torch.mm(x_source, w) for w in weights]
-            for weights in [self.weight, self.weight2, self.weight3]
-        ]  # [m-hop, n_source_cells, d_t_out]
-
-        # Create a torch.eye with the device of x_source
-        A_p = torch.eye(x_source.shape[0], device=self.get_device()).to_sparse_coo()
-
-        m_hop_matrices = []
-
-        # Generate the list of neighborhood matrices :math:`A, \dots, A^m`
-        for _ in range(self.m_hop):
-            A_p = torch.sparse.mm(A_p, neighborhood)
-            m_hop_matrices.append(A_p)
-        
-
-        message = [
-            torch.mm(n_p, m_p)
-            for n_p, m_p in zip(m_hop_matrices, message, strict=True)
-        ]
+            torch.mm(x_source, w) for w in [self.weight, self.weight2, self.weight3]
+        ] 
 
         if cci is not None:
-            message2 = [
-                torch.mm(cci, m_p)
-                for n_p, m_p in zip(m_hop_matrices, message2, strict=True)
-            ]
-
-            message3 = [
-                torch.mm(sparse_hadamard(n_p, cci), m_p)
-                for n_p, m_p in zip(m_hop_matrices, message3, strict=True)
-            ]
-            
-
-        result = torch.zeros_like(message[0])
-        if cci is not None:
-            for m_p, m_p2, m_p3 in zip(message, message2, message3):
-                result += (m_p + m_p2 + m_p3)
+            message, message2, message3 = [agg(_neighbor, _message) 
+                                           for agg, _neighbor, _message in 
+                                           zip(self.source_aggregators, [neighborhood, cci, sparse_hadamard(neighborhood, cci)], [message, message2, message3])]
         else:
-            for m_p in message:
-                result += m_p
+            message = torch.mm(neighborhood, message)
+
+
+        if cci is not None:
+            result = message + message2 + message3
+        else:
+            result = message
 
         if self.update_func is None:
             return result
-
+        
         return self.update(result)
