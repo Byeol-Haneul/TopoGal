@@ -1,5 +1,11 @@
 import torch
+from torch_sparse import SparseTensor
 
+
+def sparsify(tensor):
+    if tensor.layout == torch.sparse_coo:
+        tensor = SparseTensor.from_torch_sparse_coo_tensor(tensor)
+    return tensor    
 
 ### CURRENTLY VERY SLOW ###
 
@@ -61,8 +67,8 @@ def augment_data(data, drop_prob=0.1):
     for neigh_key, cci_key in key_mapping.items():
         if neigh_key in data and cci_key in data:
             mask = generate_mask(data[neigh_key], drop_prob)
-            augmented_dict[neigh_key] = augment_matrix(data[neigh_key], drop_prob, mask)
-            augmented_dict[cci_key] = augment_matrix(data[cci_key], drop_prob, mask)
+            augmented_dict[neigh_key] = sparsify(augment_matrix(data[neigh_key], drop_prob, mask))
+            augmented_dict[cci_key] = sparsify(augment_matrix(data[cci_key], drop_prob, mask))
         elif cci_key in data:
             # If no matching neighborhood key, keep cci matrix unchanged
             augmented_dict[cci_key] = data[cci_key]

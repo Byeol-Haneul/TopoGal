@@ -5,28 +5,13 @@ import pandas as pd
 from sklearn.model_selection import train_test_split
 from tqdm import tqdm
 from config.param_config import PARAM_STATS, PARAM_ORDER
+from torch_sparse import SparseTensor
 
 
-def normalize(tensor):
-    return tensor
-    '''
-    if tensor.is_sparse:
-        tensor = tensor.coalesce()
-        values = tensor.values()
-        max_val = values.max()
-        normalized_values = values / max_val
-
-        return torch.sparse_coo_tensor(
-            tensor.indices(),
-            normalized_values,
-            tensor.size()
-        )
-    else:
-        max_val = tensor.max()
-        return tensor / max_val
-    return tensor
-    '''
-    
+def sparsify(tensor):
+    if tensor.layout == torch.sparse_coo:
+        tensor = SparseTensor.from_torch_sparse_coo_tensor(tensor)
+    return tensor    
 
 def load_tensors(num_list, data_dir, label_filename, args, target_labels=None, feature_sets=None):
     label_file = pd.read_csv(label_filename, sep='\s+')
@@ -44,12 +29,11 @@ def load_tensors(num_list, data_dir, label_filename, args, target_labels=None, f
 
         tensor_dict['y'].append(y)
 
-        # Load and normalize feature tensors dynamically
         for feature in feature_sets:
             if feature == 'global_feature':
                 continue
 
-            tensor = normalize(torch.load(os.path.join(data_dir, f"{feature}_{num}.pt")))
+            tensor = torch.load(os.path.join(data_dir, f"{feature}_{num}.pt"))
             
             if feature[0] == 'x':
                 feature_index = int(feature.split('_')[-1])

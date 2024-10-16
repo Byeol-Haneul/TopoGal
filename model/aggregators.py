@@ -2,12 +2,13 @@ import torch
 import torch.nn as nn
 import sys
 from typing import Literal
+from torch_sparse.matmul import *
 
 def default_agg(neighbor, x):
-    return torch.mm(neighbor, x)
+    return spmm_sum(neighbor, x)
 
 class PNAAggregator(nn.Module):
-    def __init__(self, in_channels, out_channels, aggregators=['mean', 'max', 'min', 'std'], scalers=['identity']):
+    def __init__(self, in_channels, out_channels, aggregators=['sum', 'max', 'min'], scalers=['identity']):
         super(PNAAggregator, self).__init__()
         self.aggregators = aggregators
         self.scalers = scalers
@@ -15,14 +16,16 @@ class PNAAggregator(nn.Module):
         self.activation = nn.Tanh()
 
     def forward(self, neighborhood_matrix, features):
-        self.sparse = neighborhood_matrix
+        self.neighbor = neighborhood_matrix
         self.features = features
 
+        '''
         dense = neighborhood_matrix.to_dense()
         self.product = torch.einsum('mn,nk->mnk', dense, features)
         degrees = dense.sum(dim=1)
         delta = torch.mean(torch.log10(degrees+1))
         self.S_amp = (degrees/delta).unsqueeze(1)
+        '''
 
         aggregated_features = []
         for agg in self.aggregators:
@@ -38,41 +41,43 @@ class PNAAggregator(nn.Module):
         return output
 
     def aggregate(self, aggregation_type):
-        if aggregation_type == 'mean':
-            return self.mean_aggregation()
+        if aggregation_type == 'sum':
+            return self.sum_aggregation()
         elif aggregation_type == 'max':
             return self.max_aggregation()
         elif aggregation_type == 'min':
             return self.min_aggregation()
         elif aggregation_type == 'std':
-            return self.std_aggregation()
+            raise NotImplementedError
         else:
             raise ValueError(f"Unsupported aggregation type: {aggregation_type}")
 
-    def mean_aggregation(self):
-        return self.product.mean(dim=1)
+    def sum_aggregation(self):
+        return spmm_sum(self.neighbor, self.features)
 
     def max_aggregation(self):
-        return self.product.max(dim=1)[0]
+        return spmm_max(self.neighbor, self.features)[0]
 
     def min_aggregation(self):
-        return self.product.min(dim=1)[0]
+        return spmm_min(self.neighbor, self.features)[0]
 
     def std_aggregation(self):
-        return self.product.std(dim=1)
+        raise NotImplementedError
 
     def scale(self, agg_features, scaler):
         if scaler == 'identity':
             return agg_features
         elif scaler == 'amplification':
-            return agg_features * self.S_amp
+            raise NotImplementedError
+            #return agg_features * self.S_amp
         elif scaler == 'attenuation':
-            return agg_features / self.S_amp
+            raise NotImplementedError
+            #return agg_features / self.S_amp
         else:
             raise ValueError(f"Unsupported scaler type: {scaler}")
 
 class RankAggregator(nn.Module):
-    def __init__(self, in_channels, out_channels, aggregators=['mean', 'max', 'min', 'std']):
+    def __init__(self, in_channels, out_channels, aggregators=['sum', 'max', 'min', 'std']):
         super(RankAggregator, self).__init__()
         self.aggregators = aggregators
 
@@ -96,8 +101,8 @@ class RankAggregator(nn.Module):
         return output
 
     def aggregate(self, node_features_list, aggregation_type):
-        if aggregation_type == 'mean':
-            return self.mean_aggregation(node_features_list)
+        if aggregation_type == 'sum':
+            return self.sum_aggregation(node_features_list)
         elif aggregation_type == 'max':
             return self.max_aggregation(node_features_list)
         elif aggregation_type == 'min':
@@ -107,8 +112,8 @@ class RankAggregator(nn.Module):
         else:
             raise ValueError(f"Unsupported aggregation type: {aggregation_type}")
 
-    def mean_aggregation(self, node_features_list):
-        return torch.stack(node_features_list).mean(dim=0)
+    def sum_aggregation(self, node_features_list):
+        return torch.stack(node_features_list).sum(dim=0)
 
     def max_aggregation(self, node_features_list):
         return torch.stack(node_features_list).max(dim=0)[0]

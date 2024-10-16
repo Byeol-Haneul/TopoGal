@@ -8,7 +8,13 @@ from torch.nn.parameter import Parameter
 from topomodelx.base.aggregation import Aggregation
 from model.aggregators import *
 
+from torch_sparse.tensor import SparseTensor
+from torch_sparse.matmul import *
+
 def sparse_hadamard(A, B):
+    return A*B
+    '''
+    # this is for torch.Tensor, layout == coo
     assert A.get_device() == B.get_device()
     A = A.coalesce()
     B = B.coalesce()
@@ -19,6 +25,7 @@ def sparse_hadamard(A, B):
         size=A.shape,
         device=A.get_device(),
     )
+    '''
 
 def sparse_row_norm(sparse_tensor):
     row_sum = torch.sparse.sum(sparse_tensor, dim=1)
@@ -83,9 +90,9 @@ class HBNS(torch.nn.Module):
 
         self.reset_parameters()
 
-        #self.source_aggregators = nn.ModuleList([PNAAggregator(source_out_channels, source_out_channels) for _ in range(3)])
-        #self.target_aggregators = nn.ModuleList([PNAAggregator(target_out_channels, target_out_channels) for _ in range(3)])
-        self.source_aggregators = self.target_aggregators = [default_agg] * 3
+        self.source_aggregators = nn.ModuleList([PNAAggregator(source_out_channels, source_out_channels) for _ in range(3)])
+        self.target_aggregators = nn.ModuleList([PNAAggregator(target_out_channels, target_out_channels) for _ in range(3)])
+        #self.source_aggregators = self.target_aggregators = [default_agg] * 3
 
     def get_device(self) -> torch.device:
         """Get device on which the layer's learnable parameters are stored."""
@@ -123,11 +130,8 @@ class HBNS(torch.nn.Module):
         return message_on_source, message_on_target
 
     def forward(
-        self, x_source: torch.Tensor, x_target: torch.Tensor, neighborhood: torch.Tensor, cci = None
+        self, x_source: torch.Tensor, x_target: torch.Tensor, neighborhood: SparseTensor, cci = None
     ) -> tuple[torch.Tensor, torch.Tensor]:
-        if cci is not None:
-            assert neighborhood.shape == cci.shape
-
         s_message, s_message2, s_message3  = torch.mm(x_source, self.w_s), torch.mm(x_source, self.w_s_cci[0]), torch.mm(x_source, self.w_s_cci[1])  # [n_source_cells, d_t_out]
         t_message, t_message2, t_message3  = torch.mm(x_target, self.w_t), torch.mm(x_target, self.w_t_cci[0]), torch.mm(x_target, self.w_t_cci[1])  # [n_target_cells, d_s_out]
 
@@ -138,29 +142,13 @@ class HBNS(torch.nn.Module):
             neighborhood.t().coalesce()
         )  # [n_source_cells, n_target_cells]
 
-        self.target_indices, self.source_indices = neighborhood_s_to_t.indices()
-
-        neighborhood_s_to_t_att = torch.sparse_coo_tensor(
-            indices=neighborhood_s_to_t.indices(),
-            values=neighborhood_s_to_t.values(),
-            size=neighborhood_s_to_t.shape,
-            device=self.get_device(),
-        )
-
-        neighborhood_t_to_s_att = torch.sparse_coo_tensor(
-            indices=neighborhood_t_to_s.indices(),
-            values=neighborhood_t_to_s.values(),
-            size=neighborhood_t_to_s.shape,
-            device=self.get_device(),
-        )
-
         # ADD CROSS-CELL INFORMATION
         if cci is not None:
-            message_on_source = self.source_aggregators[0](neighborhood_t_to_s_att, t_message) + self.source_aggregators[1](cci.T, t_message2) + self.source_aggregators[2](sparse_hadamard(cci.T, neighborhood_t_to_s), t_message3) 
-            message_on_target = self.target_aggregators[0](neighborhood_s_to_t_att, s_message) + self.target_aggregators[1](cci, s_message2) + self.target_aggregators[2](sparse_hadamard(cci, neighborhood_s_to_t), s_message3)
+            message_on_source = self.source_aggregators[0](neighborhood_t_to_s, t_message) + self.source_aggregators[1](cci.t(), t_message2) + self.source_aggregators[2](sparse_hadamard(cci.t(), neighborhood_t_to_s), t_message3) 
+            message_on_target = self.target_aggregators[0](neighborhood_s_to_t, s_message) + self.target_aggregators[1](cci, s_message2) + self.target_aggregators[2](sparse_hadamard(cci, neighborhood_s_to_t), s_message3)
         else:
-            message_on_source = torch.mm(neighborhood_t_to_s_att, t_message) 
-            message_on_target = torch.mm(neighborhood_s_to_t_att, s_message) 
+            message_on_source = torch.mm(neighborhood_t_to_s, t_message) 
+            message_on_target = torch.mm(neighborhood_s_to_t, s_message) 
 
         if self.update_func is None:
             return message_on_source, message_on_target
@@ -200,8 +188,8 @@ class HBS(torch.nn.Module):
         self.softmax = softmax
 
         self.reset_parameters()
-        #self.source_aggregators = nn.ModuleList([PNAAggregator(source_out_channels, source_out_channels) for _ in range(3)])
-        self.source_aggregators = [default_agg] * 3
+        self.source_aggregators = nn.ModuleList([PNAAggregator(source_out_channels, source_out_channels) for _ in range(3)])
+        #self.source_aggregators = [default_agg] * 3
 
 
     def get_device(self) -> torch.device:
@@ -240,11 +228,8 @@ class HBS(torch.nn.Module):
         )
 
     def forward(
-        self, x_source: torch.Tensor, neighborhood: torch.Tensor, cci = None
+        self, x_source: torch.Tensor, neighborhood: SparseTensor, cci = None
     ) -> torch.Tensor:        
-        if cci is not None:
-            assert neighborhood.shape == cci.shape
-
         message, message2, message3 = [
             torch.mm(x_source, w) for w in [self.weight, self.weight2, self.weight3]
         ] 

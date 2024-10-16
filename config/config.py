@@ -9,7 +9,7 @@ args = Namespace(
 
     # Directories
     data_dir=DATA_DIR+"/tensors/",
-    checkpoint_dir=RESULT_DIR+"/normal_full_pna//",
+    checkpoint_dir=RESULT_DIR+"/test_sparse//",
     label_filename=BASE_DIR+"/CosmoAstroSeed_IllustrisTNG_L25n256_LH.txt",
 
     # Model Architecture
