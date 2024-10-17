@@ -2,29 +2,28 @@ import torch
 from torch.utils.data import Dataset
 from utils.augmentation import augment_data
 
+from torch.utils.data import Dataset
+
 class CustomDataset(Dataset):
     def __init__(self, data, feature_names):
-        """
-        Args:
-            data (list of tuples): List of samples where each sample is a tuple containing all features and target.
-            feature_names (list of str): List of feature names in the order they appear in the tuples.
-        """
         self.feature_names = feature_names
-        # Convert the list of tuples to a list of dictionaries
         self.dataset = [
             {name: sample[i] for i, name in enumerate(self.feature_names)}
             for sample in data
         ]
+        self.augmented_dataset = []
 
     def __len__(self):
         return len(self.dataset)
 
-    def __getitem__(self, idx):
-        return self.dataset[idx]
+    def __getitem__(self, idx, augmented=False):
+        return self.augmented_dataset[idx]
 
     def augment(self, drop_prob=0.1):
-        for idx in range(self.__len__()):
-            self.dataset[idx] = augment_data(self.dataset[idx], drop_prob)
+        self.augmented_dataset = [
+            augment_data(sample, drop_prob) for sample in self.dataset
+        ]
+
 
 def pad_sparse_tensors(tensors):
     tensors = [t.to_dense() if t.is_sparse else t for t in tensors]
