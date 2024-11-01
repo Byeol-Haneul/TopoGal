@@ -6,7 +6,7 @@ from sklearn.model_selection import train_test_split
 from tqdm import tqdm
 from config.param_config import PARAM_STATS, PARAM_ORDER
 from torch_sparse import SparseTensor
-
+from config.machine import *
 
 def sparsify(tensor):
     if tensor.layout == torch.sparse_coo:
@@ -14,14 +14,17 @@ def sparsify(tensor):
     return tensor    
 
 def load_tensors(num_list, data_dir, label_filename, args, target_labels=None, feature_sets=None):
-    label_file = pd.read_csv(label_filename, sep='\s+')
-
+    label_file = pd.read_csv(label_filename, sep='\s+', header=0)
+    
     # Initialize the output dictionary
     tensor_dict = {feature: [] for feature in feature_sets}
     tensor_dict['y'] = []
 
     for num in tqdm(num_list):
-        y = torch.Tensor(label_file.loc[num].to_numpy()[1:-1].astype(float))
+        if TYPE == "BISPECTRUM":
+            y = torch.Tensor(label_file.loc[num].to_numpy().astype(float))
+        else:
+            y = torch.Tensor(label_file.loc[num].to_numpy()[1:-1].astype(float))
 
         if target_labels:
             indices = [PARAM_ORDER.index(label) for label in target_labels]

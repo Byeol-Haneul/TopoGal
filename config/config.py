@@ -1,6 +1,6 @@
 import torch
 from argparse import Namespace
-from config.machine import BASE_DIR, DATA_DIR, RESULT_DIR
+from config.machine import *
 
 args = Namespace(
     # mode
@@ -9,8 +9,8 @@ args = Namespace(
 
     # Directories
     data_dir=DATA_DIR+"/tensors/",
-    checkpoint_dir=RESULT_DIR+"/test_sparse//",
-    label_filename=BASE_DIR+"/CosmoAstroSeed_IllustrisTNG_L25n256_LH.txt",
+    checkpoint_dir=RESULT_DIR+"/test_multinode_normal/",
+    label_filename=LABEL_FILENAME,
 
     # Model Architecture
     in_channels=[1, 3, 5, 7, 3],
@@ -21,11 +21,12 @@ args = Namespace(
     residual_flag = True,
 
     # Target Labels
-    target_labels = ["Omega0"],
+    target_labels = ["Omega_m", "Omega_b", "h", "n_s", "sigma_8"] if TYPE == "BISPECTRUM" else ["Omega0"],
 
     # Training Hyperparameters
     num_epochs=3000,
     test_interval=20,
+    T_max=10,
     learning_rate=5e-4,#1e-5,
     weight_decay=1e-5,
     batch_size=64,

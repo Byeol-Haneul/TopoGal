@@ -10,18 +10,17 @@ import json
 
 from argparse import Namespace
 from main import main, load_and_prepare_data
-from config.machine import MACHINE
-
-
+from config.machine import *
 
 class HyperparameterTuner:
-    def __init__(self, data_dir, checkpoint_dir, label_filename, device_num, only_positions, local_rank, world_size):
+    def __init__(self, data_dir_base, checkpoint_dir, label_filename, device_num, only_positions, global_rank, local_rank, world_size):
         ## Distributed
+        self.global_rank = global_rank
         self.local_rank = local_rank
         self.world_size = world_size
 
         ## Training Config
-        self.data_dir = data_dir
+        self.data_dir_base = data_dir_base
         self.checkpoint_dir = checkpoint_dir
         self.label_filename = label_filename
         self.device_num = device_num
@@ -29,7 +28,7 @@ class HyperparameterTuner:
 
         # Create a fixed base args for loading data
         self.base_args = self.create_base_args()
-        self.dataset = self.load_data()
+        self.dataset = None #self.load_data()
 
 
     def create_base_args(self):
@@ -44,17 +43,16 @@ class HyperparameterTuner:
             residual_flag=True,
 
             # Target Labels
-            target_labels=["Omega0"],
+            target_labels=["Omega_m", "Omega_b", "h", "n_s", "sigma_8"] if TYPE == "BISPECTRUM" else ["Omega0"],
 
             # Directories
-            data_dir=self.data_dir,
             checkpoint_dir=self.checkpoint_dir,
             label_filename=self.label_filename,
 
             # Training Hyperparameters
             num_epochs=300,
             test_interval=100,
-            batch_size=32,
+            batch_size=8,
 
             # Device
             device_num=self.device_num,
@@ -63,7 +61,7 @@ class HyperparameterTuner:
             # Fixed Values
             val_size=0.1,
             test_size=0.1,
-            random_seed=12345,
+            random_seed=11111,
 
             # Features & Neighborhood Functions
             feature_sets=[
@@ -85,26 +83,35 @@ class HyperparameterTuner:
     def objective(self, single_trial):
         self.gpu_setup()
         trial = optuna_integration.TorchDistributedTrial(single_trial)
+        data_dir = self.data_dir_base + trial.suggest_categorical('data_mode', ['tensors', 'tensors_sparse', 'tensors_dense'])
         hidden_dim = trial.suggest_categorical('hidden_dim', [32, 64, 128])
-        num_layers = trial.suggest_int('num_layers', 1, 4)
-        learning_rate = trial.suggest_float('learning_rate', 1e-6, 1e-4, log=True)
-        weight_decay = trial.suggest_float('weight_decay', 1e-6, 1e-4, log=True)
-        drop_prob = 0  # Fixed for now
-        layer_type = trial.suggest_categorical('layerType', ['Normal'])
+        num_layers = trial.suggest_int('num_layers', 2, 5)
+        learning_rate = trial.suggest_float('learning_rate', 1e-5, 1e-3, log=True)
+        weight_decay = trial.suggest_float('weight_decay', 1e-5, 1e-3, log=True)
+        layer_type = trial.suggest_categorical('layerType', ['SmallTNN'])
+        drop_prob = trial.suggest_float('drop_prob', 0, 0.2, log=False)
+        T_max = trial.suggest_int('T_max', 10, 50)
+        update_func = trial.suggest_categorical('update_func', ['tanh', 'relu'])
+        aggr_func = trial.suggest_categorical('aggr_func', ['sum', 'max', 'all'])
+
         trial_checkpoint_dir = os.path.join(self.checkpoint_dir, f'trial_{trial.number}')
         os.makedirs(trial_checkpoint_dir, exist_ok=True)
 
 
         # Create args with the broadcasted hyperparameters
-        self.args = self.create_args(trial_checkpoint_dir, hidden_dim, num_layers, learning_rate, weight_decay, layer_type, drop_prob)
+        self.args = self.create_args(data_dir, trial_checkpoint_dir, 
+                                    hidden_dim, num_layers, 
+                                    learning_rate, weight_decay, layer_type, 
+                                    drop_prob, update_func, aggr_func, T_max)
 
         # Train and evaluate
         val_loss = self.train_and_evaluate(self.args)
         return val_loss
 
-    def create_args(self, checkpoint_dir, hidden_dim, num_layers, learning_rate, weight_decay, layer_type, drop_prob):
+    def create_args(self, data_dir, checkpoint_dir, hidden_dim, num_layers, learning_rate, weight_decay, layer_type, drop_prob, update_func, aggr_func, T_max = 30):
         # Update the base args with hyperparameters
         args = Namespace(**self.base_args.__dict__)
+        args.data_dir = data_dir
         args.hidden_dim = hidden_dim
         args.num_layers = num_layers
         args.learning_rate = learning_rate
@@ -112,24 +119,22 @@ class HyperparameterTuner:
         args.layerType = layer_type
         args.drop_prob = drop_prob
         args.checkpoint_dir = checkpoint_dir
+        args.update_func = update_func
+        args.aggr_func = aggr_func
+        args.T_max = T_max
         return args
 
     def load_data(self):
-        num_list = [i for i in range(1000)]
-        return load_and_prepare_data(num_list, self.base_args, self.local_rank, self.world_size)
+        num_list = [i for i in range(CATALOG_SIZE)]
+        return load_and_prepare_data(num_list, self.base_args, self.global_rank, self.world_size)
 
     def train_and_evaluate(self, args):
         return main(args, self.dataset)
     
     def gpu_setup(self):
         os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"
-        '''
-        if socket.gethostname() == "node14":
-            os.environ['CUDA_VISIBLE_DEVICES'] = "1,2"
-        else:
-            os.environ['CUDA_VISIBLE_DEVICES'] = ",".join(str(i) for i in range(torch.cuda.device_count()))
-        '''
         os.environ['CUDA_VISIBLE_DEVICES'] = ",".join(str(i) for i in range(torch.cuda.device_count()))
+        print(torch.cuda.device_count(), self.local_rank, self.global_rank, file=sys.stderr)
         self.base_args.device = torch.device(f"cuda:{self.local_rank}")   
         torch.cuda.set_device(self.base_args.device)
         print(f"[GPU SETUP] Process {self.local_rank} set up on device {self.base_args.device}", file = sys.stderr)
@@ -141,14 +146,15 @@ def run_heartbeat(interval):
         time.sleep(interval)
 
 def run_optuna_study(data_dir, checkpoint_dir, label_filename, device_num, n_trials=50, only_positions=True, heartbeat_interval=1200, study_name="my_study"):
+    global_rank = int(os.environ['RANK'])    
     local_rank = int(os.environ['LOCAL_RANK'])
     world_size = int(os.environ['WORLD_SIZE'])
 
     dist.init_process_group(backend="nccl", init_method='env://') 
-    tuner = HyperparameterTuner(data_dir, checkpoint_dir, label_filename, device_num, only_positions, local_rank, world_size)
+    tuner = HyperparameterTuner(data_dir, checkpoint_dir, label_filename, device_num, only_positions, global_rank, local_rank, world_size)
     study = None
     
-    if local_rank == 0:
+    if global_rank == 0:
         # Start the heartbeat thread
         heartbeat_thread = threading.Thread(target=run_heartbeat, args=(heartbeat_interval,))
         heartbeat_thread.daemon = True
@@ -169,7 +175,7 @@ def run_optuna_study(data_dir, checkpoint_dir, label_filename, device_num, n_tri
         for _ in range(n_trials):
             tuner.objective(None)
 
-    if local_rank == 0:
+    if global_rank == 0:
         assert study is not None
 
         # Save the best hyperparameters

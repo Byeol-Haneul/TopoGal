@@ -1,35 +1,32 @@
 import torch
 from torch import nn
-from .layers import AugmentedHMCLayer, HierLayer, GNNLayer, MasterLayer, TestLayer
+from .layers import *
+
+def get_activation(update_func):
+    if update_func == "sigmoid":
+        return torch.sigmoid
+    elif  update_func == "relu":
+        return torch.nn.functional.relu
+    elif update_func == "tanh":
+        return torch.nn.functional.tanh
+    else:
+        raise NotImplementedError
 
 class Network(nn.Module):
-    def __init__(self, layerType, channels_per_layer, final_output_layer, attention_flag: bool = False, residual_flag: bool = True):
+    def __init__(self, layerType, channels_per_layer, final_output_layer, update_func: str, aggr_func: str, residual_flag: bool = True):
         super().__init__()
-        '''
-        Base Model: Higher Order Attention Network for Mesh Classification ()
-        x{0, 1, 2, 3} = {nodes, edges, tetra, tetra clusters} features
-        x0: (x, y, z, Mstar, Rstar)
-        x1: (Edge distance)
-        x2: (tetra volume)
-        x3: (Merged tetrav volume) Currently not used.
-
-        References
-        ----------
-        .. [H23] Hajij, Zamzmi, Papamarkou, Miolane, Guzmán-Sáenz, Ramamurthy, Birdal, Dey,
-            Mukherjee, Samaga, Livesay, Walters, Rosen, Schaub. Topological Deep Learning: Going Beyond Graph Data.
-            (2023) https://arxiv.org/abs/2206.00606.
-        '''
+        
         self.layerType = layerType
-        self.base_model = CustomHMC(layerType, channels_per_layer, attention_flag=attention_flag, residual_flag=residual_flag)   
+        self.activation = get_activation(update_func)
+        self.base_model = CustomHMC(layerType, channels_per_layer, update_func=self.activation, aggr_func=aggr_func, residual_flag=residual_flag)   
 
         penultimate_layer = channels_per_layer[-1][-1][0]
         num_aggregators = 4
-
-        if layerType == "Master" or "Normal":
+        if layerType == "Master" or layerType == "TNN":
             num_ranks_pooling = 5
         elif layerType == "Test":
             num_ranks_pooling = 2
-        else:
+        elif layerType == "GNN" or layerType == "Normal" or layerType == "SmallTNN":
             num_ranks_pooling = 1
         
         # Global feature size
@@ -40,9 +37,6 @@ class Network(nn.Module):
         self.fc2 = nn.Linear(512, 128)
         self.fc3 = nn.Linear(128, 64)
         self.fc4 = nn.Linear(64, final_output_layer)
-
-        self.activation = nn.Tanh()
-        self.leaky_relu = nn.LeakyReLU(negative_slope=0.01)
 
     def forward(self, batch) -> torch.Tensor:
         # features
@@ -131,12 +125,13 @@ class Network(nn.Module):
             x = torch.cat((x_3, global_feature), dim=1)
         elif self.layerType == "Test":
             x = torch.cat((x_0, x_3, global_feature), dim=1)
-        elif self.layerType == "Master" or "Normal":
+        elif self.layerType == "Master" or self.layerType == "TNN":
             x = torch.cat((x_0, x_1, x_2, x_3, x_4, global_feature), dim=1)
-        else:
+        elif self.layerType == "GNN" or self.layerType == "SmallTNN":
             x = torch.cat((x_0, global_feature), dim=1)
+        elif self.layerType == "Normal":
+            x = torch.cat((x_3, global_feature), dim=1)
 
-        # Forward pass through fully connected layers with LeakyReLU activations
         x = self.fc1(x)
         x = self.activation(x)
 
@@ -144,7 +139,7 @@ class Network(nn.Module):
         x = self.activation(x)
 
         x = self.fc3(x)
-        x = self.leaky_relu(x)
+        x = self.activation(x)
 
         x = self.fc4(x)
         return x
@@ -155,10 +150,8 @@ class CustomHMC(torch.nn.Module):
         self,
         layerType,
         channels_per_layer,
-        negative_slope=0.01,
-        update_func_attention="relu",
-        update_func_aggregation="tanh",
-        attention_flag: bool = False,
+        update_func=torch.nn.functional.relu,
+        aggr_func='sum',
         residual_flag: bool = True
     ) -> None:
         def check_channels_consistency():
@@ -175,6 +168,10 @@ class CustomHMC(torch.nn.Module):
         check_channels_consistency()
         if layerType == "Normal":
             self.base_layer = AugmentedHMCLayer
+        elif layerType == "TNN":
+            self.base_layer = TNNLayer
+        elif layerType == "SmallTNN":
+            self.base_layer = SmallTNNLayer
         elif layerType == "Hier":
             self.base_layer = HierLayer
         elif layerType == "GNN":
@@ -192,11 +189,8 @@ class CustomHMC(torch.nn.Module):
                 self.base_layer(
                     in_channels=in_channels,
                     inout_channels=inout_channels,
-                    negative_slope=negative_slope,
-                    softmax_attention=True, # softmax or row norm.
-                    update_func_attention=update_func_attention,
-                    update_func_aggregation=update_func_aggregation,
-                    attention_flag=attention_flag,
+                    update_func=update_func,
+                    aggr_func=aggr_func
                 )
                 for in_channels, inout_channels in channels_per_layer
             ]

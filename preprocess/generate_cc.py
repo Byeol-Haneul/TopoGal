@@ -20,6 +20,7 @@ from toponetx.readwrite.serialization import load_from_pickle
 from invariants import Invariants, cell_invariants_torch, cross_cell_invariants
 from neighbors import get_neighbors
 from config_preprocess import *
+from config.machine import *
 
 # ---- FEATURES ---- #
 # NODES:        4 (Mstar, Rstar, Metal, Vmax)
@@ -30,36 +31,44 @@ from config_preprocess import *
 # ------------------ #
 
 def load_catalog(directory, filename):
-    f = h5py.File(directory + filename, 'r')
-    pos   = f['/Subhalo/SubhaloPos'][:]/BOXSIZE
-    Mstar = f['/Subhalo/SubhaloMassType'][:,4] * MASS_UNIT
-    Rstar = f["Subhalo/SubhaloHalfmassRadType"][:,4]
-    Nstar = f['/Subhalo/SubhaloLenType'][:,4] 
-    Metal = f["Subhalo/SubhaloStarMetallicity"][:]
-    Vmax = f["Subhalo/SubhaloVmax"][:]
-    f.close()
+
+    if TYPE == "BISPECTRUM":
+        pos = np.loadtxt(directory + filename)/BOXSIZE
+    else:
+        f = h5py.File(directory + filename, 'r')
+        pos   = f['/Subhalo/SubhaloPos'][:]/BOXSIZE
+        Mstar = f['/Subhalo/SubhaloMassType'][:,4] * MASS_UNIT
+        Rstar = f["Subhalo/SubhaloHalfmassRadType"][:,4]
+        Nstar = f['/Subhalo/SubhaloLenType'][:,4] 
+        Metal = f["Subhalo/SubhaloStarMetallicity"][:]
+        Vmax = f["Subhalo/SubhaloVmax"][:]
+        f.close()
     
     # Some simulations are slightly outside the box, correct it
     pos[np.where(pos<0.0)]+=1.0
     pos[np.where(pos>1.0)]-=1.0
 
-    # Select only galaxies with more than Nstar_th star particles
-    indexes = np.where(Nstar>Nstar_th)[0]
-    #indexes = np.where(Mstar>MASS_CUT)[0]
-    pos     = pos[indexes]
-    Mstar   = Mstar[indexes]
-    Rstar   = Rstar[indexes]
-    Metal   = Metal[indexes]
-    Vmax    = Vmax[indexes]
+    if TYPE == "BISPECTRUM":
+        feat = np.zeros(pos.shape)
+    else:
+        # Select only galaxies with more than Nstar_th star particles
+        indexes = np.where(Nstar>Nstar_th)[0]
+        #indexes = np.where(Mstar>MASS_CUT)[0]
+        pos     = pos[indexes]
+        Mstar   = Mstar[indexes]
+        Rstar   = Rstar[indexes]
+        Metal   = Metal[indexes]
+        Vmax    = Vmax[indexes]
 
-    #Normalization
-    Mstar = np.log10(1.+ Mstar)
-    Rstar = np.log10(1.+ Rstar)
-    Metal = np.log10(1.+ Metal)
-    Vmax  = np.log10(1.+ Vmax)
+        #Normalization
+        Mstar = np.log10(1.+ Mstar)
+        Rstar = np.log10(1.+ Rstar)
+        Metal = np.log10(1.+ Metal)
+        Vmax  = np.log10(1.+ Vmax)
 
-    feat = np.vstack((Mstar, Rstar, Metal, Vmax)).T
-    #feat = np.hstack((pos, feat))
+        feat = np.vstack((Mstar, Rstar, Metal, Vmax)).T
+        #feat = np.hstack((pos, feat))
+
     return pos, feat
 
 class AbstractCells:
@@ -361,7 +370,11 @@ def get_kdtree_edges(pos, r_link=0.015):
     #return kdtree_edge_set
     return kdtree_edge_set
 
+
 def create_cc(in_dir, in_filename):    
+    ##########################
+    global NUMPOINTS, NUMEDGES, NUMTETRA
+    
     # Read in data
     pos, feat = load_catalog(in_dir, in_filename)
     pos[np.where(pos<0.0)]+=1.0
@@ -374,11 +387,14 @@ def create_cc(in_dir, in_filename):
 
     # 1. Get Tetrahedra
     tetrahedra = get_tetrahedra(pos, feat)
+    tetrahedra = sorted(tetrahedra, key=lambda tetra: tetra.volume)[:NUMTETRA]
     
     # 2. Get edges
     tetra_edge_set = set() #get_all_tetra_edges(pos, tetrahedra)
     kdtree_edge_set = get_kdtree_edges(pos, r_link)
     edge_set = kdtree_edge_set | tetra_edge_set
+    edges = list(edge_set)
+    edges = sorted(edges, key=lambda edge: edge.distance)[:NUMEDGES]
     
     # 3. Clustering on Tetrahedra
     clusters = clustering(tetrahedra, pos)
@@ -397,13 +413,11 @@ def create_cc(in_dir, in_filename):
         hypercluster_label = f"hyper_{cluster1_label}_{cluster2_label}"
         hypercluster = Hypercluster(cluster1, cluster2, dist, pos)
         hyperclusters[hypercluster_label] = hypercluster
-    
-    ##########################
-    global NUMPOINTS, NUMEDGES, NUMTETRA
 
-    NUMPOINTS = pos.shape[0] if NUMPOINTS == -1 else NUMPOINTS
-    NUMEDGES = len(edge_set) if NUMEDGES == -1 else NUMEDGES
-    NUMTETRA = len(tetrahedra) if NUMTETRA == -1 else NUMTETRA
+    
+    NUMPOINTS = pos.shape[0] if (NUMPOINTS == -1 or NUMPOINTS>pos.shape[0]) else NUMPOINTS
+    NUMEDGES = len(edge_set) if (NUMEDGES == -1 or NUMEDGES>len(edge_set)) else NUMEDGES
+    NUMTETRA = len(tetrahedra) if (NUMTETRA == -1 or NUMTETRA>len(tetrahedra)) else NUMTETRA
     
     # 5. Generate Combinatorial Complex
     print(f"""[LOG] We will select {NUMEDGES} edges and {NUMTETRA} tetra""", file=sys.stderr)
@@ -418,17 +432,12 @@ def create_cc(in_dir, in_filename):
     node_data = {node.node: node.features for node in nodes}
 
     ## 5-2 ADD EDGES ##
-    edges = list(edge_set)
-    edges = sorted(edges, key=lambda edge: edge.distance)[:NUMEDGES]
-
     for edge in edges:
         cc.add_cell(edge.nodes, rank=1)
     
     edge_data = {edge.nodes: edge.features for edge in edges}
 
     ## 5-3 ADD TETRA ##
-    tetrahedra = sorted(tetrahedra, key=lambda tetra: tetra.volume)[:NUMTETRA]
-
     for tetra in tetrahedra:
         cc.add_cell(list(tetra.nodes), rank=2)
 
@@ -531,8 +540,12 @@ def main(array):
     slice_array = array[start_idx:end_idx]
     
     for num in slice_array:
-        in_filename = f"data_{num}.hdf5"
-        out_filename = f"data_{num}.pickle"
+        if TYPE == "BISPECTRUM":
+            in_filename = f"catalog_{num}.txt"
+            out_filename = f"data_{num}.pickle"
+        else:
+            in_filename = f"data_{num}.hdf5"
+            out_filename = f"data_{num}.pickle"
 
         cc, nodes, edges, tetrahedra, clusters, hyperclusters = create_cc(in_dir, in_filename)
 
@@ -551,6 +564,6 @@ def main(array):
 
 
 if __name__ == "__main__":
-    num_array = list(range(1000))
+    num_array = list(range(CATALOG_SIZE))
     main(num_array)
 

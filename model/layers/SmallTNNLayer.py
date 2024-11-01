@@ -3,9 +3,9 @@ import torch.nn.functional as F
 from torch.nn.parameter import Parameter
 from .BaseLayer import sparse_row_norm, HBNS, HBS
 from model.aggregators import *
-import time 
+import sys
 
-class GNNLayer(torch.nn.Module):
+class SmallTNNLayer(torch.nn.Module):
     def __init__(
         self,
         in_channels: list[int],
@@ -15,10 +15,10 @@ class GNNLayer(torch.nn.Module):
         initialization="xavier_uniform",
     ):
         super().__init__()
+
         in_channels_0, in_channels_1, in_channels_2, in_channels_3, in_channels_4 = in_channels
         inout_channels_0, inout_channels_1, inout_channels_2, inout_channels_3, inout_channels_4 = inout_channels
 
-        # Level 1
         self.hbs_0_level1 = HBS(
             source_in_channels=in_channels_0,
             source_out_channels=inout_channels_0,
@@ -35,6 +35,14 @@ class GNNLayer(torch.nn.Module):
             initialization=initialization,
         )
 
+        self.hbs_2_level1 = HBS(
+            source_in_channels=in_channels_2,
+            source_out_channels=inout_channels_2,
+            update_func=update_func,
+            aggr_func=aggr_func,
+            initialization=initialization,
+        )
+
         self.hbns_0_1_level1 = HBNS(
             source_in_channels=in_channels_1,
             source_out_channels=inout_channels_1,
@@ -44,8 +52,18 @@ class GNNLayer(torch.nn.Module):
             aggr_func=aggr_func,
             initialization=initialization,
         )
-        
-        self.aggr = torch.nn.ModuleList([RankAggregator(inout_channels[0], inout_channels[0], update_func=update_func, aggr_func=aggr_func) for _ in range(2)])
+
+        self.hbns_1_2_level1 = HBNS(
+            source_in_channels=in_channels_2,
+            source_out_channels=inout_channels_2,
+            target_in_channels=in_channels_1,
+            target_out_channels=inout_channels_1,
+            update_func=update_func,
+            aggr_func=aggr_func,
+            initialization=initialization,
+        )
+
+        self.aggr = torch.nn.ModuleList([RankAggregator(inout_channels[0], inout_channels[0], update_func=update_func, aggr_func=aggr_func) for _ in range(3)])
 
     def forward(
         self,
@@ -62,10 +80,17 @@ class GNNLayer(torch.nn.Module):
         cci_2_to_3, cci_2_to_4,
         cci_3_to_4,
     ):
-        x_0_to_0 = self.hbs_0_level1(x_0, adjacency_0)
-        x_1_to_1 = self.hbs_1_level1(x_1, adjacency_1)
+
+        # Computing messages from Higher Order Attention Blocks Level 1        
+        x_0_to_0 = self.hbs_0_level1(x_0, adjacency_0, cci_0_to_0)
+        x_1_to_1 = self.hbs_1_level1(x_1, adjacency_1, cci_1_to_1)
+        x_2_to_2 = self.hbs_2_level1(x_2, adjacency_2, cci_2_to_2)
+
         x_0_to_1, x_1_to_0 = self.hbns_0_1_level1(x_1, x_0, incidence_0_1)
-        
+        x_1_to_2, x_2_to_1 = self.hbns_1_2_level1(x_2, x_1, incidence_1_2)
+
         x_0_level1 = self.aggr[0]([x_0_to_0, x_1_to_0])
-        x_1_level1 = self.aggr[1]([x_1_to_1, x_0_to_1])
-        return x_0_level1, x_1_level1, x_2, x_3, x_4
+        x_1_level1 = self.aggr[1]([x_0_to_1, x_1_to_1, x_2_to_1])
+        x_2_level1 = self.aggr[2]([x_1_to_2, x_2_to_2])
+
+        return x_0_level1, x_1_level1, x_2_level1, x_3, x_4
