@@ -1,5 +1,5 @@
 #!/bin/bash
-#SBATCH --job-name=run             # Job name
+#SBATCH --job-name=run                         # Job name
 #SBATCH --output=stdout                        # Standard output log
 #SBATCH --error=stderr                         # Standard error log
 #SBATCH --nodes=6                              # Request two nodes
@@ -34,16 +34,36 @@ MASTER_IP=$(hostname -I | awk '{print $1}')
 
 # Debug output to check the master address and node rank
 echo "Master address for debugging: $MASTER_ADDR, IP: $MASTER_IP"
-#while true; do sleep 1; done
 
-#export LOGLEVEL=INFO
-# Run the program on multiple nodes with torchrun
+# Run the program on multiple nodes with torchrun for different layer types
 srun torchrun \
   --nproc_per_node=4 \
   --nnodes=6 \
-  --rdzv_id=$SLURM_JOB_ID \
+  --rdzv_id="gnn_${SLURM_JOB_ID}" \
   --rdzv_backend=c10d \
   --rdzv_endpoint="${MASTER_IP}:12345" \
-  tune.py
+  tune.py --layerType GNN
 
-  
+srun torchrun \
+  --nproc_per_node=4 \
+  --nnodes=6 \
+  --rdzv_id="tetra_${SLURM_JOB_ID}" \
+  --rdzv_backend=c10d \
+  --rdzv_endpoint="${MASTER_IP}:12346" \
+  tune.py --layerType TetraTNN
+
+srun torchrun \
+  --nproc_per_node=4 \
+  --nnodes=6 \
+  --rdzv_id="cluster_${SLURM_JOB_ID}" \
+  --rdzv_backend=c10d \
+  --rdzv_endpoint="${MASTER_IP}:12347" \
+  tune.py --layerType ClusterTNN
+
+srun torchrun \
+  --nproc_per_node=4 \
+  --nnodes=6 \
+  --rdzv_id="tnn_${SLURM_JOB_ID}" \
+  --rdzv_backend=c10d \
+  --rdzv_endpoint="${MASTER_IP}:12348" \
+  tune.py --layerType TNN

@@ -82,7 +82,8 @@ class HBNS(torch.nn.Module):
     def update(
         self, message_on_source: torch.Tensor, message_on_target: torch.Tensor
     ) -> tuple[torch.Tensor, torch.Tensor]:
-
+        message_on_source = self.layer_norm_source(message_on_source)
+        message_on_target = self.layer_norm_source(message_on_target)
         return self.activation(message_on_source), self.activation(message_on_target)
 
     def forward(

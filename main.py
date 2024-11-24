@@ -173,7 +173,7 @@ def initialize_model(args, local_rank):
     final_output_layer = len(args.target_labels) * 2
 
     # Initialize the model
-    model = Network(args.layerType, channels_per_layer, final_output_layer, args.update_func, args.aggr_func, args.residual_flag)
+    model = Network(args.layerType, channels_per_layer, final_output_layer, args.cci_mode, args.update_func, args.aggr_func, args.residual_flag)
 
     # Move the model to the correct device before wrapping in DDP
     model.to(args.device)
@@ -219,7 +219,7 @@ def main(passed_args=None, dataset=None):
         if dataset is None:
             continue
         else:
-            dataset.augment(args.drop_prob)
+            dataset.augment(args.drop_prob, args.cci_mode)
 
     #################
     model = initialize_model(args, local_rank) 

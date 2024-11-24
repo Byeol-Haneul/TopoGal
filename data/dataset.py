@@ -19,9 +19,9 @@ class CustomDataset(Dataset):
     def __getitem__(self, idx, augmented=False):
         return self.augmented_dataset[idx]
 
-    def augment(self, drop_prob=0.1):
+    def augment(self, drop_prob=0.1, cci_mode='euclidean'):
         self.augmented_dataset = [
-            augment_data(sample, drop_prob) for sample in self.dataset
+            augment_data(sample, drop_prob, cci_mode) for sample in self.dataset
         ]
 
 

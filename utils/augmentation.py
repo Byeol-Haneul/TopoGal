@@ -32,7 +32,7 @@ def augment_matrix(matrix, drop_prob, mask=None):
         mask = generate_mask(matrix, drop_prob)
     return matrix.sparse_mask(mask)
 
-def augment_data(data, drop_prob=0.1):
+def augment_data(data, drop_prob=0.1, cci_mode='euclidean'):
     """
     Augments a dictionary of neighborhood matrices and cci matrices by making some nonzero elements zero.
 
@@ -43,38 +43,35 @@ def augment_data(data, drop_prob=0.1):
     Returns:
     - A new dictionary with augmented neighborhood and cci matrices.
     """
-    neighborhood_keys = [
-        'n0_to_0', 'n1_to_1', 'n2_to_2', 'n3_to_3', 'n4_to_4',
-        'n0_to_1', 'n0_to_2', 'n0_to_3', 'n0_to_4',
-        'n1_to_2', 'n1_to_3', 'n1_to_4',
-        'n2_to_3', 'n2_to_4',
-        'n3_to_4'
-    ]
-    
-    cci_keys = [
-        'euclidean_0_to_0', 'euclidean_1_to_1', 'euclidean_2_to_2', 'euclidean_3_to_3', 'euclidean_4_to_4',
-        'euclidean_0_to_1', 'euclidean_0_to_2', 'euclidean_0_to_3', 'euclidean_0_to_4',
-        'euclidean_1_to_2', 'euclidean_1_to_3', 'euclidean_1_to_4',
-        'euclidean_2_to_3', 'euclidean_2_to_4',
-        'euclidean_3_to_4',
-    ]
 
-    # Create a mapping of neighborhood keys to cci keys
-    key_mapping = dict(zip(neighborhood_keys, cci_keys))
-    
+    neighborhood_keys = [f'n{i}_to_{j}' for i in range(5) for j in range(i, 5)]
+
+    if cci_mode != 'None':
+        cci_keys = [f'{cci_mode}_{i}_to_{j}' for i in range(5) for j in range(i, 5)]
+        key_mapping = dict(zip(neighborhood_keys, cci_keys))
+    else:
+        key_mapping = {}
+
     augmented_dict = {}
 
-    for neigh_key, cci_key in key_mapping.items():
-        if neigh_key in data and cci_key in data:
+    for neigh_key in neighborhood_keys:
+        if neigh_key in data:
             mask = generate_mask(data[neigh_key], drop_prob)
             augmented_dict[neigh_key] = sparsify(augment_matrix(data[neigh_key], drop_prob, mask))
-            augmented_dict[cci_key] = sparsify(augment_matrix(data[cci_key], drop_prob, mask))
-        elif cci_key in data:
-            # If no matching neighborhood key, keep cci matrix unchanged
-            augmented_dict[cci_key] = data[cci_key]
+
+            if cci_mode != 'None':
+                cci_key = key_mapping.get(neigh_key)
+                if cci_key in data:
+                    augmented_dict[cci_key] = sparsify(augment_matrix(data[cci_key], drop_prob, mask))
+
+        elif cci_mode != 'None':
+            cci_key = key_mapping.get(neigh_key)
+            if cci_key in data:
+                augmented_dict[cci_key] = data[cci_key]
 
     for key in data:
-        if key not in neighborhood_keys and key not in cci_keys:
+        if key not in neighborhood_keys and key not in key_mapping.values():
             augmented_dict[key] = data[key]
-    
+
     return augmented_dict
+

@@ -13,20 +13,20 @@ def get_activation(update_func):
         raise NotImplementedError
 
 class Network(nn.Module):
-    def __init__(self, layerType, channels_per_layer, final_output_layer, update_func: str, aggr_func: str, residual_flag: bool = True):
+    def __init__(self, layerType, channels_per_layer, final_output_layer, cci_mode: str, update_func: str, aggr_func: str, residual_flag: bool = True):
         super().__init__()
         
         self.layerType = layerType
+        self.cci_mode = cci_mode
         self.activation = get_activation(update_func)
         self.base_model = CustomHMC(layerType, channels_per_layer, update_func=self.activation, aggr_func=aggr_func, residual_flag=residual_flag)   
 
         penultimate_layer = channels_per_layer[-1][-1][0]
         num_aggregators = 4
-        if layerType == "Master" or layerType == "TNN":
+
+        if layerType == "Master" or self.layerType == "TNN":
             num_ranks_pooling = 5
-        elif layerType == "Test":
-            num_ranks_pooling = 2
-        elif layerType == "GNN" or layerType == "Normal" or layerType == "SmallTNN":
+        else:
             num_ranks_pooling = 1
         
         # Global feature size
@@ -65,23 +65,10 @@ class Network(nn.Module):
         n2_to_4 = batch['n2_to_4']
         n3_to_4 = batch['n3_to_4']
 
-        # Cross-cell Invariants
-        cci0_to_0 = batch['euclidean_0_to_0']
-        cci0_to_1 = batch['euclidean_0_to_1']
-        cci0_to_2 = batch['euclidean_0_to_2']
-        cci0_to_3 = batch['euclidean_0_to_3']
-        cci0_to_4 = batch['euclidean_0_to_4']
-        cci1_to_1 = batch['euclidean_1_to_1']
-        cci1_to_2 = batch['euclidean_1_to_2']
-        cci1_to_3 = batch['euclidean_1_to_3']
-        cci1_to_4 = batch['euclidean_1_to_4']
-        cci2_to_2 = batch['euclidean_2_to_2']
-        cci2_to_3 = batch['euclidean_2_to_3']
-        cci2_to_4 = batch['euclidean_2_to_4']
-        cci3_to_3 = batch['euclidean_3_to_3']
-        cci3_to_4 = batch['euclidean_3_to_4']
-        cci4_to_4 = batch['euclidean_4_to_4']
-       
+        keys = [f'{self.cci_mode}_{i}_to_{j}' for i in range(5) for j in range(i, 5)]
+        values = [batch[key] if self.cci_mode != 'None' else None for key in keys]
+        cci0_to_0, cci0_to_1, cci0_to_2, cci0_to_3, cci0_to_4, cci1_to_1, cci1_to_2, cci1_to_3, cci1_to_4, cci2_to_2, cci2_to_3, cci2_to_4, cci3_to_3, cci3_to_4, cci4_to_4 = values
+
         # global feature
         global_feature = batch['global_feature']
        
@@ -127,9 +114,9 @@ class Network(nn.Module):
             x = torch.cat((x_0, x_3, global_feature), dim=1)
         elif self.layerType == "Master" or self.layerType == "TNN":
             x = torch.cat((x_0, x_1, x_2, x_3, x_4, global_feature), dim=1)
-        elif self.layerType == "GNN" or self.layerType == "SmallTNN":
+        elif self.layerType == "GNN" or self.layerType == "TetraTNN":
             x = torch.cat((x_0, global_feature), dim=1)
-        elif self.layerType == "Normal":
+        elif self.layerType == "Normal" or self.layerType == "ClusterTNN":
             x = torch.cat((x_3, global_feature), dim=1)
 
         x = self.fc1(x)
@@ -170,8 +157,10 @@ class CustomHMC(torch.nn.Module):
             self.base_layer = AugmentedHMCLayer
         elif layerType == "TNN":
             self.base_layer = TNNLayer
-        elif layerType == "SmallTNN":
-            self.base_layer = SmallTNNLayer
+        elif layerType == "TetraTNN":
+            self.base_layer = TetraTNNLayer
+        elif layerType == "ClusterTNN":
+            self.base_layer = ClusterTNNLayer
         elif layerType == "Hier":
             self.base_layer = HierLayer
         elif layerType == "GNN":
@@ -184,6 +173,7 @@ class CustomHMC(torch.nn.Module):
             raise Exception("Invalid Model Type. Current Available Options are [Hier, Normal]")
 
         self.residual_flag = residual_flag
+        self.activation = update_func
         self.layers = torch.nn.ModuleList(
             [
                 self.base_layer(
@@ -236,5 +226,11 @@ class CustomHMC(torch.nn.Module):
             x_2 = h_2 + x_2 if residual_condition else h_2
             x_3 = h_3 + x_3 if residual_condition else h_3
             x_4 = h_4 + x_4 if residual_condition else h_4
+
+            x_0 = self.activation(x_0)
+            x_1 = self.activation(x_1)
+            x_2 = self.activation(x_2)
+            x_3 = self.activation(x_3)
+            x_4 = self.activation(x_4)
 
         return x_0, x_1, x_2, x_3, x_4

@@ -14,19 +14,19 @@ modes = {"ISDISTANCE": 1, "ISAREA": 2, "ISVOLUME": 3}
 global_centroid = None # to be updated.
 
 # --- HYPERPARAMS --- #
-r_link = 0.01 #dense: 0.02, sparse: 0.01, fiducial: 0.015
+r_link = 0.015 #dense: 0.02, sparse: 0.01, fiducial: 0.015
 MINCLUSTER = 5 #>10 Found no clusters made in some catalogs. 
 NUMPOINTS = -1
-NUMEDGES =  -1
-NUMTETRA =  -1
+NUMEDGES =  5000
+NUMTETRA =  5000
 
 ## OPTIONS
 ENABLE_PROFILING = False
 
 if TYPE == "BISPECTRUM":
     in_dir = BASE_DIR + "new/"
-    cc_dir = DATA_DIR + "cc_extended/"
-    tensor_dir = DATA_DIR + "tensors_extended/"
+    cc_dir = DATA_DIR + "cc_5000/"
+    tensor_dir = DATA_DIR + "tensors_5000/"
 else:
     in_dir = BASE_DIR + "/IllustrisTNG/data/"
     cc_dir = DATA_DIR + "cc_sparse/"

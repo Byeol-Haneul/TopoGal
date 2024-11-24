@@ -13,8 +13,8 @@ class PNAAggregator(nn.Module):
         self.activation = update_func
 
         if aggr_func == 'all':
-            self.mlp = nn.Linear(len(aggr_func) * len(scalers) * in_channels, out_channels)
             self.aggr_func = ['sum', 'max', 'min']
+            self.mlp = nn.Linear(len(self.aggr_func) * len(scalers) * in_channels, out_channels)
         else:
             self.aggr_func = [aggr_func]
 
@@ -46,7 +46,7 @@ class PNAAggregator(nn.Module):
         elif aggregation_type == 'min':
             return self.min_aggregation()
         elif aggregation_type == 'std':
-            raise NotImplementedError
+            return self.std_aggregation()
         else:
             raise ValueError(f"Unsupported aggregation type: {aggregation_type}")
 
@@ -58,19 +58,17 @@ class PNAAggregator(nn.Module):
 
     def min_aggregation(self):
         return spmm_min(self.neighbor, self.features)[0]
-
-    def std_aggregation(self):
-        raise NotImplementedError
+    
+    def mean_aggregation(self):
+        return spmm_mean(self.neighbor, self.features)
 
     def scale(self, agg_features, scaler):
         if scaler == 'identity':
             return agg_features
         elif scaler == 'amplification':
             raise NotImplementedError
-            #return agg_features * self.S_amp
         elif scaler == 'attenuation':
             raise NotImplementedError
-            #return agg_features / self.S_amp
         else:
             raise ValueError(f"Unsupported scaler type: {scaler}")
 
@@ -81,8 +79,8 @@ class RankAggregator(nn.Module):
         self.activation = update_func
 
         if aggr_func == 'all':
-            self.mlp = nn.Linear(len(aggr_func) * len(scalers) * in_channels, out_channels)
             self.aggr_func = ['sum', 'max', 'min', 'std']
+            self.mlp = nn.Linear(len(self.aggr_func) * in_channels, out_channels)
         else:
             self.aggr_func = [aggr_func]
 

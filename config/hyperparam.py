@@ -13,11 +13,12 @@ from main import main, load_and_prepare_data
 from config.machine import *
 
 class HyperparameterTuner:
-    def __init__(self, data_dir_base, checkpoint_dir, label_filename, device_num, only_positions, global_rank, local_rank, world_size):
+    def __init__(self, data_dir_base, checkpoint_dir, label_filename, device_num, only_positions, global_rank, local_rank, world_size, layerType):
         ## Distributed
         self.global_rank = global_rank
         self.local_rank = local_rank
         self.world_size = world_size
+        self.layerType = layerType
 
         ## Training Config
         self.data_dir_base = data_dir_base
@@ -43,7 +44,7 @@ class HyperparameterTuner:
             residual_flag=True,
 
             # Target Labels
-            target_labels=["Omega_m", "Omega_b", "h", "n_s", "sigma_8"] if TYPE == "BISPECTRUM" else ["Omega0"],
+            target_labels=["Omega_m", "sigma_8"] if TYPE == "BISPECTRUM" else ["Omega0"],
 
             # Directories
             checkpoint_dir=self.checkpoint_dir,
@@ -52,7 +53,6 @@ class HyperparameterTuner:
             # Training Hyperparameters
             num_epochs=300,
             test_interval=100,
-            batch_size=8,
 
             # Device
             device_num=self.device_num,
@@ -61,38 +61,37 @@ class HyperparameterTuner:
             # Fixed Values
             val_size=0.1,
             test_size=0.1,
-            random_seed=11111,
-
-            # Features & Neighborhood Functions
-            feature_sets=[
-                'x_0', 'x_1', 'x_2', 'x_3', 'x_4',
-                'n0_to_0', 'n1_to_1', 'n2_to_2', 'n3_to_3', 'n4_to_4',
-                'n0_to_1', 'n0_to_2', 'n0_to_3', 'n0_to_4',
-                'n1_to_2', 'n1_to_3', 'n1_to_4',
-                'n2_to_3', 'n2_to_4',
-                'n3_to_4',
-                'euclidean_0_to_0', 'euclidean_1_to_1', 'euclidean_2_to_2', 'euclidean_3_to_3', 'euclidean_4_to_4',
-                'euclidean_0_to_1', 'euclidean_0_to_2', 'euclidean_0_to_3', 'euclidean_0_to_4',
-                'euclidean_1_to_2', 'euclidean_1_to_3', 'euclidean_1_to_4',
-                'euclidean_2_to_3', 'euclidean_2_to_4',
-                'euclidean_3_to_4',
-                'global_feature'
-            ],
+            random_seed=12345,
         )
 
     def objective(self, single_trial):
         self.gpu_setup()
         trial = optuna_integration.TorchDistributedTrial(single_trial)
-        data_dir = self.data_dir_base + trial.suggest_categorical('data_mode', ['tensors', 'tensors_sparse', 'tensors_dense'])
-        hidden_dim = trial.suggest_categorical('hidden_dim', [32, 64, 128])
-        num_layers = trial.suggest_int('num_layers', 2, 5)
+
+        if TYPE == "BISPECTRUM":
+            data_dir =  self.data_dir_base + trial.suggest_categorical('data_mode', ['tensors_3000', 'tensors_4000', 'tensors_5000'])
+        else:
+            data_dir = self.data_dir_base + trial.suggest_categorical('data_mode', ['tensors', 'tensors_sparse', 'tensors_dense'])
+
+        hidden_dim = trial.suggest_categorical('hidden_dim', [32, 64, 128, 256])
+        num_layers = trial.suggest_int('num_layers', 1, 6)
+
+        cci_mode = trial.suggest_categorical('cci_mode', ['euclidean', 'hausdorff'])
+
         learning_rate = trial.suggest_float('learning_rate', 1e-5, 1e-3, log=True)
         weight_decay = trial.suggest_float('weight_decay', 1e-5, 1e-3, log=True)
-        layer_type = trial.suggest_categorical('layerType', ['SmallTNN'])
+
+        if self.layerType == "all":
+            layer_type = trial.suggest_categorical('layerType', ['TetraTNN', 'ClusterTNN', 'TNN', 'GNN'])
+        else:
+            layer_type = self.layerType
+
+        batch_size = trial.suggest_categorical('batch_size', [8, 16, 32])
+
         drop_prob = trial.suggest_float('drop_prob', 0, 0.2, log=False)
-        T_max = trial.suggest_int('T_max', 10, 50)
+        T_max = trial.suggest_int('T_max', 10, 100)
         update_func = trial.suggest_categorical('update_func', ['tanh', 'relu'])
-        aggr_func = trial.suggest_categorical('aggr_func', ['sum', 'max', 'all'])
+        aggr_func = trial.suggest_categorical('aggr_func', ['sum', 'max', 'min', 'all'])
 
         trial_checkpoint_dir = os.path.join(self.checkpoint_dir, f'trial_{trial.number}')
         os.makedirs(trial_checkpoint_dir, exist_ok=True)
@@ -100,28 +99,50 @@ class HyperparameterTuner:
 
         # Create args with the broadcasted hyperparameters
         self.args = self.create_args(data_dir, trial_checkpoint_dir, 
-                                    hidden_dim, num_layers, 
-                                    learning_rate, weight_decay, layer_type, 
+                                    hidden_dim, num_layers,  cci_mode,
+                                    learning_rate, weight_decay, layer_type, batch_size,
                                     drop_prob, update_func, aggr_func, T_max)
 
         # Train and evaluate
         val_loss = self.train_and_evaluate(self.args)
         return val_loss
 
-    def create_args(self, data_dir, checkpoint_dir, hidden_dim, num_layers, learning_rate, weight_decay, layer_type, drop_prob, update_func, aggr_func, T_max = 30):
-        # Update the base args with hyperparameters
+    def create_args(self, data_dir, checkpoint_dir, hidden_dim, num_layers, cci_mode, 
+                        learning_rate, weight_decay, layer_type, batch_size,
+                        drop_prob, update_func, aggr_func, T_max = 30):
+
         args = Namespace(**self.base_args.__dict__)
         args.data_dir = data_dir
         args.hidden_dim = hidden_dim
         args.num_layers = num_layers
+        args.cci_mode = cci_mode
         args.learning_rate = learning_rate
         args.weight_decay = weight_decay
         args.layerType = layer_type
+        args.batch_size = batch_size
         args.drop_prob = drop_prob
         args.checkpoint_dir = checkpoint_dir
         args.update_func = update_func
         args.aggr_func = aggr_func
         args.T_max = T_max
+
+        # Features & Neighborhood Functions
+        args.feature_sets=[
+            'x_0', 'x_1', 'x_2', 'x_3', 'x_4',
+            'n0_to_0', 'n1_to_1', 'n2_to_2', 'n3_to_3', 'n4_to_4',
+            'n0_to_1', 'n0_to_2', 'n0_to_3', 'n0_to_4',
+            'n1_to_2', 'n1_to_3', 'n1_to_4',
+            'n2_to_3', 'n2_to_4',
+            'n3_to_4',
+            'global_feature'
+        ]
+
+        if args.cci_mode != 'None':
+            cci_list = [f'{args.cci_mode}_{i}_to_{j}' 
+                        for i in range(5) 
+                        for j in range(i, 5)]
+            args.feature_sets.extend(cci_list)
+
         return args
 
     def load_data(self):
@@ -145,13 +166,13 @@ def run_heartbeat(interval):
         print(f"Heartbeat: System running at {time.strftime('%Y-%m-%d %H:%M:%S')}")
         time.sleep(interval)
 
-def run_optuna_study(data_dir, checkpoint_dir, label_filename, device_num, n_trials=50, only_positions=True, heartbeat_interval=1200, study_name="my_study"):
+def run_optuna_study(data_dir, checkpoint_dir, label_filename, device_num, n_trials=50, only_positions=True, heartbeat_interval=1200, study_name="my_study", layerType="All"):
     global_rank = int(os.environ['RANK'])    
     local_rank = int(os.environ['LOCAL_RANK'])
     world_size = int(os.environ['WORLD_SIZE'])
 
     dist.init_process_group(backend="nccl", init_method='env://') 
-    tuner = HyperparameterTuner(data_dir, checkpoint_dir, label_filename, device_num, only_positions, global_rank, local_rank, world_size)
+    tuner = HyperparameterTuner(data_dir, checkpoint_dir, label_filename, device_num, only_positions, global_rank, local_rank, world_size, layerType)
     study = None
     
     if global_rank == 0:
