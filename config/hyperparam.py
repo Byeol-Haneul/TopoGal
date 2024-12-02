@@ -81,7 +81,7 @@ class HyperparameterTuner:
         learning_rate = trial.suggest_float('learning_rate', 1e-5, 1e-3, log=True)
         weight_decay = trial.suggest_float('weight_decay', 1e-5, 1e-3, log=True)
 
-        if self.layerType == "all":
+        if self.layerType == "All":
             layer_type = trial.suggest_categorical('layerType', ['TetraTNN', 'ClusterTNN', 'TNN', 'GNN'])
         else:
             layer_type = self.layerType

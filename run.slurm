@@ -35,6 +35,15 @@ MASTER_IP=$(hostname -I | awk '{print $1}')
 # Debug output to check the master address and node rank
 echo "Master address for debugging: $MASTER_ADDR, IP: $MASTER_IP"
 
+srun torchrun \
+  --nproc_per_node=4 \
+  --nnodes=6 \
+  --rdzv_id="tnn_${SLURM_JOB_ID}" \
+  --rdzv_backend=c10d \
+  --rdzv_endpoint="${MASTER_IP}:12348" \
+  tune.py --layerType ClusterTNN
+
+'''
 # Run the program on multiple nodes with torchrun for different layer types
 srun torchrun \
   --nproc_per_node=4 \
@@ -67,3 +76,12 @@ srun torchrun \
   --rdzv_backend=c10d \
   --rdzv_endpoint="${MASTER_IP}:12348" \
   tune.py --layerType TNN
+
+srun torchrun \
+  --nproc_per_node=4 \
+  --nnodes=6 \
+  --rdzv_id="tnn_${SLURM_JOB_ID}" \
+  --rdzv_backend=c10d \
+  --rdzv_endpoint="${MASTER_IP}:12348" \
+  tune.py --layerType All
+'''

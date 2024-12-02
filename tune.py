@@ -5,11 +5,15 @@ from config.machine import *
 
 def tune(layerType):
     data_dir_base = DATA_DIR
-    checkpoint_dir = RESULT_DIR + f"/extended_isolated_{TYPE}_{layerType}/"
-    label_filename = LABEL_FILENAME
+    if layerType == "All":
+        checkpoint_dir = RESULT_DIR + f"/integrated_{TYPE}/"
+        n_trials = 300
+    else:
+        checkpoint_dir = RESULT_DIR + f"/TESTESTETSETSET_isolated_{TYPE}_{layerType}/"
+        n_trials = 100
 
+    label_filename = LABEL_FILENAME
     device_num = "0,1,2,3"  # Not necessary
-    n_trials = 200
     only_positions = True
 
     run_optuna_study(data_dir_base, checkpoint_dir, label_filename, device_num, n_trials, only_positions, layerType=layerType)

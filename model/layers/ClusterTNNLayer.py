@@ -92,5 +92,5 @@ class ClusterTNNLayer(torch.nn.Module):
         x_0_level1 = self.aggr[0]([x_0_to_0, x_1_to_0])
         x_1_level1 = self.aggr[1]([x_0_to_1, x_1_to_1])
         x_3_level1 = self.aggr[2]([x_0_to_3, x_3_to_3])
-
+    
         return x_0_level1, x_1_level1, x_2, x_3_level1, x_4
