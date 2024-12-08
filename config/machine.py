@@ -1,5 +1,5 @@
 MACHINE = "RUSTY" #"HAPPINESS"
-TYPE = "BISPECTRUM"   #"CAMELS" #"BISPECTRUM", #"fR"
+TYPE = "CAMELS"       #"CAMELS" #"BISPECTRUM", #"fR"
 SUBGRID = "IllustrisTNG" #"IllustrisTNG", "SIMBA", SIMBA is only for testing robustness.
 
 if MACHINE == "HAPPINESS":
@@ -11,16 +11,21 @@ elif MACHINE=="RUSTY":
         BASE_DIR = "/mnt/home/jlee2/bispectrum/"
         DATA_DIR = "/mnt/home/jlee2/bispectrum/"
         RESULT_DIR = "/mnt/home/jlee2/bispectrum/results/"
+        LABEL_FILENAME = BASE_DIR + "sims/latin_hypercube_params.txt"
     elif TYPE == "CAMELS":
-        BASE_DIR = f"/mnt/home/jlee2/ceph/topology/{SUBGRID}/"
-        DATA_DIR = f"/mnt/home/jlee2/data_dir/{SUBGRID}/"
-        RESULT_DIR = f"/mnt/home/jlee2/results/{SUBGRID}/"
+        BASE_DIR = f"/mnt/home/jlee2/camels/{SUBGRID}/"
+        DATA_DIR = f"/mnt/home/jlee2/camels/{SUBGRID}/"
+        RESULT_DIR = f"/mnt/home/jlee2/camels/{SUBGRID}/results/{SUBGRID}/"
+        LABEL_FILENAME = BASE_DIR + f"CosmoAstroSeed_{SUBGRID}_L25n256_LH.txt"
+    elif TYPE == "fR":
+        BASE_DIR = "/mnt/home/jlee2/fR/"
+        DATA_DIR = "/mnt/home/jlee2/fR/"
+        RESULT_DIR = "/mnt/home/jlee2/fR/results/"
+        LABEL_FILENAME = BASE_DIR + "fR_labels.txt"
     else:
         raise Exception("Invalid Simulation Suite")
 else:
     raise Exception("Invalid Machine")
-
-LABEL_FILENAME = BASE_DIR + "new/latin_hypercube_params.txt" if TYPE == "BISPECTRUM" else BASE_DIR + f"CosmoAstroSeed_{SUBGRID}_L25n256_LH.txt"
 
 if TYPE == "BISPECTRUM":
     CATALOG_SIZE = 2000

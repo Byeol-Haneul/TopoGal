@@ -9,7 +9,7 @@ def tune(layerType):
         checkpoint_dir = RESULT_DIR + f"/integrated_{TYPE}/"
         n_trials = 300
     else:
-        checkpoint_dir = RESULT_DIR + f"/TESTESTETSETSET_isolated_{TYPE}_{layerType}/"
+        checkpoint_dir = RESULT_DIR + f"/isolated_{TYPE}_{layerType}/"
         n_trials = 100
 
     label_filename = LABEL_FILENAME

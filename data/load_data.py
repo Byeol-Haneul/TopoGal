@@ -20,12 +20,17 @@ def load_tensors(num_list, data_dir, label_filename, args, target_labels=None, f
     tensor_dict = {feature: [] for feature in feature_sets}
     tensor_dict['y'] = []
 
+    for target_label in target_labels:
+        if target_label not in list(PARAM_STATS.keys()):
+            raise Exception("Invalid Parameter, or Derived Parameter.")
+
     for num in tqdm(num_list):
-        if TYPE == "BISPECTRUM":
+        if TYPE == "BISPECTRUM" or TYPE == "fR":
             y = torch.Tensor(label_file.loc[num].to_numpy().astype(float))
         else:
-            y = torch.Tensor(label_file.loc[num].to_numpy()[1:-1].astype(float))
+            y = torch.Tensor(label_file.loc[num].to_numpy()[1:-1].astype(float)) # CAMELS start with LH_{num} so trim first col
 
+        # Now, y perfectly follows the defined PARAM_ORDER.
         if target_labels:
             indices = [PARAM_ORDER.index(label) for label in target_labels]
             y = y[indices]

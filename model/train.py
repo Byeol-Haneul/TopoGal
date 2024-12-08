@@ -50,12 +50,13 @@ def train(model, train_set, val_set, test_set, loss_fn, opt, scheduler, args, ch
     best_validation_loss = float('inf')
     best_checkpoint_path = os.path.join(os.path.dirname(checkpoint_path), "best_checkpoint.pth")
 
+    train_losses = []
+    val_losses = []
+
     # Load checkpoint if exists
     if os.path.isfile(checkpoint_path):
         model, opt, start_epoch, _ = load_checkpoint(model, opt, checkpoint_path, device)
 
-    train_losses = []
-    val_losses = []
     torch.cuda.empty_cache()
     for epoch_i in range(start_epoch, num_epochs + 1):
         epoch_loss = []
@@ -64,7 +65,6 @@ def train(model, train_set, val_set, test_set, loss_fn, opt, scheduler, args, ch
 
         shuffled_indices = np.arange(len(train_set))
         np.random.shuffle(shuffled_indices)
-
         for data_idx in range(len(shuffled_indices)):
             idx = shuffled_indices[data_idx]
             data = train_set[idx]

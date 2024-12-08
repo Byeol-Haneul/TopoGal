@@ -69,12 +69,12 @@ def fix_random_seed(seed):
 def implicit_likelihood_loss(output, target):
     num_params = len(target)
     y_out, err_out = output[:,:num_params], output[:,num_params:]
-    #loss_mse = torch.mean(torch.sum((y_out - target)**2., axis=1), axis=0)
-    #loss_ili = torch.mean(torch.sum(((y_out - target)**2. - err_out**2.)**2., axis=1), axis=0)
-    #loss = torch.log(loss_mse) + torch.log(loss_ili)
-    loss_mse = torch.mean(torch.sum(torch.abs(y_out - target), axis=1), axis=0)
-    loss_ili = torch.mean(torch.sum(torch.abs(torch.abs(y_out - target) - err_out), axis=1), axis=0)
-    loss = loss_mse * loss_ili
+    loss_mse = torch.mean(torch.sum((y_out - target)**2., axis=1), axis=0)
+    loss_ili = torch.mean(torch.sum(((y_out - target)**2. - err_out**2.)**2., axis=1), axis=0)
+    loss = torch.log(loss_mse) + torch.log(loss_ili)
+    #loss_mse = torch.mean(torch.sum(torch.abs(y_out - target), axis=1), axis=0)
+    #loss_ili = torch.mean(torch.sum(torch.abs(torch.abs(y_out - target) - err_out), axis=1), axis=0)
+    #loss = loss_mse * loss_ili
     return loss
 
 def load_and_prepare_data(num_list, args, global_rank, world_size):

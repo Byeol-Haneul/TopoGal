@@ -558,10 +558,8 @@ def main(array):
         print(f"[LOG] Process {rank}: Calculating Cross-Cell-Invariants", file=sys.stderr)
         invariants = cross_cell_invariants(num, nodes, edges, tetrahedra, clusters, hyperclusters, neighbors)
 
-
     comm.Barrier()
     MPI.Finalize()
-
 
 if __name__ == "__main__":
     num_array = list(range(CATALOG_SIZE))

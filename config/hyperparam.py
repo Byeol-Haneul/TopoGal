@@ -31,8 +31,13 @@ class HyperparameterTuner:
         self.base_args = self.create_base_args()
         self.dataset = None #self.load_data()
 
-
     def create_base_args(self):
+        if TYPE == "BISPECTRUM":
+            target_labels = ["Omega_m", "sigma_8"]
+        elif TYPE == "fR":
+            target_labels = ["Omega_M", "s_8(LCDM)", "m_nu", "f_R0"]
+        elif TYPE == "CAMELS":
+            target_labels = ["Omega0"]
         return Namespace(
             # Mode
             tuning=True,
@@ -44,7 +49,7 @@ class HyperparameterTuner:
             residual_flag=True,
 
             # Target Labels
-            target_labels=["Omega_m", "sigma_8"] if TYPE == "BISPECTRUM" else ["Omega0"],
+            target_labels=target_labels,
 
             # Directories
             checkpoint_dir=self.checkpoint_dir,
@@ -68,7 +73,7 @@ class HyperparameterTuner:
         self.gpu_setup()
         trial = optuna_integration.TorchDistributedTrial(single_trial)
 
-        if TYPE == "BISPECTRUM":
+        if TYPE == "BISPECTRUM" or TYPE == "fR":
             data_dir =  self.data_dir_base + trial.suggest_categorical('data_mode', ['tensors_3000', 'tensors_4000', 'tensors_5000'])
         else:
             data_dir = self.data_dir_base + trial.suggest_categorical('data_mode', ['tensors', 'tensors_sparse', 'tensors_dense'])
@@ -86,7 +91,7 @@ class HyperparameterTuner:
         else:
             layer_type = self.layerType
 
-        batch_size = trial.suggest_categorical('batch_size', [8, 16, 32])
+        batch_size = trial.suggest_categorical('batch_size', [1,2,4,8])
 
         drop_prob = trial.suggest_float('drop_prob', 0, 0.2, log=False)
         T_max = trial.suggest_int('T_max', 10, 100)

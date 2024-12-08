@@ -11,7 +11,19 @@ if TYPE == "BISPECTRUM":
         "sigma_8": {"min": 0.6, "max": 1.0}
     }
     PARAM_ORDER = ["Omega_m", "Omega_b", "h", "n_s", "sigma_8"]
-else:
+elif TYPE == "fR":
+    PARAM_STATS = {
+        "Omega_M": {"min": 0.1, "max": 0.5},
+        "Omega_b": {"min": 0.03, "max": 0.07},
+        "h": {"min": 0.5, "max": 0.9},
+        "n_s": {"min": 0.8, "max": 1.2},
+        "s_8(LCDM)": {"min": 0.6, "max": 1.0},
+        "m_nu": {"min": 0.01, "max": 1.0},
+        "f_R0": {"min": -3e-4, "max": 0}
+    }
+    PARM_ORDER = ["Omega_M", "Omega_b", "h", "ns", "s_8(LCDM)", "m_nu", "f_R0", "s8(MG)", "A_s"]
+    
+elif TYPE == "CAMELS":
     PARAM_STATS = {
         "Omega0": {"min": 0.1, "max": 0.5},
         "sigma8": {"min": 0.6, "max": 1.0},
@@ -20,8 +32,9 @@ else:
         "ASN2": {"min": 0.5, "max": 2.0},
         "AAGN2": {"min": 0.5, "max": 2.0}
     }
-
     PARAM_ORDER = ["Omega0", "sigma8", "ASN1", "AAGN1", "ASN2", "AAGN2"]
+else:
+    raise Exception("Invalid Simulation Suite")
 
 def normalize_params(y_list: list[torch.tensor], target_labels: list[str]) -> list[torch.tensor]:
     norm_y_list = []
@@ -37,16 +50,12 @@ def denormalize_params(norm_y: np.ndarray, target_labels: list[str]) -> np.ndarr
     num_params = len(target_labels)
     y = np.zeros((norm_y.shape[0], num_params * 2))
     
-    param_indices = {label: i for i, label in enumerate(PARAM_ORDER)}
-    
     for i, param in enumerate(target_labels):
         y[:, i] = norm_y[:, i] * (PARAM_STATS[param]["max"] - PARAM_STATS[param]["min"]) + PARAM_STATS[param]["min"]
     
-    if norm_y.shape[1] == num_params * 2:
+    if norm_y.shape[1] == num_params * 2: # for inferring first moments
         for i, param in enumerate(target_labels):
             y[:, i + num_params] = norm_y[:, i + num_params] * (PARAM_STATS[param]["max"] - PARAM_STATS[param]["min"])
-        
         return y
-    
     else:
         return y[:,:num_params]
