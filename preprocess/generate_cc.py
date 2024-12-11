@@ -20,9 +20,10 @@ from toponetx.readwrite.serialization import load_from_pickle
 from invariants import Invariants, cell_invariants_torch, cross_cell_invariants
 from neighbors import get_neighbors
 from config_preprocess import *
+from config.machine import *
 
 # ---- FEATURES ---- #
-# NODES:        4 (Mstar, Rstar, Metal, Vmax)
+# NODES:        4 (Mstar, Rstar, Metal, Vmax). Node Features are NOT USED in the study.
 # EDGES:        3 (distance, angle1, angle2)
 # TETRA:        5 (volume, 4 areas)
 # CLUSTERS:     7 (num_galaxies, e1, e2, e3, gyradius, angle1, angle2)
@@ -30,41 +31,51 @@ from config_preprocess import *
 # ------------------ #
 
 def load_catalog(directory, filename):
-    f = h5py.File(directory + filename, 'r')
-    pos   = f['/Subhalo/SubhaloPos'][:]/BOXSIZE
-    Mstar = f['/Subhalo/SubhaloMassType'][:,4] * MASS_UNIT
-    Rstar = f["Subhalo/SubhaloHalfmassRadType"][:,4]
-    Nstar = f['/Subhalo/SubhaloLenType'][:,4] 
-    Metal = f["Subhalo/SubhaloStarMetallicity"][:]
-    Vmax = f["Subhalo/SubhaloVmax"][:]
-    f.close()
+    '''
+    Modified from CosmoGraphNet
+    arXiv:2204.13713
+    https://github.com/PabloVD/CosmoGraphNet/
+    '''
+    if TYPE == "Quijote":
+        pos = np.loadtxt(directory + filename)/BOXSIZE
+    else:
+        f = h5py.File(directory + filename, 'r')
+        pos   = f['/Subhalo/SubhaloPos'][:]/BOXSIZE
+        Mstar = f['/Subhalo/SubhaloMassType'][:,4] * MASS_UNIT
+        Rstar = f["Subhalo/SubhaloHalfmassRadType"][:,4]
+        Nstar = f['/Subhalo/SubhaloLenType'][:,4] 
+        Metal = f["Subhalo/SubhaloStarMetallicity"][:]
+        Vmax = f["Subhalo/SubhaloVmax"][:]
+        f.close()
     
     # Some simulations are slightly outside the box, correct it
     pos[np.where(pos<0.0)]+=1.0
     pos[np.where(pos>1.0)]-=1.0
 
-    # Select only galaxies with more than Nstar_th star particles
-    indexes = np.where(Nstar>Nstar_th)[0]
-    #indexes = np.where(Mstar>MASS_CUT)[0]
-    pos     = pos[indexes]
-    Mstar   = Mstar[indexes]
-    Rstar   = Rstar[indexes]
-    Metal   = Metal[indexes]
-    Vmax    = Vmax[indexes]
+    if TYPE == "Quijote":
+        feat = np.zeros(pos.shape)
+    else:
+        indexes = np.where(Nstar>Nstar_th)[0]
+        #indexes = np.where(Mstar>MASS_CUT)[0]
+        pos     = pos[indexes]
+        Mstar   = Mstar[indexes]
+        Rstar   = Rstar[indexes]
+        Metal   = Metal[indexes]
+        Vmax    = Vmax[indexes]
 
-    #Normalization
-    Mstar = np.log10(1.+ Mstar)
-    Rstar = np.log10(1.+ Rstar)
-    Metal = np.log10(1.+ Metal)
-    Vmax  = np.log10(1.+ Vmax)
+        #Normalization
+        Mstar = np.log10(1.+ Mstar)
+        Rstar = np.log10(1.+ Rstar)
+        Metal = np.log10(1.+ Metal)
+        Vmax  = np.log10(1.+ Vmax)
 
-    feat = np.vstack((Mstar, Rstar, Metal, Vmax)).T
-    #feat = np.hstack((pos, feat))
+        feat = np.vstack((Mstar, Rstar, Metal, Vmax)).T
+
     return pos, feat
 
 class AbstractCells:
     def __init__(self, nodes, pos):
-        self.nodes = set(nodes)  # Changed from list to set for consistency
+        self.nodes = set(nodes)  
         self.node_position = self.get_corrected_pos(np.array([pos[node] for node in self.nodes]))
         self.centroid = self.calculate_centroid()
 
@@ -89,9 +100,9 @@ class AbstractCells:
             return np.mean(self.node_position, axis=0)
 
 
-class Node(AbstractCells):  # Inherit from AbstractCells
+class Node(AbstractCells):  
     def __init__(self, node, pos, feat):
-        super().__init__([node], pos)  # Use the superclass constructor
+        super().__init__([node], pos)  
         self.node = node 
         self.features = feat[node]
 
@@ -105,10 +116,10 @@ class Node(AbstractCells):  # Inherit from AbstractCells
         return self.node == other.node
 
 
-class Edge(AbstractCells):  # Inherit from AbstractCells
+class Edge(AbstractCells):  
     def __init__(self, nodes, pos=None):
-        super().__init__(nodes, pos)  # Use the superclass constructor
-        self.nodes = tuple(sorted(nodes))  # Ensure nodes are sorted
+        super().__init__(nodes, pos)  
+        self.nodes = tuple(sorted(nodes))  
         self.distance = None
         self.angles = [None, None]
         self.features = []
@@ -155,9 +166,9 @@ class Edge(AbstractCells):  # Inherit from AbstractCells
         return self.nodes == other.nodes
 
 
-class Tetrahedron(AbstractCells):  # Inherit from AbstractCells
+class Tetrahedron(AbstractCells):  
     def __init__(self, index, nodes, pos):
-        super().__init__(nodes, pos)  # Use the superclass constructor
+        super().__init__(nodes, pos)  
         self.index = index
         self.volume = None
         self.areas = None
@@ -168,9 +179,7 @@ class Tetrahedron(AbstractCells):  # Inherit from AbstractCells
         mat = np.zeros([4, 4])
         mat[:, :3] = self.node_position
         mat[:, 3] = 1.0
-        self.volume = np.abs(np.linalg.det(mat)) / 6
-        #self.volume_flag = self.volume < np.sqrt(2)/12 * ((r_link/3) ** 3)
-        self.volume = normalize(self.volume, "ISVOLUME")
+        self.volume = normalize(np.abs(np.linalg.det(mat)) / 6, "ISVOLUME")
 
     def add_features(self):
         self.calculate_volume()
@@ -195,14 +204,13 @@ class Tetrahedron(AbstractCells):  # Inherit from AbstractCells
         return f"Tetrahedron(index={self.index}, nodes={self.nodes}, features={self.features})"
 
 
-class Cluster(AbstractCells):  # Inherit from AbstractCells
+class Cluster(AbstractCells):  
     def __init__(self, label, tetrahedra, pos):
         self.label = label
         self.tetrahedra = tetrahedra
 
-        # Extract nodes and positions from tetrahedra
         nodes = self.get_nodes()
-        super().__init__(nodes, pos)  # Use the superclass constructor
+        super().__init__(nodes, pos)  
 
         self.eigenvalues = None
         self.gyradius = None
@@ -264,11 +272,11 @@ class Cluster(AbstractCells):  # Inherit from AbstractCells
         return f"Cluster(label={self.label}, features={self.features})"
 
 
-class Hypercluster(AbstractCells):  # Inherit from AbstractCells
+class Hypercluster(AbstractCells):  
     def __init__(self, cluster1, cluster2, dist, pos):
         # Combine nodes and positions from both clusters
         nodes = cluster1.nodes | cluster2.nodes
-        super().__init__(nodes, pos)  # Use the superclass constructor
+        super().__init__(nodes, pos)  
 
         self.cluster1 = cluster1
         self.cluster2 = cluster2
@@ -319,7 +327,6 @@ def get_tetrahedra(pos, feat):
     # Generate Delaunay triangulation
     tri = Delaunay(pos)
 
-    # Calculate volumes and store tetrahedra
     tetrahedra = []
     for i, simplex in enumerate(tri.simplices):
         tetra = Tetrahedron(i, simplex, pos)
@@ -338,7 +345,7 @@ def get_single_tetra_edges(pos, tetra):
     return edge_objects
 
 def get_all_tetra_edges(pos, tetrahedra):
-    tetra_edge_set = set() # important to make this as a set!!!
+    tetra_edge_set = set() 
     for tetra in tetrahedra:
         tetra_edge_set.update(get_single_tetra_edges(pos, tetra))
 
@@ -361,7 +368,11 @@ def get_kdtree_edges(pos, r_link=0.015):
     #return kdtree_edge_set
     return kdtree_edge_set
 
+
 def create_cc(in_dir, in_filename):    
+    ##########################
+    global NUMPOINTS, NUMEDGES, NUMTETRA
+    
     # Read in data
     pos, feat = load_catalog(in_dir, in_filename)
     pos[np.where(pos<0.0)]+=1.0
@@ -374,11 +385,14 @@ def create_cc(in_dir, in_filename):
 
     # 1. Get Tetrahedra
     tetrahedra = get_tetrahedra(pos, feat)
+    tetrahedra = sorted(tetrahedra, key=lambda tetra: tetra.volume)[:NUMTETRA]
     
     # 2. Get edges
-    tetra_edge_set = set() #get_all_tetra_edges(pos, tetrahedra)
+    tetra_edge_set = set()     #get_all_tetra_edges(pos, tetrahedra)
     kdtree_edge_set = get_kdtree_edges(pos, r_link)
-    edge_set = kdtree_edge_set | tetra_edge_set
+    edge_set = kdtree_edge_set #| tetra_edge_set
+    edges = list(edge_set)
+    edges = sorted(edges, key=lambda edge: edge.distance)[:NUMEDGES]
     
     # 3. Clustering on Tetrahedra
     clusters = clustering(tetrahedra, pos)
@@ -397,13 +411,11 @@ def create_cc(in_dir, in_filename):
         hypercluster_label = f"hyper_{cluster1_label}_{cluster2_label}"
         hypercluster = Hypercluster(cluster1, cluster2, dist, pos)
         hyperclusters[hypercluster_label] = hypercluster
-    
-    ##########################
-    global NUMPOINTS, NUMEDGES, NUMTETRA
 
-    NUMPOINTS = pos.shape[0] if NUMPOINTS == -1 else NUMPOINTS
-    NUMEDGES = len(edge_set) if NUMEDGES == -1 else NUMEDGES
-    NUMTETRA = len(tetrahedra) if NUMTETRA == -1 else NUMTETRA
+    
+    NUMPOINTS = pos.shape[0] if (NUMPOINTS == -1 or NUMPOINTS>pos.shape[0]) else NUMPOINTS
+    NUMEDGES = len(edge_set) if (NUMEDGES == -1 or NUMEDGES>len(edge_set)) else NUMEDGES
+    NUMTETRA = len(tetrahedra) if (NUMTETRA == -1 or NUMTETRA>len(tetrahedra)) else NUMTETRA
     
     # 5. Generate Combinatorial Complex
     print(f"""[LOG] We will select {NUMEDGES} edges and {NUMTETRA} tetra""", file=sys.stderr)
@@ -418,21 +430,16 @@ def create_cc(in_dir, in_filename):
     node_data = {node.node: node.features for node in nodes}
 
     ## 5-2 ADD EDGES ##
-    edges = list(edge_set)
-    edges = sorted(edges, key=lambda edge: edge.distance)[:NUMEDGES]
-
     for edge in edges:
         cc.add_cell(edge.nodes, rank=1)
     
     edge_data = {edge.nodes: edge.features for edge in edges}
 
     ## 5-3 ADD TETRA ##
-    tetrahedra = sorted(tetrahedra, key=lambda tetra: tetra.volume)[:NUMTETRA]
-
     for tetra in tetrahedra:
         cc.add_cell(list(tetra.nodes), rank=2)
 
-    tetra_data = {tuple(tetra.nodes): tetra.features for tetra in tetrahedra}  # Using volume as data
+    tetra_data = {tuple(tetra.nodes): tetra.features for tetra in tetrahedra} 
 
     ## 5-4 ADD Clusters ##
     for cluster in clusters.values():
@@ -453,7 +460,7 @@ def create_cc(in_dir, in_filename):
     cc.set_cell_attributes(tetra_data, name="tetra_feat")
     cc.set_cell_attributes(cluster_data, name="cluster_feat")
     cc.set_cell_attributes(hypercluster_data, name="hypercluster_feat")
-    return cc, nodes, edges, tetrahedra, clusters, hyperclusters #cc, edges, clusters, tetra_edge_set, kdtree_edge_set, tetra_data, mst, feat, pos, hyperclusters
+    return cc, nodes, edges, tetrahedra, clusters, Hyperclusters
 
 def remove_subset_clusters(clusters):
     to_remove = set()
@@ -514,12 +521,10 @@ def main(array):
     rank = comm.Get_rank()
     size = comm.Get_size()
 
-    # Array to be processed
     total_elements = len(array)
     jobs_per_process = total_elements // size
     extra_jobs = total_elements % size
 
-    # Calculate start and end indices for this process
     if rank < extra_jobs:
         start_idx = rank * (jobs_per_process + 1)
         end_idx = start_idx + jobs_per_process + 1
@@ -527,12 +532,15 @@ def main(array):
         start_idx = rank * jobs_per_process + extra_jobs
         end_idx = start_idx + jobs_per_process
 
-    # Slice the array for this process
     slice_array = array[start_idx:end_idx]
     
     for num in slice_array:
-        in_filename = f"data_{num}.hdf5"
-        out_filename = f"data_{num}.pickle"
+        if TYPE == "Quijote":
+            in_filename = f"catalog_{num}.txt"
+            out_filename = f"data_{num}.pickle"
+        else:
+            in_filename = f"data_{num}.hdf5"
+            out_filename = f"data_{num}.pickle"
 
         cc, nodes, edges, tetrahedra, clusters, hyperclusters = create_cc(in_dir, in_filename)
 
@@ -545,12 +553,10 @@ def main(array):
         print(f"[LOG] Process {rank}: Calculating Cross-Cell-Invariants", file=sys.stderr)
         invariants = cross_cell_invariants(num, nodes, edges, tetrahedra, clusters, hyperclusters, neighbors)
 
-
     comm.Barrier()
     MPI.Finalize()
 
-
 if __name__ == "__main__":
-    num_array = list(range(1000))
+    num_array = list(range(CATALOG_SIZE))
     main(num_array)
 

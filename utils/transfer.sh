@@ -1,14 +1,13 @@
 #!/bin/bash
-
-
-# FOR TRANSFERRING FILES                    #
-# NOTE: WE ARE ONLY USING z=0 (snapshot 90) #
-
+'''
+FOR TRANSFERRING FILES                    
+NOTE: WE ARE ONLY USING z=0 (snapshot 90) 
+'''
 source_ep="SOURCE ENDPOINT"
 dest_ep="DESTINATION ENDPOINT"
 
 source_dir="/FOF_Subfind/IllustrisTNG/LH/"
-dest_dir="/data2/jylee/topology/IllustrisTNG"
+dest_dir=""
 
 rm bf.txt
 touch bf.txt

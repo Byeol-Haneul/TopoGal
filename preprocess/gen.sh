@@ -15,7 +15,6 @@ module add /appl/modulefiles/intel_compiler_2019
 module add /appl/modulefiles/mpich-3.3.1-intel-ucx 
 
 export PATH=$PATH
-#export PATH=/home/jylee/local/bin:/usr/local/pbs/sbin:/usr/local/pbs/bin:/usr/local/pbs/bin:/usr/local/pbs/sbin:/usr/lib64/qt-3.3/bin:/usr/local/bin:/usr/bin:/usr/local/sbin:/usr/sbin:/home/jylee/.local/bin:/home/jylee/bin
 
 echo
 echo The following nodes will be used to run this program:

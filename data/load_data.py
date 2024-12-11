@@ -1,60 +1,54 @@
 import os
 import torch
+import torch.distributed as dist
 import pandas as pd
 from sklearn.model_selection import train_test_split
 from tqdm import tqdm
 from config.param_config import PARAM_STATS, PARAM_ORDER
+from torch_sparse import SparseTensor
+from config.machine import *
 
-
-def normalize(tensor):
-    return tensor
-    '''
-    if tensor.is_sparse:
-        tensor = tensor.coalesce()
-        values = tensor.values()
-        max_val = values.max()
-        normalized_values = values / max_val
-
-        return torch.sparse_coo_tensor(
-            tensor.indices(),
-            normalized_values,
-            tensor.size()
-        )
-    else:
-        max_val = tensor.max()
-        return tensor / max_val
-    return tensor
-    '''
-    
+def sparsify(tensor):
+    if tensor.layout == torch.sparse_coo:
+        tensor = SparseTensor.from_torch_sparse_coo_tensor(tensor)
+    return tensor    
 
 def load_tensors(num_list, data_dir, label_filename, args, target_labels=None, feature_sets=None):
-    label_file = pd.read_csv(label_filename, sep='\s+')
-
-    # Initialize the output dictionary
+    label_file = pd.read_csv(label_filename, sep='\s+', header=0)
+    
     tensor_dict = {feature: [] for feature in feature_sets}
     tensor_dict['y'] = []
 
-    for num in tqdm(num_list):
-        y = torch.Tensor(label_file.loc[num].to_numpy()[1:-1].astype(float))
+    for target_label in target_labels:
+        if target_label not in list(PARAM_STATS.keys()):
+            raise Exception("Invalid Parameter, or Derived Parameter.")
 
+    for num in tqdm(num_list):
+        if TYPE == "Quijote":
+            y = torch.Tensor(label_file.loc[num].to_numpy().astype(float))
+        else:
+            # CAMELS start with LH_{num} so trim first col
+            y = torch.Tensor(label_file.loc[num].to_numpy()[1:-1].astype(float)) 
+
+        # Now, y perfectly follows the defined PARAM_ORDER.
         if target_labels:
             indices = [PARAM_ORDER.index(label) for label in target_labels]
             y = y[indices]
 
         tensor_dict['y'].append(y)
 
-        # Load and normalize feature tensors dynamically
         for feature in feature_sets:
             if feature == 'global_feature':
                 continue
 
-            tensor = normalize(torch.load(os.path.join(data_dir, f"{feature}_{num}.pt")))
+            tensor = torch.load(os.path.join(data_dir, f"{feature}_{num}.pt"))
             
             if feature[0] == 'x':
                 feature_index = int(feature.split('_')[-1])
                 tensor = tensor[:, :args.in_channels[feature_index]]  # Slice based on in_channels
 
-                if args.only_positions and feature_index == 0: #If we only use positions, x_0 will be filled with random vals
+                #If we only use positions, x_0 will be filled with random vals from uniform distribution
+                if args.only_positions and feature_index == 0: 
                     tensor = torch.rand_like(tensor)
 
             tensor_dict[feature].append(tensor)
