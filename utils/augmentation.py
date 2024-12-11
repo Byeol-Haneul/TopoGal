@@ -1,13 +1,10 @@
 import torch
 from torch_sparse import SparseTensor
 
-
 def sparsify(tensor):
     if tensor.layout == torch.sparse_coo:
         tensor = SparseTensor.from_torch_sparse_coo_tensor(tensor)
     return tensor    
-
-### CURRENTLY VERY SLOW ###
 
 def generate_mask(sparse_tensor, drop_prob=0.1):
     """
@@ -43,7 +40,6 @@ def augment_data(data, drop_prob=0.1, cci_mode='euclidean'):
     Returns:
     - A new dictionary with augmented neighborhood and cci matrices.
     """
-
     neighborhood_keys = [f'n{i}_to_{j}' for i in range(5) for j in range(i, 5)]
 
     if cci_mode != 'None':

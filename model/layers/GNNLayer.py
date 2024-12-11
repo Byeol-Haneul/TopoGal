@@ -3,7 +3,6 @@ import torch.nn.functional as F
 from torch.nn.parameter import Parameter
 from .BaseLayer import sparse_row_norm, HBNS, HBS
 from model.aggregators import *
-import time 
 
 class GNNLayer(torch.nn.Module):
     def __init__(
@@ -68,4 +67,5 @@ class GNNLayer(torch.nn.Module):
         
         x_0_level1 = self.aggr[0]([x_0_to_0, x_1_to_0])
         x_1_level1 = self.aggr[1]([x_1_to_1, x_0_to_1])
+        
         return x_0_level1, x_1_level1, x_2, x_3, x_4

@@ -1,3 +1,9 @@
+'''
+Note:
+This is a hand-tunable hyperparameter configuration file for testing with a single run, without Optuna. 
+Once using Optuna via ~/tune.py, the hyperparameters will be sampled from config/hyperparam.py
+'''
+
 import torch
 from argparse import Namespace
 from config.machine import *
@@ -20,7 +26,7 @@ args = Namespace(
     residual_flag=True,
     
     # Target Labels
-    target_labels=["Omega_m", "Omega_b", "h", "n_s", "sigma_8"] if TYPE == "BISPECTRUM" else ["Omega0"],
+    target_labels=["Omega_m", "sigma_8"] if TYPE == "Quijote" else ["Omega0"],
     
     # Training Hyperparameters
     num_epochs=3000,

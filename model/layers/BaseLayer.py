@@ -1,5 +1,3 @@
-"""Higher-Order Attentional NN Layer for Mesh Classification."""
-
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -7,7 +5,28 @@ from torch.nn.parameter import Parameter
 from model.aggregators import *
 from torch_sparse.tensor import SparseTensor
 from torch_sparse.matmul import *
-import sys
+
+'''    
+Notes
+-----
+- We modify the Higher-order Attention Network (HOAN) from [H23]. 
+- Attention mechanisms are removed, and intra-neighborhood aggregation methods are added.
+- Cell-Cell E(3)-Invariants (CCI) are added for use.
+- This module serve as a base layer for all the TNN layers.
+
+References
+----------
+.. [H23] Hajij, Zamzmi, Papamarkou, Miolane, Guzmán-Sáenz, Ramamurthy, Birdal, Dey,
+    Mukherjee, Samaga, Livesay, Walters, Rosen, Schaub. Topological Deep Learning: Going Beyond Graph Data.
+    (2023) https://arxiv.org/abs/2206.00606.
+
+.. [PSHM23] Papillon, Sanborn, Hajij, Miolane.
+    Architectures of Topological Deep Learning: A Survey on Topological Neural Networks.
+    (2023) https://arxiv.org/abs/2304.10031.
+
+.. [TopoModelX] https://github.com/pyt-team/TopoModelX/blob/main/topomodelx/nn/combinatorial/
+
+'''
 
 def sparse_hadamard(A, B):
     return A*B
@@ -62,7 +81,6 @@ class HBNS(torch.nn.Module):
         self.layer_norm_target = nn.LayerNorm(target_out_channels)
 
     def get_device(self) -> torch.device:
-        """Get device on which the layer's learnable parameters are stored."""
         return self.w_s.device
 
     def reset_parameters(self, gain=1.414) -> None:
@@ -139,7 +157,6 @@ class HBS(torch.nn.Module):
 
 
     def get_device(self) -> torch.device:
-        """Get device on which the layer's learnable parameters are stored."""
         return self.weight[0].device
 
     def reset_parameters(self, gain: float = 1.414) -> None:

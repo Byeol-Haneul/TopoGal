@@ -1,36 +1,34 @@
-MACHINE = "RUSTY" #"HAPPINESS"
-TYPE = "CAMELS"       #"CAMELS" #"BISPECTRUM", #"fR"
-SUBGRID = "IllustrisTNG" #"IllustrisTNG", "SIMBA", SIMBA is only for testing robustness.
+# Configuration settings:
+# - MACHINE: Specifies the computational environment. Options: "RUSTY", "HAPPINESS".
+# - TYPE: Defines the type of simulation dataset.     Options: "Quijote", "CAMELS".
+# - SUBGRID: Allows extensibility for different subgrid models in the future. Current option: "IllustrisTNG".
+
+MACHINE = "RUSTY"
+TYPE    = "CAMELS"
+SUBGRID = "IllustrisTNG"
 
 if MACHINE == "HAPPINESS":
-    BASE_DIR = "/data2/jylee/topology/"
-    DATA_DIR = BASE_DIR + "/IllustrisTNG/combinatorial/"
+    BASE_DIR   = "/data2/jylee/topology/"
+    DATA_DIR   = BASE_DIR + "/IllustrisTNG/combinatorial/"
     RESULT_DIR = BASE_DIR + "/IllustrisTNG/combinatorial/results/"
+    
 elif MACHINE=="RUSTY":
-    if TYPE == "BISPECTRUM":
-        BASE_DIR = "/mnt/home/jlee2/bispectrum/"
-        DATA_DIR = "/mnt/home/jlee2/bispectrum/"
-        RESULT_DIR = "/mnt/home/jlee2/bispectrum/results/"
+    if TYPE == "Quijote":
+        BASE_DIR       = "/mnt/home/jlee2/quijote/"
+        DATA_DIR       = "/mnt/home/jlee2/quijote/"
+        RESULT_DIR     = "/mnt/home/jlee2/quijote/results/"
         LABEL_FILENAME = BASE_DIR + "sims/latin_hypercube_params.txt"
     elif TYPE == "CAMELS":
-        BASE_DIR = f"/mnt/home/jlee2/camels/{SUBGRID}/"
-        DATA_DIR = f"/mnt/home/jlee2/camels/{SUBGRID}/"
-        RESULT_DIR = f"/mnt/home/jlee2/camels/{SUBGRID}/results/{SUBGRID}/"
+        BASE_DIR       = f"/mnt/home/jlee2/camels/{SUBGRID}/"
+        DATA_DIR       = f"/mnt/home/jlee2/camels/{SUBGRID}/"
+        RESULT_DIR     = f"/mnt/home/jlee2/camels/{SUBGRID}/results/{SUBGRID}/"
         LABEL_FILENAME = BASE_DIR + f"CosmoAstroSeed_{SUBGRID}_L25n256_LH.txt"
-    elif TYPE == "fR":
-        BASE_DIR = "/mnt/home/jlee2/fR/"
-        DATA_DIR = "/mnt/home/jlee2/fR/"
-        RESULT_DIR = "/mnt/home/jlee2/fR/results/"
-        LABEL_FILENAME = BASE_DIR + "fR_labels.txt"
     else:
         raise Exception("Invalid Simulation Suite")
 else:
     raise Exception("Invalid Machine")
 
-if TYPE == "BISPECTRUM":
-    CATALOG_SIZE = 2000
-else:
-    if SUBGRID == "IllustrisTNG": 
-        CATALOG_SIZE = 1000
-    else:
-        CATALOG_SIZE = 100
+if TYPE == "Quijote":
+    CATALOG_SIZE = 2000 
+elif SUBGRID == "IllustrisTNG": 
+    CATALOG_SIZE = 1000

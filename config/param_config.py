@@ -2,7 +2,7 @@ import numpy as np
 import torch
 from config.machine import BASE_DIR, TYPE
 
-if TYPE == "BISPECTRUM":
+if TYPE == "Quijote":
     PARAM_STATS = {
         "Omega_m": {"min": 0.1, "max": 0.5},
         "Omega_b": {"min": 0.03, "max": 0.07},
@@ -11,18 +11,6 @@ if TYPE == "BISPECTRUM":
         "sigma_8": {"min": 0.6, "max": 1.0}
     }
     PARAM_ORDER = ["Omega_m", "Omega_b", "h", "n_s", "sigma_8"]
-elif TYPE == "fR":
-    PARAM_STATS = {
-        "Omega_M": {"min": 0.1, "max": 0.5},
-        "Omega_b": {"min": 0.03, "max": 0.07},
-        "h": {"min": 0.5, "max": 0.9},
-        "n_s": {"min": 0.8, "max": 1.2},
-        "s_8(LCDM)": {"min": 0.6, "max": 1.0},
-        "m_nu": {"min": 0.01, "max": 1.0},
-        "f_R0": {"min": -3e-4, "max": 0}
-    }
-    PARM_ORDER = ["Omega_M", "Omega_b", "h", "ns", "s_8(LCDM)", "m_nu", "f_R0", "s8(MG)", "A_s"]
-    
 elif TYPE == "CAMELS":
     PARAM_STATS = {
         "Omega0": {"min": 0.1, "max": 0.5},
@@ -53,7 +41,7 @@ def denormalize_params(norm_y: np.ndarray, target_labels: list[str]) -> np.ndarr
     for i, param in enumerate(target_labels):
         y[:, i] = norm_y[:, i] * (PARAM_STATS[param]["max"] - PARAM_STATS[param]["min"]) + PARAM_STATS[param]["min"]
     
-    if norm_y.shape[1] == num_params * 2: # for inferring first moments
+    if norm_y.shape[1] == num_params * 2: # for inferring first moments (std)
         for i, param in enumerate(target_labels):
             y[:, i + num_params] = norm_y[:, i + num_params] * (PARAM_STATS[param]["max"] - PARAM_STATS[param]["min"])
         return y

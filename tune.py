@@ -12,11 +12,10 @@ def tune(layerType):
         checkpoint_dir = RESULT_DIR + f"/isolated_{TYPE}_{layerType}/"
         n_trials = 100
 
-    label_filename = LABEL_FILENAME
-    device_num = "0,1,2,3"  # Not necessary
     only_positions = True
+    device_num = "0,1,2,3"  # Not necessary
 
-    run_optuna_study(data_dir_base, checkpoint_dir, label_filename, device_num, n_trials, only_positions, layerType=layerType)
+    run_optuna_study(data_dir_base, checkpoint_dir, LABEL_FILENAME, device_num, n_trials, only_positions, layerType=layerType)
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Hyperparameter tuning script with architecture selection.")

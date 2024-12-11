@@ -121,7 +121,6 @@ class TNNLayer(torch.nn.Module):
         cci_3_to_4,
     ):
 
-        # Computing messages from Higher Order Attention Blocks Level 1        
         x_0_to_0 = self.hbs_0_level1(x_0, adjacency_0, cci_0_to_0)
         x_1_to_1 = self.hbs_1_level1(x_1, adjacency_1, cci_1_to_1)
         x_2_to_2 = self.hbs_2_level1(x_2, adjacency_2, cci_2_to_2)

@@ -29,15 +29,14 @@ class HyperparameterTuner:
 
         # Create a fixed base args for loading data
         self.base_args = self.create_base_args()
-        self.dataset = None #self.load_data()
+        self.dataset   = None 
 
     def create_base_args(self):
-        if TYPE == "BISPECTRUM":
+        if TYPE == "Quijote":
             target_labels = ["Omega_m", "sigma_8"]
-        elif TYPE == "fR":
-            target_labels = ["Omega_M", "s_8(LCDM)", "m_nu", "f_R0"]
         elif TYPE == "CAMELS":
             target_labels = ["Omega0"]
+
         return Namespace(
             # Mode
             tuning=True,
@@ -73,16 +72,14 @@ class HyperparameterTuner:
         self.gpu_setup()
         trial = optuna_integration.TorchDistributedTrial(single_trial)
 
-        if TYPE == "BISPECTRUM" or TYPE == "fR":
+        if TYPE == "Quijote":
             data_dir =  self.data_dir_base + trial.suggest_categorical('data_mode', ['tensors_3000', 'tensors_4000', 'tensors_5000'])
-        else:
+        elif TYPE == "CAMELS":
             data_dir = self.data_dir_base + trial.suggest_categorical('data_mode', ['tensors', 'tensors_sparse', 'tensors_dense'])
 
         hidden_dim = trial.suggest_categorical('hidden_dim', [32, 64, 128, 256])
         num_layers = trial.suggest_int('num_layers', 1, 6)
-
         cci_mode = trial.suggest_categorical('cci_mode', ['euclidean', 'hausdorff'])
-
         learning_rate = trial.suggest_float('learning_rate', 1e-5, 1e-3, log=True)
         weight_decay = trial.suggest_float('weight_decay', 1e-5, 1e-3, log=True)
 
@@ -92,7 +89,6 @@ class HyperparameterTuner:
             layer_type = self.layerType
 
         batch_size = trial.suggest_categorical('batch_size', [1,2,4,8])
-
         drop_prob = trial.suggest_float('drop_prob', 0, 0.2, log=False)
         T_max = trial.suggest_int('T_max', 10, 100)
         update_func = trial.suggest_categorical('update_func', ['tanh', 'relu'])
@@ -100,7 +96,6 @@ class HyperparameterTuner:
 
         trial_checkpoint_dir = os.path.join(self.checkpoint_dir, f'trial_{trial.number}')
         os.makedirs(trial_checkpoint_dir, exist_ok=True)
-
 
         # Create args with the broadcasted hyperparameters
         self.args = self.create_args(data_dir, trial_checkpoint_dir, 
@@ -166,7 +161,6 @@ class HyperparameterTuner:
         print(f"[GPU SETUP] Process {self.local_rank} set up on device {self.base_args.device}", file = sys.stderr)
 
 def run_heartbeat(interval):
-    """Heartbeat function to indicate the script is still running."""
     while True:
         print(f"Heartbeat: System running at {time.strftime('%Y-%m-%d %H:%M:%S')}")
         time.sleep(interval)
@@ -181,17 +175,14 @@ def run_optuna_study(data_dir, checkpoint_dir, label_filename, device_num, n_tri
     study = None
     
     if global_rank == 0:
-        # Start the heartbeat thread
         heartbeat_thread = threading.Thread(target=run_heartbeat, args=(heartbeat_interval,))
         heartbeat_thread.daemon = True
         heartbeat_thread.start()
 
-        # Create directory to save the best results
         timestamp = time.strftime("%Y%m%d_%H%M%S")
         result_dir = os.path.join(checkpoint_dir, f"optuna_results_{timestamp}")
         os.makedirs(result_dir, exist_ok=True)
 
-        # Set up the database URL (for SQLite)
         db_url = f'sqlite:///{os.path.join(checkpoint_dir, "optuna_study.db")}'
 
         sampler = optuna.samplers.TPESampler(seed=tuner.base_args.random_seed)
@@ -204,17 +195,14 @@ def run_optuna_study(data_dir, checkpoint_dir, label_filename, device_num, n_tri
     if global_rank == 0:
         assert study is not None
 
-        # Save the best hyperparameters
         best_params_path = os.path.join(result_dir, 'best_params.json')
         with open(best_params_path, 'w') as f:
             json.dump(study.best_params, f, indent=4)
 
-        # Save the study results (all trials) to CSV
         trials_df = study.trials_dataframe()
         trials_csv_path = os.path.join(result_dir, 'trials.csv')
         trials_df.to_csv(trials_csv_path, index=False)
 
-        # Plot and save visualizations
         optuna.visualization.matplotlib.plot_optimization_history(study).figure.savefig(os.path.join(result_dir, 'optimization_history.png'))
         optuna.visualization.matplotlib.plot_param_importances(study).figure.savefig(os.path.join(result_dir, 'param_importances.png'))
         optuna.visualization.matplotlib.plot_parallel_coordinate(study).figure.savefig(os.path.join(result_dir, 'parallel_coordinate.png'))

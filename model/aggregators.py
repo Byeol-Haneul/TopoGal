@@ -1,11 +1,16 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-
-import sys
 from typing import Literal
 from torch_sparse.matmul import *
 
+'''
+Notes:
+- PNAAggregator: Intra-neighborhood Aggregation 
+- RankAggregator: Inter-neighborhood Aggregation
+
+We use a subset of aggregators proposed from Corso, Gabriele, et al. 2020.
+'''
 class PNAAggregator(nn.Module):
     def __init__(self, in_channels, out_channels, aggr_func='sum', scalers=['identity'], update_func=F.relu):
         super(PNAAggregator, self).__init__()
@@ -86,14 +91,12 @@ class RankAggregator(nn.Module):
 
     def forward(self, node_features_list):
         aggregated_features = []
-        self.num_features = node_features_list[0].size(1)  # Dimension D of features
+        self.num_features = node_features_list[0].size(1)  
 
-        # Apply each aggregation method
         for agg in self.aggr_func:
             agg_features = self.aggregate(node_features_list, agg)
             aggregated_features.append(agg_features)
 
-        # Concatenate all the aggregated features
         output = torch.cat(aggregated_features, dim=-1)
 
         if len(self.aggr_func) > 1:

@@ -29,17 +29,17 @@ class Network(nn.Module):
         else:
             num_ranks_pooling = 1
         
-        # Global feature size
-        global_feature_size = 4     # x_0.shape[0], x_1.shape[0], x_2.shape[0], x_3.shape[0]
+        # Global feature size: x_0.shape[0], x_1.shape[0], x_2.shape[0], x_3.shape[0]
+        global_feature_size = 4 
 
-        # FCL
+        # Fully-Connected Layers
         self.fc1 = nn.Linear(penultimate_layer * num_ranks_pooling * num_aggregators + global_feature_size, 512)           
         self.fc2 = nn.Linear(512, 128)
         self.fc3 = nn.Linear(128, 64)
         self.fc4 = nn.Linear(64, final_output_layer)
 
     def forward(self, batch) -> torch.Tensor:
-        # features
+        # Features
         x_0 = batch['x_0']
         x_1 = batch['x_1']
         x_2 = batch['x_2']
@@ -69,7 +69,7 @@ class Network(nn.Module):
         values = [batch[key] if self.cci_mode != 'None' else None for key in keys]
         cci0_to_0, cci0_to_1, cci0_to_2, cci0_to_3, cci0_to_4, cci1_to_1, cci1_to_2, cci1_to_3, cci1_to_4, cci2_to_2, cci2_to_3, cci2_to_4, cci3_to_3, cci3_to_4, cci4_to_4 = values
 
-        # global feature
+        # Global Feature
         global_feature = batch['global_feature']
        
         # Forward pass through the base model
@@ -91,7 +91,7 @@ class Network(nn.Module):
 
         def global_aggregations(x):
             variance = torch.var(x, dim=0, unbiased=False)
-            variance = torch.where(variance == 0, torch.tensor(1e-6, device=x.device), variance)            
+            variance = torch.where(variance == 0, torch.tensor(1e-6, device=x.device), variance) # For numerical stability. See             
             x_std = torch.sqrt(variance).unsqueeze(0)
             x_avg = torch.mean(x, dim=0, keepdim=True)
             x_max, _ = torch.max(x, dim=0, keepdim=True)
@@ -99,24 +99,18 @@ class Network(nn.Module):
             x = torch.cat((x_avg, x_std, x_max, x_min), dim=1)
             return x
         
-        # Apply global aggregations to each feature set
         x_0 = global_aggregations(x_0)
         x_1 = global_aggregations(x_1)
         x_2 = global_aggregations(x_2)
         x_3 = global_aggregations(x_3)
         x_4 = global_aggregations(x_4)
        
-        # Concatenate features from different inputs along with global features
-        if self.layerType == "Hier":
-            x = torch.cat((x_3, global_feature), dim=1)
-        elif self.layerType == "Test":
-            x = torch.cat((x_0, x_3, global_feature), dim=1)
-        elif self.layerType == "Master" or self.layerType == "TNN":
-            x = torch.cat((x_0, x_1, x_2, x_3, x_4, global_feature), dim=1)
-        elif self.layerType == "GNN" or self.layerType == "TetraTNN":
+        if self.layerType == "GNN" or self.layerType == "TetraTNN":
             x = torch.cat((x_0, global_feature), dim=1)
-        elif self.layerType == "Normal" or self.layerType == "ClusterTNN":
+        elif self.layerType == "ClusterTNN":
             x = torch.cat((x_3, global_feature), dim=1)
+        elif self.layerType == "TNN":
+            x = torch.cat((x_0, x_1, x_2, x_3, x_4, global_feature), dim=1)
 
         x = self.fc1(x)
         x = self.activation(x)
@@ -141,7 +135,6 @@ class CustomHMC(torch.nn.Module):
         residual_flag: bool = True
     ) -> None:
         def check_channels_consistency():
-            """Check that the number of input, intermediate, and output channels is consistent."""
             assert len(channels_per_layer) > 0
             for i in range(len(channels_per_layer) - 1):
                 assert channels_per_layer[i][1][0] == channels_per_layer[i + 1][0][0]
@@ -152,22 +145,15 @@ class CustomHMC(torch.nn.Module):
 
         super().__init__()
         check_channels_consistency()
-        if layerType == "Normal":
-            self.base_layer = AugmentedHMCLayer
-        elif layerType == "TNN":
-            self.base_layer = TNNLayer
+
+        if layerType == "GNN":
+            self.base_layer = GNNLayer
         elif layerType == "TetraTNN":
             self.base_layer = TetraTNNLayer
         elif layerType == "ClusterTNN":
             self.base_layer = ClusterTNNLayer
-        elif layerType == "Hier":
-            self.base_layer = HierLayer
-        elif layerType == "GNN":
-            self.base_layer = GNNLayer
-        elif layerType == "Master":
-            self.base_layer = MasterLayer
-        elif layerType == "Test":
-            self.base_layer = TestLayer
+        elif layerType == "TNN":
+            self.base_layer = TNNLayer
         else:
             raise Exception("Invalid Model Type. Current Available Options are [Hier, Normal]")
 
