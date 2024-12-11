@@ -8,14 +8,14 @@ args = Namespace(
     
     # Directories
     data_dir=DATA_DIR+"/tensors/",
-    checkpoint_dir=RESULT_DIR+"/test_multinode_normal/",
+    checkpoint_dir=RESULT_DIR+"/test/",
     label_filename=LABEL_FILENAME,
     
     # Model Architecture
     in_channels=[1, 3, 5, 7, 3],
     hidden_dim=64,
     num_layers=3,
-    layerType="Normal",
+    layerType="TNN",
     attention_flag=False,
     residual_flag=True,
     
@@ -38,7 +38,7 @@ args = Namespace(
     # Dataset Split and Random Seed
     val_size=0.1,
     test_size=0.1,
-    random_seed=42424,
+    random_seed=1234,
     
     # Features & Neighborhood Functions
     cci_mode="euclidean",

@@ -89,7 +89,6 @@ class Network(nn.Module):
             cci3_to_4
         )
 
-
         def global_aggregations(x):
             variance = torch.var(x, dim=0, unbiased=False)
             variance = torch.where(variance == 0, torch.tensor(1e-6, device=x.device), variance)            
