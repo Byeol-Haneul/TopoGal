@@ -50,14 +50,19 @@ args = Namespace(
     cci_mode="euclidean",
     
     feature_sets=[
-        'x_0', 'x_1', 'x_2', 'x_3', 'x_4',
-        f'cci_mode_{cci_mode}_0_to_0', f'cci_mode_{cci_mode}_1_to_1', f'cci_mode_{cci_mode}_2_to_2',
-        f'cci_mode_{cci_mode}_3_to_3', f'cci_mode_{cci_mode}_4_to_4',
-        f'cci_mode_{cci_mode}_0_to_1', f'cci_mode_{cci_mode}_0_to_2', f'cci_mode_{cci_mode}_0_to_3',
-        f'cci_mode_{cci_mode}_0_to_4', f'cci_mode_{cci_mode}_1_to_2',
-        f'cci_mode_{cci_mode}_1_to_3', f'cci_mode_{cci_mode}_1_to_4',
-        f'cci_mode_{cci_mode}_2_to_3', f'cci_mode_{cci_mode}_2_to_4',
-        f'cci_mode_{cci_mode}_3_to_4',
-        'global_feature'
-    ],
+    'x_0', 'x_1', 'x_2', 'x_3', 'x_4',
+    'n0_to_0', 'n1_to_1', 'n2_to_2', 'n3_to_3', 'n4_to_4',
+    'n0_to_1', 'n0_to_2', 'n0_to_3', 'n0_to_4',
+    'n1_to_2', 'n1_to_3', 'n1_to_4',
+    'n2_to_3', 'n2_to_4',
+    'n3_to_4',
+    'global_feature'
+    ]
 )
+
+
+if args.cci_mode != 'None':
+    cci_list = [f'{args.cci_mode}_{i}_to_{j}' 
+                for i in range(5) 
+                for j in range(i, 5)]
+    args.feature_sets.extend(cci_list)

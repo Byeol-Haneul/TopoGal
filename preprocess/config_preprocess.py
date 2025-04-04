@@ -10,10 +10,12 @@ Before running preprocessing scripts, please be aware that the master settings (
 '''
 
 # ---- CONSTANTS ---- #
-if TYPE == "Quijote":
+if TYPE == "Quijote" or TYPE == "Quijote_Rockstar" or TYPE == "fR":
     BOXSIZE = 1e3 
 elif TYPE == "CAMELS":
     BOXSIZE = 25e3
+elif TYPE == "CAMELS_50":
+    BOXSIZE = 50e3
 else:
     raise Exception("Invalid Simulation Suite")
 
@@ -23,6 +25,10 @@ if TYPE == "CAMELS":
     MASS_UNIT = 1e10
     Nstar_th = 20 
     MASS_CUT = 2e8
+elif TYPE == "CAMELS_50":
+    MASS_UNIT = 1e10
+    Nstar_th = 40
+    MASS_CUT = 4e8
 else:
     pass
 
@@ -31,17 +37,22 @@ global_centroid = None # to be updated.
 
 # --- HYPERPARAMS --- #
 #dense: 0.02, sparse: 0.01, fiducial: 0.015
-r_link = 0.015 
+#r_link = 0.015 
+r_link = float(os.getenv("R_LINK", 0.015))
+NUMCUT = int(os.getenv("NUMCUT", 4000))
+print(f"THE R_LINK IS SET AS {r_link}", file=sys.stderr)
+print(f"THE NUMCUT IS SET AS {NUMCUT}", file=sys.stderr)
+
 MINCLUSTER = 5 
 NUMPOINTS  = -1
-NUMEDGES   = -1
-NUMTETRA   = 3000 if (TYPE == "Quijote") else -1
+NUMEDGES   = NUMCUT if TYPE == "CAMELS_50" else -1
+NUMTETRA = NUMCUT if (TYPE == "Quijote" or TYPE == "Quijote_Rockstar" or TYPE == "fR" or TYPE == "CAMELS_50") else -1
 
 ## OPTIONS ##
 ENABLE_PROFILING = False
 #############
 
-if TYPE == "Quijote":
+if TYPE == "Quijote" or TYPE == "Quijote_Rockstar" or TYPE == "fR" or TYPE == "CAMELS_50":
     in_dir = BASE_DIR + "sims/"
     cc_dir = DATA_DIR + f"cc_{NUMTETRA}/"
     tensor_dir = DATA_DIR + f"tensors_{NUMTETRA}/"
