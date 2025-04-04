@@ -136,10 +136,14 @@ def get_neighbors(num, cc):
     global_feature = torch.log10(global_feature + 1)
     results['global_feature'] = global_feature
 
+    '''
+    # This creates too many files
     for key, tensor in results.items():
         print(f"[LOG] Saving tensor {key}_{num}.pt", file=sys.stderr)
         torch.save(tensor, os.path.join(tensor_dir, f"{key}_{num}.pt"))
-
+    '''
+    print(f"[LOG] Saving tensor", file=sys.stderr)
+    torch.save(results, os.path.join(tensor_dir, f"sim_{num}.pt"))
     return results
 
 

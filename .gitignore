@@ -5,3 +5,4 @@ preprocess/stdout*
 */__pycache__
 *stdout*
 *stderr*
+slurm-*.out

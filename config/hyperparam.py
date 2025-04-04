@@ -32,10 +32,14 @@ class HyperparameterTuner:
         self.dataset   = None 
 
     def create_base_args(self):
-        if TYPE == "Quijote":
+        if TYPE == "Quijote" or TYPE == "Quijote_Rockstar":
             target_labels = ["Omega_m", "sigma_8"]
+        elif TYPE == "fR":
+            target_labels = ["Omega_M", "m_nu", "f_R0"]
         elif TYPE == "CAMELS":
             target_labels = ["Omega0"]
+        elif TYPE == "CAMELS_50":
+            target_labels = ["Omega0", "sigma8"]
 
         return Namespace(
             # Mode
@@ -72,7 +76,7 @@ class HyperparameterTuner:
         self.gpu_setup()
         trial = optuna_integration.TorchDistributedTrial(single_trial)
 
-        if TYPE == "Quijote":
+        if TYPE == "Quijote" or TYPE == "Quijote_Rockstar" or TYPE == "fR" or TYPE == "CAMELS_50":
             data_dir =  self.data_dir_base + trial.suggest_categorical('data_mode', ['tensors_3000', 'tensors_4000', 'tensors_5000'])
         elif TYPE == "CAMELS":
             data_dir = self.data_dir_base + trial.suggest_categorical('data_mode', ['tensors', 'tensors_sparse', 'tensors_dense'])

@@ -36,7 +36,7 @@ def load_catalog(directory, filename):
     arXiv:2204.13713
     https://github.com/PabloVD/CosmoGraphNet/
     '''
-    if TYPE == "Quijote":
+    if TYPE == "Quijote" or TYPE == "Quijote_Rockstar" or TYPE == "fR":
         pos = np.loadtxt(directory + filename)/BOXSIZE
     else:
         f = h5py.File(directory + filename, 'r')
@@ -52,7 +52,7 @@ def load_catalog(directory, filename):
     pos[np.where(pos<0.0)]+=1.0
     pos[np.where(pos>1.0)]-=1.0
 
-    if TYPE == "Quijote":
+    if TYPE == "Quijote" or TYPE == "Quijote_Rockstar" or TYPE == "fR":
         feat = np.zeros(pos.shape)
     else:
         indexes = np.where(Nstar>Nstar_th)[0]
@@ -149,6 +149,7 @@ class Edge(AbstractCells):
         unitrow = row / np.linalg.norm(row)
         unitcol = col / np.linalg.norm(col)
         unitdiff = diff / np.linalg.norm(diff)
+        unitdiff[np.isnan(unitdiff)] = 0
 
         # Dot products between unit vectors
         cos1 = np.dot(unitrow.T, unitcol)
@@ -460,7 +461,7 @@ def create_cc(in_dir, in_filename):
     cc.set_cell_attributes(tetra_data, name="tetra_feat")
     cc.set_cell_attributes(cluster_data, name="cluster_feat")
     cc.set_cell_attributes(hypercluster_data, name="hypercluster_feat")
-    return cc, nodes, edges, tetrahedra, clusters, Hyperclusters
+    return cc, nodes, edges, tetrahedra, clusters, hyperclusters
 
 def remove_subset_clusters(clusters):
     to_remove = set()
@@ -535,14 +536,17 @@ def main(array):
     slice_array = array[start_idx:end_idx]
     
     for num in slice_array:
-        if TYPE == "Quijote":
+        if TYPE == "Quijote" or TYPE == "Quijote_Rockstar" or TYPE == "fR":
             in_filename = f"catalog_{num}.txt"
             out_filename = f"data_{num}.pickle"
         else:
             in_filename = f"data_{num}.hdf5"
             out_filename = f"data_{num}.pickle"
 
-        cc, nodes, edges, tetrahedra, clusters, hyperclusters = create_cc(in_dir, in_filename)
+        try:
+            cc, nodes, edges, tetrahedra, clusters, hyperclusters = create_cc(in_dir, in_filename)
+        except:
+            continue
 
         print(f"[LOG] Process {rank}: Created combinatorial complex for file {in_filename}", file=sys.stderr)
         to_pickle(cc, cc_dir + out_filename)
@@ -559,4 +563,5 @@ def main(array):
 if __name__ == "__main__":
     num_array = list(range(CATALOG_SIZE))
     main(num_array)
+    #main([813])
 

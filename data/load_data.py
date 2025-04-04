@@ -24,11 +24,11 @@ def load_tensors(num_list, data_dir, label_filename, args, target_labels=None, f
             raise Exception("Invalid Parameter, or Derived Parameter.")
 
     for num in tqdm(num_list):
-        if TYPE == "Quijote":
+        if TYPE == "Quijote" or TYPE == "Quijote_Rockstar":
             y = torch.Tensor(label_file.loc[num].to_numpy().astype(float))
-        else:
-            # CAMELS start with LH_{num} so trim first col
-            y = torch.Tensor(label_file.loc[num].to_numpy()[1:-1].astype(float)) 
+        elif TYPE == "CAMELS" or TYPE == "CAMELS_50" or TYPE == "fR":
+            # CAMELS and Quijote-MG start with LH_{num}/{num} so trim first col
+            y = torch.Tensor(label_file.loc[num].to_numpy()[1:].astype(float))
 
         # Now, y perfectly follows the defined PARAM_ORDER.
         if target_labels:
@@ -37,12 +37,27 @@ def load_tensors(num_list, data_dir, label_filename, args, target_labels=None, f
 
         tensor_dict['y'].append(y)
 
+        # Newly Added to Create Less Files
+        try:
+            total_tensors = torch.load(os.path.join(data_dir, f"sim_{num}.pt"))
+            total_invariants = torch.load(os.path.join(data_dir, f"invariant_{num}.pt"))
+        except:
+            print(f"NUM: {num} is yet prepared, cannot open file")
+            continue
+
         for feature in feature_sets:
             if feature == 'global_feature':
                 continue
 
-            tensor = torch.load(os.path.join(data_dir, f"{feature}_{num}.pt"))
-            
+            # Newly Added to Create Less Files
+            try:
+                tensor = total_tensors[feature]  # Attempt to load from total_tensors
+            except KeyError:
+                try:
+                    tensor = total_invariants[feature]  # Fall back to total_invariants
+                except KeyError:
+                    raise KeyError(f"Feature '{feature}' not found in either total_tensors or total_invariants.")
+
             if feature[0] == 'x':
                 feature_index = int(feature.split('_')[-1])
                 tensor = tensor[:, :args.in_channels[feature_index]]  # Slice based on in_channels

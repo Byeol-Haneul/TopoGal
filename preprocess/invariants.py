@@ -93,8 +93,7 @@ def cross_cell_invariants(num, nodes, edges, tetrahedra, clusters, hyperclusters
                 invariants[f'hausdorff_{rank_names[i]}_to_{rank_names[j]}'] = normalize(hausdorff_distances, "ISDISTANCE")
 
 
-    for key, tensor in invariants.items():
-        print(f"[LOG] Saving tensor {key}.pt", file=sys.stderr)
-        torch.save(tensor, os.path.join(tensor_dir, f"{key}_{num}.pt"))
+    print(f"[LOG] Saving tensor invariant_{num}.pt", file=sys.stderr)
+    torch.save(invariants, os.path.join(tensor_dir, f"invariant_{num}.pt"))
 
     return invariants

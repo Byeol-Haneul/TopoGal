@@ -107,6 +107,7 @@ class HBNS(torch.nn.Module):
     def forward(
         self, x_source: torch.Tensor, x_target: torch.Tensor, neighborhood: SparseTensor, cci = None
     ) -> tuple[torch.Tensor, torch.Tensor]:
+
         s_message, s_message2  = torch.mm(x_source, self.w_s), torch.mm(x_source, self.w_s_cci)  # [n_source_cells, d_t_out]
         t_message, t_message2  = torch.mm(x_target, self.w_t), torch.mm(x_target, self.w_t_cci)  # [n_target_cells, d_s_out]
 

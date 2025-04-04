@@ -2,8 +2,8 @@
 #SBATCH --job-name=run                         
 #SBATCH --output=stdout                        
 #SBATCH --error=stderr                         
-#SBATCH --nodes=10                             
-#SBATCH --ntasks=10                            
+#SBATCH --nodes=10                           
+#SBATCH --ntasks=10                           
 #SBATCH --cpus-per-task=48                     
 #SBATCH --time=120:00:00                       
 #SBATCH --partition=gpupreempt                 
@@ -34,25 +34,28 @@ echo "Master address for debugging: $MASTER_ADDR, IP: $MASTER_IP"
 #squeue -p gpu | sed -n 's/.*workergpu\([0-9]*\)/\1/p' | sed 's/\([0-9]*\)/'\''\1'\''/g' | paste -sd, - | sed 's/^/[ /;s/$/ ]/'
 #squeue -p gpupreempt | sed -n 's/.*workergpu\([0-9]*\)/\1/p' | sed 's/\([0-9]*\)/'\''\1'\''/g' | paste -sd, - | sed 's/^/[ /;s/$/ ]/'
 
+#export CUDA_LAUNCH_BLOCKING=1
+
 srun torchrun \
   --nproc_per_node=4 \
-  --nnodes=20 \
+  --nnodes=10 \
   --rdzv_id="gnn_${SLURM_JOB_ID}" \
   --rdzv_backend=c10d \
   --rdzv_endpoint="${MASTER_IP}:12345" \
   tune.py --layerType GNN
+  
 srun torchrun \
   --nproc_per_node=4 \
-  --nnodes=20 \
-  --rdzv_id="tnn_${SLURM_JOB_ID}" \
+  --nnodes=10 \
+  --rdzv_id="all_${SLURM_JOB_ID}" \
   --rdzv_backend=c10d \
   --rdzv_endpoint="${MASTER_IP}:12348" \
   tune.py --layerType All
 
-
+'''
 srun torchrun \
   --nproc_per_node=4 \
-  --nnodes=20 \
+  --nnodes=16 \
   --rdzv_id="tnn_${SLURM_JOB_ID}" \
   --rdzv_backend=c10d \
   --rdzv_endpoint="${MASTER_IP}:12348" \
@@ -73,3 +76,4 @@ srun torchrun \
   --rdzv_backend=c10d \
   --rdzv_endpoint="${MASTER_IP}:12348" \
   tune.py --layerType TNN
+'''
