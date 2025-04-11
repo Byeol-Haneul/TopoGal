@@ -76,9 +76,11 @@ class HyperparameterTuner:
         self.gpu_setup()
         trial = optuna_integration.TorchDistributedTrial(single_trial)
 
-        if TYPE == "Quijote" or TYPE == "Quijote_Rockstar" or TYPE == "fR" or TYPE == "CAMELS_50":
+        if TYPE == "Quijote" or TYPE == "Quijote_Rockstar" or TYPE == "fR":
             data_dir =  self.data_dir_base + trial.suggest_categorical('data_mode', ['tensors_3000', 'tensors_4000', 'tensors_5000'])
-        elif TYPE == "CAMELS":
+        elif TYPE == "CAMELS_50":
+            data_dir =  self.data_dir_base + trial.suggest_categorical('data_mode', ['tensors_8000', 'tensors_10000'])
+        elif TYPE == "CAMELS" or TYPE == "CAMELS_SB28":
             data_dir = self.data_dir_base + trial.suggest_categorical('data_mode', ['tensors', 'tensors_sparse', 'tensors_dense'])
 
         hidden_dim = trial.suggest_categorical('hidden_dim', [32, 64, 128, 256])

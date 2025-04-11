@@ -4,7 +4,7 @@
 # - SUBGRID: Allows extensibility for different subgrid models in the future. Current option: "IllustrisTNG".
 
 MACHINE = "RUSTY"
-TYPE    = "CAMELS_50"
+TYPE    = "CAMELS_SB28"
 SUBGRID = "IllustrisTNG"
 
 if MACHINE == "HAPPINESS":
@@ -38,6 +38,11 @@ elif MACHINE=="RUSTY":
         DATA_DIR       = f"/mnt/home/jlee2/ceph/camels/SB35/{SUBGRID}/"
         RESULT_DIR     = f"/mnt/home/jlee2/ceph/camels/SB35/{SUBGRID}/results/{SUBGRID}/"
         LABEL_FILENAME = BASE_DIR + f"CosmoAstroSeed_{SUBGRID}_L50n512_SB35.txt"
+    elif TYPE == "CAMELS_SB28":
+        BASE_DIR       = f"/mnt/home/jlee2/ceph/camels/SB28/{SUBGRID}/"
+        DATA_DIR       = f"/mnt/home/jlee2/ceph/camels/SB28/{SUBGRID}/"
+        RESULT_DIR     = f"/mnt/home/jlee2/ceph/camels/SB28/{SUBGRID}/results/{SUBGRID}/"
+        LABEL_FILENAME = BASE_DIR + f"CosmoAstroSeed_{SUBGRID}_L25n256_SB28.txt"
     else:
         raise Exception("Invalid Simulation Suite")
 else:
@@ -47,7 +52,7 @@ if TYPE == "Quijote":
     CATALOG_SIZE = 2000 
 elif TYPE == "Quijote_Rockstar":
     CATALOG_SIZE = 3072
-elif TYPE == "fR":
+elif TYPE == "fR" or TYPE == "CAMELS_SB28":
     CATALOG_SIZE = 2048
 elif TYPE == "CAMELS":
     CATALOG_SIZE = 1000

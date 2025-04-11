@@ -23,18 +23,16 @@ echo
 srun --ntasks=512 hostname
 echo
 
-'''
-for r in 0.02; do
+for r in 0.01 0.015 0.02; do
     export R_LINK=$r  # Make R_LINK available to mpiexec
     echo "Running generate_cc.py with R_LINK=$R_LINK"
     mpiexec -n 512 python3 generate_cc.py
 done
 '''
-
-for nc in 3000 4000 5000; do
+for nc in 8000 10000; do
     export NUMCUT=$nc  # Make R_LINK available to mpiexec
     echo "Running generate_cc.py with NUMCUT=$NUMCUT"
     mpiexec -n 512 python3 generate_cc.py
 done
-
+'''
 exit 0

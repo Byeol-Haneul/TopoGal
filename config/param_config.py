@@ -34,7 +34,7 @@ elif TYPE == "CAMELS":
         "AAGN2": {"min": 0.5, "max": 2.0}
     }
     PARAM_ORDER = ["Omega0", "sigma8", "ASN1", "AAGN1", "ASN2", "AAGN2"]
-elif TYPE == "CAMELS_50":
+elif TYPE == "CAMELS_50" or TYPE == "CAMELS_SB28":
     PARAM_STATS = {
         "Omega0": {"min": 0.1, "max": 0.5},
         "sigma8": {"min": 0.6, "max": 1.0},
