@@ -14,13 +14,14 @@ def get_activation(update_func):
         raise NotImplementedError
 
 class Network(nn.Module):
-    def __init__(self, layerType, channels_per_layer, final_output_layer, cci_mode: str, update_func: str, aggr_func: str, residual_flag: bool = True):
+    def __init__(self, layerType, channels_per_layer, final_output_layer, cci_mode: str, update_func: str, aggr_func: str, residual_flag: bool = True, loss_fn_name: str = "log_implicit_likelihood"):
         super().__init__()
         
         self.layerType = layerType
         self.cci_mode = cci_mode
         self.activation = get_activation(update_func)
         self.base_model = CustomHMC(layerType, channels_per_layer, update_func=self.activation, aggr_func=aggr_func, residual_flag=residual_flag)   
+        self.loss_fn_name = loss_fn_name
 
         penultimate_layer = channels_per_layer[-1][-1][0]
         num_aggregators = 4
@@ -123,7 +124,14 @@ class Network(nn.Module):
         x = self.activation(x)
 
         x = self.fc4(x)
-        return x
+
+        if self.loss_fn_name == "mse":
+            return x
+        else:
+            x1 = x[:, :x.shape[1] // 2]
+            x2 = torch.square(x[:, x.shape[1] // 2:])
+            x = torch.cat([x1, x2], dim=1)
+            return x
 
 
 class CustomHMC(torch.nn.Module):

@@ -31,6 +31,8 @@ args = Namespace(
     # Training Hyperparameters
     num_epochs=3000,
     test_interval=20,
+    loss_fn_name="mse",
+    
     T_max=10,
     learning_rate=5e-4,
     weight_decay=1e-5,

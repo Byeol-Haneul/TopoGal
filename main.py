@@ -15,6 +15,7 @@ from data.dataset import CustomDataset
 
 from model.network import Network
 from train import train, evaluate, save_checkpoint, load_checkpoint
+from utils.loss_functions import *
 
 from config.param_config import PARAM_STATS, PARAM_ORDER, normalize_params, denormalize_params
 from config.machine import *
@@ -66,14 +67,6 @@ def fix_random_seed(seed):
     np.random.seed(seed)
     random.seed(seed)
     logging.info(f"Random seed fixed to {seed}.")
-
-def implicit_likelihood_loss(output, target):
-    num_params = len(target)
-    y_out, err_out = output[:,:num_params], output[:,num_params:]
-    loss_mse = torch.mean(torch.sum((y_out - target)**2., axis=1), axis=0)
-    loss_ili = torch.mean(torch.sum(((y_out - target)**2. - err_out**2.)**2., axis=1), axis=0)
-    loss = loss_mse + loss_ili
-    return loss
 
 def load_and_prepare_data(num_list, args, global_rank, world_size):
     # Determine total samples
@@ -183,10 +176,13 @@ def initialize_model(args, local_rank):
     logging.info("Initializing model")
     
     # Define final output layer
-    final_output_layer = len(args.target_labels) * 2
+    if args.loss_fn_name == "mse":
+        final_output_layer = len(args.target_labels)
+    else:
+        final_output_layer = len(args.target_labels) * 2
 
     # Initialize the model
-    model = Network(args.layerType, channels_per_layer, final_output_layer, args.cci_mode, args.update_func, args.aggr_func, args.residual_flag)
+    model = Network(args.layerType, channels_per_layer, final_output_layer, args.cci_mode, args.update_func, args.aggr_func, args.residual_flag, args.loss_fn_name)
     model.to(args.device)
 
     # Only wrap in DDP if there are multiple GPUs
@@ -233,10 +229,10 @@ def main(passed_args=None, dataset=None):
             dataset.augment(args.drop_prob, args.cci_mode)
 
     #################
-    model = initialize_model(args, local_rank) 
+    model = initialize_model(args, local_rank)
 
     # Define loss function and optimizer
-    loss_fn = implicit_likelihood_loss
+    loss_fn = get_loss_fn(args.loss_fn_name)
     opt = torch.optim.Adam(model.parameters(), lr=args.learning_rate, weight_decay=args.weight_decay)
     scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(opt, T_max=args.T_max, eta_min=0)
 
