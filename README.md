@@ -23,6 +23,8 @@ Important configuration options include:
 - `BASE_DIR`, `DATA_DIR`, `RESULT_DIR`: set paths for base, data, and output directories.
 - `LABEL_FILES`, `CATALOG_SIZE`: specify label sources and dataset size.
 
+Next, modify `config_param.py` to set up priors for the cosmological and astrophysical parameters of the simulations. 
+
 ### Step 2: Preprocessing
 All preprocessing-related files are located in the `/preprocessing` directory. Run `generate_cc.py` to construct combinatorial complexes.
 
