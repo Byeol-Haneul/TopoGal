@@ -1,11 +1,12 @@
-import torch
-import torch.distributed as dist
-
 import numpy as np
 import logging
 import os, sys
 import pandas as pd
+
+import torch
+import torch.distributed as dist
 from torch.utils.data import DataLoader
+
 from config.param_config import PARAM_STATS, PARAM_ORDER, denormalize_params
 
 def save_checkpoint(model, optimizer, epoch, loss, path):
@@ -76,7 +77,7 @@ def train(model, train_set, val_set, test_set, loss_fn, opt, scheduler, args, ch
             y_hat = model(data)
             loss = loss_fn(y_hat, y) / accumulation_steps
             
-            #torch.autograd.set_detect_anomaly(True)
+            #torch.autograd.set_detect_anomaly(True) # For debugging
             loss.backward()
 
             if (data_idx + 1) % accumulation_steps == 0 or (data_idx + 1) == len(train_set):
@@ -89,11 +90,9 @@ def train(model, train_set, val_set, test_set, loss_fn, opt, scheduler, args, ch
         # Reduce the losses across all processes globally
         local_avg_train_loss = np.mean(epoch_loss)
         train_losses.append(local_avg_train_loss)
-
         tensor_loss = torch.tensor(local_avg_train_loss).to(device)
 
         dist.all_reduce(tensor_loss, op=dist.ReduceOp.SUM)
-
 
         # Compute the global average train loss and log it
         avg_train_loss = tensor_loss.item() / dist.get_world_size()
@@ -175,11 +174,9 @@ def evaluate(model, test_set, device, pred_filename, target_labels):
             real_values.append(y.cpu().numpy())
             logging.debug(f"Test Iteration: {data_idx + 1}, Real: {y.cpu().numpy()}, Pred: {y_hat.cpu().numpy()}")
     
-    # Denormalize predictions and real values
     denormalized_predictions = denormalize_params(np.array(predictions), target_labels)
     denormalized_real_values = denormalize_params(np.array(real_values), target_labels)
 
-    # Save denormalized predictions and real values
     pred_df = pd.DataFrame({
         "real": list(denormalized_real_values),
         "pred": list(denormalized_predictions)

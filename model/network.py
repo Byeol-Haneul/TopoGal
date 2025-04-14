@@ -1,5 +1,6 @@
 import torch
 from torch import nn
+
 from .layers import *
 
 def get_activation(update_func):
@@ -24,7 +25,7 @@ class Network(nn.Module):
         penultimate_layer = channels_per_layer[-1][-1][0]
         num_aggregators = 4
 
-        if layerType == "Master" or self.layerType == "TNN":
+        if self.layerType == "TNN":
             num_ranks_pooling = 5
         else:
             num_ranks_pooling = 1

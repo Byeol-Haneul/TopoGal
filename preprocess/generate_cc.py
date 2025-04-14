@@ -288,7 +288,10 @@ class Hypercluster(AbstractCells):
         self.num_nodes_cluster1 = np.log10(len(cluster1.nodes) + 1)
         self.num_nodes_cluster2 = np.log10(len(cluster2.nodes) + 1)
 
-        self.angles = self.calculate_angles()
+        if cluster1 == cluster2:
+            self.angles = [0,0]
+        else:
+            self.angles = self.calculate_angles()
         self.features = [self.distance] + self.angles
 
     def calculate_angles(self):
@@ -400,17 +403,24 @@ def create_cc(in_dir, in_filename):
 
     # 4. Get Hyperclusters using MST
     hyperclusters = {}
-    mst = create_mst(clusters)
-    for edge in mst.edges(data=True):
-        cluster1_label = edge[0]
-        cluster2_label = edge[1]
-        dist = edge[2]['weight']
+    # if we have a single cluster, we produce a self-loop. 
+    if len(clusters) > 1:
+        mst = create_mst(clusters)
+        for edge in mst.edges(data=True):
+            cluster1_label = edge[0]
+            cluster2_label = edge[1]
+            dist = edge[2]['weight']
 
-        cluster1 = clusters[cluster1_label]
-        cluster2 = clusters[cluster2_label]
+            cluster1 = clusters[cluster1_label]
+            cluster2 = clusters[cluster2_label]
 
-        hypercluster_label = f"hyper_{cluster1_label}_{cluster2_label}"
-        hypercluster = Hypercluster(cluster1, cluster2, dist, pos)
+            hypercluster_label = f"hyper_{cluster1_label}_{cluster2_label}"
+            hypercluster = Hypercluster(cluster1, cluster2, dist, pos)
+            hyperclusters[hypercluster_label] = hypercluster
+    else:
+        cluster1 = cluster2 = clusters[0]
+        hypercluster_label = f"hyper_0_0"
+        hypercluster = Hypercluster(cluster1, cluster2, 0, pos)
         hyperclusters[hypercluster_label] = hypercluster
 
     
@@ -543,10 +553,7 @@ def main(array):
             in_filename = f"data_{num}.hdf5"
             out_filename = f"data_{num}.pickle"
 
-        try:
-            cc, nodes, edges, tetrahedra, clusters, hyperclusters = create_cc(in_dir, in_filename)
-        except:
-            continue
+        cc, nodes, edges, tetrahedra, clusters, hyperclusters = create_cc(in_dir, in_filename)
 
         print(f"[LOG] Process {rank}: Created combinatorial complex for file {in_filename}", file=sys.stderr)
         to_pickle(cc, cc_dir + out_filename)
@@ -563,5 +570,4 @@ def main(array):
 if __name__ == "__main__":
     num_array = list(range(CATALOG_SIZE))
     main(num_array)
-    #main([813])
 

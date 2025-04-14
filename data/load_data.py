@@ -26,7 +26,7 @@ def load_tensors(num_list, data_dir, label_filename, args, target_labels=None, f
     for num in tqdm(num_list):
         if TYPE == "Quijote" or TYPE == "Quijote_Rockstar":
             y = torch.Tensor(label_file.loc[num].to_numpy().astype(float))
-        elif TYPE == "CAMELS" or TYPE == "CAMELS_50" or TYPE == "fR":
+        elif TYPE == "CAMELS" or TYPE == "CAMELS_50" or TYPE == "CAMELS_SB28" or TYPE == "fR":
             # CAMELS and Quijote-MG start with LH_{num}/{num} so trim first col
             y = torch.Tensor(label_file.loc[num].to_numpy()[1:].astype(float))
 

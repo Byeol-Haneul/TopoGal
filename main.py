@@ -1,19 +1,20 @@
 import logging
-import torch
 import os, sys
 import random
 import pandas as pd
 import numpy as np
 import socket 
 
+import torch
 from torch.utils.data import DataLoader
 import torch.distributed as dist
 import torch.multiprocessing as mp
 
 from data.load_data import load_tensors, split_data
-from model.network import Network
-from model.train import train, evaluate, save_checkpoint, load_checkpoint
 from data.dataset import CustomDataset
+
+from model.network import Network
+from train import train, evaluate, save_checkpoint, load_checkpoint
 
 from config.param_config import PARAM_STATS, PARAM_ORDER, normalize_params, denormalize_params
 from config.machine import *
@@ -104,6 +105,7 @@ def load_and_prepare_data(num_list, args, global_rank, world_size):
         test_indices = list(range(num_train_samples + num_val_samples, total_samples))
 
     if TYPE == "CAMELS_50":
+        # Skip simulation 425, which is not finished as of now. 
         try:
             train_indices.remove(425)
             test_indices.remove(425)
@@ -185,8 +187,6 @@ def initialize_model(args, local_rank):
 
     # Initialize the model
     model = Network(args.layerType, channels_per_layer, final_output_layer, args.cci_mode, args.update_func, args.aggr_func, args.residual_flag)
-
-    # Move the model to the correct device before wrapping in DDP
     model.to(args.device)
 
     # Only wrap in DDP if there are multiple GPUs

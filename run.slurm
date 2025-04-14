@@ -43,7 +43,8 @@ srun torchrun \
   --rdzv_backend=c10d \
   --rdzv_endpoint="${MASTER_IP}:12345" \
   tune.py --layerType GNN
-  
+
+'''
 srun torchrun \
   --nproc_per_node=4 \
   --nnodes=10 \
@@ -52,7 +53,6 @@ srun torchrun \
   --rdzv_endpoint="${MASTER_IP}:12348" \
   tune.py --layerType All
 
-'''
 srun torchrun \
   --nproc_per_node=4 \
   --nnodes=16 \
