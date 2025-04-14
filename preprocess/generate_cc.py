@@ -30,49 +30,6 @@ from config.machine import *
 # HYPERCLUSTER: 3 (distance, angle1, angle2)
 # ------------------ #
 
-def load_catalog(directory, filename):
-    '''
-    Modified from CosmoGraphNet
-    arXiv:2204.13713
-    https://github.com/PabloVD/CosmoGraphNet/
-    '''
-    if TYPE == "Quijote" or TYPE == "Quijote_Rockstar" or TYPE == "fR":
-        pos = np.loadtxt(directory + filename)/BOXSIZE
-    else:
-        f = h5py.File(directory + filename, 'r')
-        pos   = f['/Subhalo/SubhaloPos'][:]/BOXSIZE
-        Mstar = f['/Subhalo/SubhaloMassType'][:,4] * MASS_UNIT
-        Rstar = f["Subhalo/SubhaloHalfmassRadType"][:,4]
-        Nstar = f['/Subhalo/SubhaloLenType'][:,4] 
-        Metal = f["Subhalo/SubhaloStarMetallicity"][:]
-        Vmax = f["Subhalo/SubhaloVmax"][:]
-        f.close()
-    
-    # Some simulations are slightly outside the box, correct it
-    pos[np.where(pos<0.0)]+=1.0
-    pos[np.where(pos>1.0)]-=1.0
-
-    if TYPE == "Quijote" or TYPE == "Quijote_Rockstar" or TYPE == "fR":
-        feat = np.zeros(pos.shape)
-    else:
-        indexes = np.where(Nstar>Nstar_th)[0]
-        #indexes = np.where(Mstar>MASS_CUT)[0]
-        pos     = pos[indexes]
-        Mstar   = Mstar[indexes]
-        Rstar   = Rstar[indexes]
-        Metal   = Metal[indexes]
-        Vmax    = Vmax[indexes]
-
-        #Normalization
-        Mstar = np.log10(1.+ Mstar)
-        Rstar = np.log10(1.+ Rstar)
-        Metal = np.log10(1.+ Metal)
-        Vmax  = np.log10(1.+ Vmax)
-
-        feat = np.vstack((Mstar, Rstar, Metal, Vmax)).T
-
-    return pos, feat
-
 class AbstractCells:
     def __init__(self, nodes, pos):
         self.nodes = set(nodes)  
