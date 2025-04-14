@@ -1,4 +1,8 @@
 # TopoGal
+<p align="center">
+  <img src="visualizations/structures.png" alt="Combinatorial Complex built on a Halo Catalog from the Quijote Suite" width="600"/>
+</p>
+Combinatorial Complex built on a Halo Catalog from the Quijote Suite. 
 
 ## Requirements
 Refer to [`environments.yml`](./environments.yml) for the full list of required Python packages.
@@ -65,7 +69,11 @@ Our models are invariant under E(3) transformations. We support four model varia
 
 These models differ based on the selection of cells (e.g., nodes, edges, tetrahedra, clusters). They are stackable, and the number of stacked layers is treated as a tunable hyperparameter. Cell-cell invariant features (e.g., Euclidean or Hausdorff distances between arbitrary-rank cells) can be incorporated into the computations.
 
-All computations are implemented using `SparseTensor` operations for efficiency and scalability.
+All computations are implemented using `SparseTensor` operations for efficiency and scalability. Image below briefly demonstrates how higher-order message-passings are conducted.
+
+<p align="center">
+  <img src="visualizations/neighborhoods.png" alt="Higher-Order Message-Passing" width="600"/>
+</p>
 
 ## Acknowledgements
 We acknowledge the use of [TopoModelX](https://github.com/pyt-team/TopoModelX) and [TopoNetX](https://github.com/pyt-team/TopoNetX) for our higher-order network models and creation of combinatorial complexes. We also acknowledge the use and modification of [CosmoGraphNet](https://github.com/PabloVD/CosmoGraphNet) for building graphs. 
