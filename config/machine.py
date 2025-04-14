@@ -29,9 +29,9 @@ elif MACHINE=="RUSTY":
         RESULT_DIR     = "/mnt/home/jlee2/ceph/fR/results/"
         LABEL_FILENAME = BASE_DIR + "full_s8_table.dat"
     elif TYPE == "CAMELS":
-        BASE_DIR       = f"/mnt/home/jlee2/camels/{SUBGRID}/"
-        DATA_DIR       = f"/mnt/home/jlee2/camels/{SUBGRID}/"
-        RESULT_DIR     = f"/mnt/home/jlee2/camels/{SUBGRID}/results/{SUBGRID}/"
+        BASE_DIR       = f"/mnt/home/jlee2/ceph/camels/LH/{SUBGRID}/"
+        DATA_DIR       = f"/mnt/home/jlee2/ceph/camels/LH/{SUBGRID}/"
+        RESULT_DIR     = f"/mnt/home/jlee2/ceph/camels/LH/{SUBGRID}/results/{SUBGRID}/"
         LABEL_FILENAME = BASE_DIR + f"CosmoAstroSeed_{SUBGRID}_L25n256_LH.txt"
     elif TYPE == "CAMELS_50":
         BASE_DIR       = f"/mnt/home/jlee2/ceph/camels/SB35/{SUBGRID}/"

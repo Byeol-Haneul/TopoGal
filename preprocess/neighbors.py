@@ -126,6 +126,8 @@ def get_neighbors(num, cc):
     n3_to_4 = cc.incidence_matrix(rank=3, to_rank=4)
     try:
         dense = n3_to_4.todense() if hasattr(n3_to_4, "todense") else n3_to_4
+        if len(dense.shape) == 1:
+            dense = dense.reshape(-1,1)
         results['n3_to_4'] = torch.from_numpy(dense).to_sparse()
     except Exception as e:
         print(f"[ERROR] Computing n3_to_4 for num {num}: {e}", file=sys.stderr)
