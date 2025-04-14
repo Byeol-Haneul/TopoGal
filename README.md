@@ -43,6 +43,7 @@ The complex includes:
 Adjust preprocessing settings such as `r_link` and the cutoff for higher-order cells in `config_preprocess.py`.
 
 ### Step 3: Training
+The training setup supports PyTorch DDP (DistributedDataParallel), multi-node GPU execution, and is designed to be scalable.
 If you're using a SLURM-based queue system, submit training jobs with:
 
 ```bash
