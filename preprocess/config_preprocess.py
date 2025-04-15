@@ -1,5 +1,7 @@
 import os
 import sys
+import h5py 
+import numpy as np
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 from config.machine import *
@@ -56,6 +58,12 @@ if TYPE == "Quijote" or TYPE == "Quijote_Rockstar" or TYPE == "fR":# or TYPE == 
     in_dir = BASE_DIR + "sims/"
     cc_dir = DATA_DIR + f"cc_{NUMTETRA}/"
     tensor_dir = DATA_DIR + f"tensors_{NUMTETRA}/"
+elif TYPE == "CAMELS_SB28":
+    in_dir = BASE_DIR + f"sims/"
+    cc_dirs_option = {0.03: "cc/", 0.05: "cc_dense/", 0.04: "cc_sparse/"}
+    tensor_dirs_option = {0.03: "tensors/", 0.05: "tensors_dense/", 0.04: "tensors_sparse/"}
+    cc_dir = DATA_DIR + cc_dirs_option.get(r_link, "")
+    tensor_dir = DATA_DIR + tensor_dirs_option.get(r_link, "")
 else:
     in_dir = BASE_DIR + f"sims/"
     cc_dirs_option = {0.015: "cc/", 0.02: "cc_dense/", 0.01: "cc_sparse/"}

@@ -61,7 +61,7 @@ class HyperparameterTuner:
             # Training Hyperparameters
             num_epochs=300,
             test_interval=100,
-            loss_fn_name="log_implicit_likelihood",
+            loss_fn_name="implicit_likelihood",
 
             # Device
             device_num=self.device_num,
@@ -86,7 +86,7 @@ class HyperparameterTuner:
 
         hidden_dim = trial.suggest_categorical('hidden_dim', [32, 64, 128, 256])
         num_layers = trial.suggest_int('num_layers', 1, 6)
-        cci_mode = trial.suggest_categorical('cci_mode', ['euclidean', 'hausdorff'])
+        cci_mode = trial.suggest_categorical('cci_mode', ['euclidean', 'hausdorff', 'None'])
         learning_rate = trial.suggest_float('learning_rate', 1e-5, 1e-3, log=True)
         weight_decay = trial.suggest_float('weight_decay', 1e-7, 1e-5, log=True)
 
