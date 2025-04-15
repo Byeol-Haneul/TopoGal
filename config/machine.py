@@ -4,7 +4,7 @@
 # - SUBGRID: Allows extensibility for different subgrid models in the future. Current option: "IllustrisTNG".
 
 MACHINE = "RUSTY"
-TYPE    = "CAMELS_SB28"
+TYPE    = "Quijote"
 SUBGRID = "IllustrisTNG"
 
 if MACHINE == "HAPPINESS":

@@ -21,7 +21,7 @@ elif TYPE == "CAMELS" or TYPE == "CAMELS_SB28":
 elif TYPE == "CAMELS_50":
     BOXSIZE = 50e3
 else:
-    raise Exception("Invalid Simulation Suite")
+    raise Exception("Invalid Simulation Suite: ", TYPE)
 
 if TYPE == "CAMELS" or TYPE == "CAMELS_SB28":
     MASS_UNIT = 1e10
@@ -31,8 +31,6 @@ elif TYPE == "CAMELS_50":
     MASS_UNIT = 1e10
     Nstar_th = 40
     MASS_CUT = 4e8
-else:
-    raise Exception("Invalid Simulation Suite")
 
 modes = {"ISDISTANCE": 1, "ISAREA": 2, "ISVOLUME": 3}
 global_centroid = None # to be updated.
@@ -54,7 +52,7 @@ NUMTETRA   = NUMCUT if (TYPE == "Quijote" or TYPE == "Quijote_Rockstar" or TYPE 
 ENABLE_PROFILING = False
 #############
 
-if TYPE == "Quijote" or TYPE == "Quijote_Rockstar" or TYPE == "fR":# or TYPE == "CAMELS_50":
+if  TYPE == "Quijote_Rockstar" or TYPE == "fR":# or TYPE == "CAMELS_50" or TYPE == "Quijote":
     in_dir = BASE_DIR + "sims/"
     cc_dir = DATA_DIR + f"cc_{NUMTETRA}/"
     tensor_dir = DATA_DIR + f"tensors_{NUMTETRA}/"

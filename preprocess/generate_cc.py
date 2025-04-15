@@ -19,8 +19,8 @@ from toponetx.readwrite.serialization import load_from_pickle
 
 from invariants import Invariants, cell_invariants_torch, cross_cell_invariants
 from neighbors import get_neighbors
-from config_preprocess import *
 from config.machine import *
+from config_preprocess import *
 
 # ---- FEATURES ---- #
 # NODES:        4 (Mstar, Rstar, Metal, Vmax). Node Features are NOT USED in the study.

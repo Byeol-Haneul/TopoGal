@@ -118,6 +118,15 @@ def load_and_prepare_data(num_list, args, global_rank, world_size):
 
     common_size = len(train_indices) // world_size
 
+    if global_rank == 0:
+        logging.info(f"Saving data split indices to {args.checkpoint_dir}")
+        split_path = os.path.join(args.checkpoint_dir, "split_indices.txt")
+        with open(split_path, "w") as f:
+            f.write(f"Train Indices ({len(train_indices)}):\n{train_indices}\n\n")
+            f.write(f"Validation Indices ({len(val_indices)}):\n{val_indices}\n\n")
+            f.write(f"Test Indices ({len(test_indices)}):\n{test_indices}\n\n")
+        logging.info(f"Data split indices saved to {split_path}")
+
     # Split data equally across processes
     train_indices_rank = split_indices(train_indices, global_rank, world_size)
     val_indices_rank = split_indices(val_indices, global_rank, world_size)
