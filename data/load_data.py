@@ -23,12 +23,11 @@ def load_tensors(num_list, data_dir, label_filename, args, target_labels=None, f
         if target_label not in list(PARAM_STATS.keys()):
             raise Exception("Invalid Parameter, or Derived Parameter.")
 
-    for num in tqdm(num_list):
-        if TYPE == "Quijote" or TYPE == "Quijote_Rockstar":
+    for num in tqdm(num_list):            
+        if TYPE == "CAMELS" or TYPE == "CAMELS_50" or TYPE == "CAMELS_SB28" or TYPE == "fR":
+            y = torch.Tensor(label_file.loc[num].to_numpy()[1:].astype(float)) # CAMELS and Quijote-MG start with LH_{num}/{num} so trim first col
+        else:
             y = torch.Tensor(label_file.loc[num].to_numpy().astype(float))
-        elif TYPE == "CAMELS" or TYPE == "CAMELS_50" or TYPE == "CAMELS_SB28" or TYPE == "fR":
-            # CAMELS and Quijote-MG start with LH_{num}/{num} so trim first col
-            y = torch.Tensor(label_file.loc[num].to_numpy()[1:].astype(float))
 
         # Now, y perfectly follows the defined PARAM_ORDER.
         if target_labels:
@@ -56,7 +55,8 @@ def load_tensors(num_list, data_dir, label_filename, args, target_labels=None, f
                 try:
                     tensor = total_invariants[feature]  # Fall back to total_invariants
                 except KeyError:
-                    raise KeyError(f"Feature '{feature}' not found in either total_tensors or total_invariants.")
+                    tensor = None
+                    #raise KeyError(f"Feature '{feature}' not found in either total_tensors or total_invariants.")
 
             if feature[0] == 'x':
                 feature_index = int(feature.split('_')[-1])

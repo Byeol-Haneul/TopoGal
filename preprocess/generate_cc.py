@@ -330,12 +330,12 @@ def get_kdtree_edges(pos, r_link=0.015):
     return kdtree_edge_set
 
 
-def create_cc(in_dir, in_filename):    
+def create_cc(num):    
     ##########################
     global NUMPOINTS, NUMEDGES, NUMTETRA
     
     # Read in data
-    pos, feat = load_catalog(in_dir, in_filename)
+    pos, feat = load_catalog(num)
     pos[np.where(pos<0.0)]+=1.0
     pos[np.where(pos>1.0)]-=1.0
 
@@ -375,7 +375,7 @@ def create_cc(in_dir, in_filename):
             hypercluster = Hypercluster(cluster1, cluster2, dist, pos)
             hyperclusters[hypercluster_label] = hypercluster
     else:
-        cluster1 = cluster2 = clusters[0]
+        cluster1 = cluster2 = clusters[list(clusters.keys())[-1]]
         hypercluster_label = f"hyper_0_0"
         hypercluster = Hypercluster(cluster1, cluster2, 0, pos)
         hyperclusters[hypercluster_label] = hypercluster
@@ -442,8 +442,8 @@ def remove_subset_clusters(clusters):
             A = clusters[cluster_labels[i]].nodes
             B = clusters[cluster_labels[j]].nodes
 
-            if A & B == A or A & B == B:
-                if len(A) <= len(B):
+            if (A & B == A or A & B == B):
+                if len(A) < len(B):
                     to_remove.add(cluster_labels[i])
                 else:
                     to_remove.add(cluster_labels[j])
@@ -503,17 +503,11 @@ def main(array):
     slice_array = array[start_idx:end_idx]
     
     for num in slice_array:
-        if TYPE == "Quijote" or TYPE == "Quijote_Rockstar" or TYPE == "fR":
-            in_filename = f"catalog_{num}.txt"
-            out_filename = f"data_{num}.pickle"
-        else:
-            in_filename = f"data_{num}.hdf5"
-            out_filename = f"data_{num}.pickle"
+        cc, nodes, edges, tetrahedra, clusters, hyperclusters = create_cc(num)
 
-        cc, nodes, edges, tetrahedra, clusters, hyperclusters = create_cc(in_dir, in_filename)
-
-        print(f"[LOG] Process {rank}: Created combinatorial complex for file {in_filename}", file=sys.stderr)
-        to_pickle(cc, cc_dir + out_filename)
+        print(f"[LOG] Process {rank}: Created combinatorial complex for # {num}", file=sys.stderr)
+        
+        to_pickle(cc, cc_dir + f"data_{num}.pickle")
 
         print(f"[LOG] Process {rank}: Calculating Neighbors", file=sys.stderr)
         neighbors = get_neighbors(num, cc)

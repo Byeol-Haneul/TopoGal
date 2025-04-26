@@ -13,34 +13,36 @@ args = Namespace(
     only_positions=True,
     
     # Directories
-    data_dir=DATA_DIR+"/tensors/",
-    checkpoint_dir=RESULT_DIR+"/test/",
+    data_dir=DATA_DIR+"/tensors_dense/",
+    checkpoint_dir=RESULT_DIR+"/grok/",
     label_filename=LABEL_FILENAME,
     
     # Model Architecture
     in_channels=[1, 3, 5, 7, 3],
     hidden_dim=64,
-    num_layers=3,
-    layerType="TNN",
+    num_layers=2,
+    layerType="GNN",
     attention_flag=False,
     residual_flag=True,
     
     # Target Labels
-    target_labels=["Omega_m", "sigma_8"] if TYPE == "Quijote" else ["Omega0"],
+    target_labels=["Omega_m", "sigma_8"],
     
     # Training Hyperparameters
-    num_epochs=3000,
-    test_interval=20,
+    num_epochs=2000,
+    test_interval=100,
     loss_fn_name="mse",
     
-    T_max=10,
-    learning_rate=5e-4,
-    weight_decay=1e-5,
-    batch_size=64,
-    drop_prob=0,
+    T_max=64,
+    learning_rate=0.0006335744983516634,
+    weight_decay=1.1699938795572962e-06,
+    batch_size=1,
+    drop_prob=0.1473127156496048,
+    update_func="relu",
+    aggr_func="max",
     
     # Device
-    device_num="0,1",
+    #device_num="0,1",
     device=None,
     
     # Dataset Split and Random Seed
@@ -49,7 +51,7 @@ args = Namespace(
     random_seed=1234,
     
     # Features & Neighborhood Functions
-    cci_mode="euclidean",
+    cci_mode="None",
     
     feature_sets=[
     'x_0', 'x_1', 'x_2', 'x_3', 'x_4',

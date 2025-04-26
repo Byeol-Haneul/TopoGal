@@ -4,7 +4,7 @@
 # - SUBGRID: Allows extensibility for different subgrid models in the future. Current option: "IllustrisTNG".
 
 MACHINE = "RUSTY"
-TYPE    = "Quijote"
+TYPE    = "Bench_Quijote_Coarse_Small" #"Bench_Quijote_Coarse_Large"
 SUBGRID = "IllustrisTNG"
 
 if MACHINE == "HAPPINESS":
@@ -18,11 +18,11 @@ elif MACHINE=="RUSTY":
         DATA_DIR       = "/mnt/home/jlee2/quijote/"
         RESULT_DIR     = "/mnt/home/jlee2/quijote/results/"
         LABEL_FILENAME = BASE_DIR + "sims/latin_hypercube_params.txt"
-    elif TYPE == "Quijote_Rockstar":
-        BASE_DIR       = "/mnt/home/jlee2/ceph/quijote_rockstar/"
-        DATA_DIR       = "/mnt/home/jlee2/ceph/quijote_rockstar/"
-        RESULT_DIR     = "/mnt/home/jlee2/ceph/quijote_rockstar/results/"
-        LABEL_FILENAME = BASE_DIR + "sims/BSQ_params.txt"
+    elif TYPE == "Bench_Quijote_Coarse_Small":
+        BASE_DIR       = "/mnt/home/jlee2/ceph/benchmark/coarse_small/"
+        DATA_DIR       = "/mnt/home/jlee2/ceph/benchmark/coarse_large/"
+        RESULT_DIR     = "/mnt/home/jlee2/ceph/benchmark/coarse_small/results/"
+        LABEL_FILENAME = BASE_DIR + "BSQ_params.txt"
     elif TYPE == "fR":
         BASE_DIR       = "/mnt/home/jlee2/ceph/fR/"
         DATA_DIR       = "/mnt/home/jlee2/ceph/fR/"
@@ -43,18 +43,29 @@ elif MACHINE=="RUSTY":
         DATA_DIR       = f"/mnt/home/jlee2/ceph/camels/SB28/{SUBGRID}/"
         RESULT_DIR     = f"/mnt/home/jlee2/ceph/camels/SB28/{SUBGRID}/results/{SUBGRID}/"
         LABEL_FILENAME = BASE_DIR + f"CosmoAstroSeed_{SUBGRID}_L25n256_SB28.txt"
+    elif TYPE == "Bench_Quijote_Coarse_Large":
+        BASE_DIR       = "/mnt/home/jlee2/ceph/benchmark/coarse_large/"
+        DATA_DIR       = "/mnt/home/jlee2/ceph/benchmark/coarse_large/"
+        HDF5_DATA_FILE = "/mnt/home/jlee2/ceph/benchmark/coarse_large/Quijote_BSQ_rockstar_10_top5000.hdf5"
+        RESULT_DIR     = "/mnt/home/jlee2/ceph/benchmark/coarse_large/results/"
+        LABEL_FILENAME = BASE_DIR + "BSQ_params.txt"
     else:
         raise Exception("Invalid Simulation Suite")
 else:
     raise Exception("Invalid Machine")
 
-if TYPE == "Quijote":
-    CATALOG_SIZE = 2000 
-elif TYPE == "Quijote_Rockstar":
-    CATALOG_SIZE = 3072
-elif TYPE == "fR" or TYPE == "CAMELS_SB28":
-    CATALOG_SIZE = 2048
-elif TYPE == "CAMELS":
-    CATALOG_SIZE = 1000
-elif TYPE == "CAMELS_50":
-    CATALOG_SIZE = 1024
+catalog_sizes = {
+    "Quijote": 2000,
+    "Bench_Quijote_Coarse_Small": 3072,
+    "Bench_Quijote_Coarse_Large": 32768,
+    "fR": 2048,
+    "CAMELS_SB28": 2048,
+    "CAMELS": 1000,
+    "CAMELS_50": 1024,
+}
+
+CATALOG_SIZE = catalog_sizes.get(TYPE)
+
+if CATALOG_SIZE is None:
+    raise ValueError(f"Unknown TYPE: {TYPE}")
+

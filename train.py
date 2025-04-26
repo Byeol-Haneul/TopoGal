@@ -38,7 +38,10 @@ def load_checkpoint(model, optimizer, path, device, eval_mode=False):
     return model, optimizer, epoch, loss
 
 def data_to_device(data, device):
-    return {key: tensor.float().to(device) for key, tensor in data.items()}
+    return {
+        key: tensor.float().to(device) if tensor is not None else None
+        for key, tensor in data.items()
+    }
 
 
 def train(model, train_set, val_set, test_set, loss_fn, opt, scheduler, args, checkpoint_path, global_rank, common_size):

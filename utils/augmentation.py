@@ -59,6 +59,11 @@ def augment_data(data, drop_prob=0.1, cci_mode='euclidean'):
 
     for neigh_key in neighborhood_keys:
         if neigh_key in data:
+            if data[neigh_key] == None:
+                augmented_dict[neigh_key] = None
+                augmented_dict[key_mapping.get(neigh_key)] = None
+                continue
+                
             mask = generate_mask(data[neigh_key], drop_prob)
             augmented_dict[neigh_key] = sparsify(augment_matrix(data[neigh_key], drop_prob, mask))
 

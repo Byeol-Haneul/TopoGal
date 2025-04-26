@@ -10,7 +10,7 @@ def tune(layerType):
         n_trials = 300
     else:
         checkpoint_dir = RESULT_DIR + f"/isolated_{TYPE}_{layerType}/"
-        n_trials = 100
+        n_trials = 50
 
     only_positions = True
     device_num = "0,1,2,3"  # Not necessary

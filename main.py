@@ -72,8 +72,8 @@ def load_and_prepare_data(num_list, args, global_rank, world_size):
     # Determine total samples
     total_samples = len(num_list)
 
-    # Handle Quijote_rockstar case with fixed indices
-    if TYPE == "Quijote_Rockstar":
+    # Handle Bench_Quijote_Coarse_Small case with fixed indices
+    if TYPE == "Bench_Quijote_Coarse_Small":
         if total_samples != 3072:
             raise ValueError(f"Expected 3072 samples, but got {total_samples}")
         
@@ -81,12 +81,19 @@ def load_and_prepare_data(num_list, args, global_rank, world_size):
         val_indices = list(range(2048, 2560))  # Next 512 for validation
         test_indices = list(range(2560, 3072))  # Last 512 for test
     # Handle Quijote_MG or fR case with fixed indices
-    if TYPE == "fR":
+    elif TYPE == "fR":
         if total_samples != 2048:
             raise ValueError(f"Expected 2048 samples, but got {total_samples}")
         train_indices = list(range(1536))  # First 2048 for training
         val_indices = list(range(1536, 1792))  # Next 512 for validation
         test_indices = list(range(1792, 2048))  # Last 512 for test
+    elif TYPE == "Bench_Quijote_Coarse_Large":
+        if total_samples != 32768:
+            raise ValueError(f"Expected 32768 samples, but got {total_samples}")
+    
+        train_indices = list(range(24576))  
+        val_indices = list(range(24576, 28672)) 
+        test_indices = list(range(28672, 32768)) 
     else:
         # Default dynamic case
         num_val_samples = int(args.val_size * total_samples)

@@ -32,7 +32,7 @@ class HyperparameterTuner:
         self.dataset   = None 
 
     def create_base_args(self):
-        if TYPE == "Quijote" or TYPE == "Quijote_Rockstar":
+        if TYPE == "Quijote" or TYPE == "Bench_Quijote_Coarse_Small" or TYPE == "Bench_Quijote_Coarse_Large":
             target_labels = ["Omega_m", "sigma_8"]
         elif TYPE == "fR":
             target_labels = ["Omega_M", "m_nu", "f_R0"]
@@ -77,11 +77,12 @@ class HyperparameterTuner:
         self.gpu_setup()
         trial = optuna_integration.TorchDistributedTrial(single_trial)
 
-        if TYPE == "Quijote_Rockstar" or TYPE == "fR":
+        if TYPE == "fR":
             data_dir =  self.data_dir_base + trial.suggest_categorical('data_mode', ['tensors_3000', 'tensors_4000', 'tensors_5000'])
         elif TYPE == "CAMELS_50":
             data_dir =  self.data_dir_base + trial.suggest_categorical('data_mode', ['tensors_8000', 'tensors_10000'])
-        elif TYPE == "Quijote" or TYPE == "CAMELS" or TYPE == "CAMELS_SB28":
+            #elif TYPE == "Bench_Quijote_Coarse_Small" or TYPE == "Quijote" or TYPE == "CAMELS" or TYPE == "CAMELS_SB28":
+        else:
             data_dir = self.data_dir_base + trial.suggest_categorical('data_mode', ['tensors', 'tensors_sparse', 'tensors_dense'])
 
         hidden_dim = trial.suggest_categorical('hidden_dim', [32, 64, 128, 256])
@@ -95,7 +96,7 @@ class HyperparameterTuner:
         else:
             layer_type = self.layerType
 
-        batch_size = trial.suggest_categorical('batch_size', [1,2,4,8])
+        batch_size = trial.suggest_categorical('batch_size', [1,2,4,8,16])
         drop_prob = trial.suggest_float('drop_prob', 0, 0.2, log=False)
         T_max = trial.suggest_int('T_max', 10, 100)
         update_func = trial.suggest_categorical('update_func', ['tanh', 'relu'])

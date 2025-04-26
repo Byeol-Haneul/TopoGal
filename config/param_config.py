@@ -2,7 +2,7 @@ import numpy as np
 import torch
 from config.machine import BASE_DIR, TYPE
 
-if TYPE == "Quijote" or TYPE == "Quijote_Rockstar":
+if TYPE == "Quijote" or TYPE == "Bench_Quijote_Coarse_Small" or  TYPE == "Bench_Quijote_Coarse_Large":
     PARAM_STATS = {
         "Omega_m": {"min": 0.1, "max": 0.5},
         "Omega_b": {"min": 0.03, "max": 0.07},

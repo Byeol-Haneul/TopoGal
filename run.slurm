@@ -2,13 +2,13 @@
 #SBATCH --job-name=run                         
 #SBATCH --output=stdout                        
 #SBATCH --error=stderr                         
-#SBATCH --nodes=10                           
-#SBATCH --ntasks=10                           
+#SBATCH --nodes=8                           
+#SBATCH --ntasks=8                           
 #SBATCH --cpus-per-task=48                     
 #SBATCH --time=120:00:00                       
 #SBATCH --partition=gpupreempt                 
 #SBATCH --qos=gpupreempt                       
-#SBATCH --gpus=a100-sxm4-40gb:40               
+#SBATCH --gpus=a100-sxm4-40gb:32               
 #SBATCH --mem=128G                             
 #SBATCH --mail-type=ALL                        
 #SBATCH --mail-user=toti010@naver.com          
@@ -38,13 +38,30 @@ echo "Master address for debugging: $MASTER_ADDR, IP: $MASTER_IP"
 
 srun torchrun \
   --nproc_per_node=4 \
-  --nnodes=10 \
+  --nnodes=8 \
+  --rdzv_id="gnn_${SLURM_JOB_ID}" \
+  --rdzv_backend=c10d \
+  --rdzv_endpoint="${MASTER_IP}:12345" \
+  eval.py
+
+'''
+srun torchrun \
+  --nproc_per_node=4 \
+  --nnodes=8 \
   --rdzv_id="gnn_${SLURM_JOB_ID}" \
   --rdzv_backend=c10d \
   --rdzv_endpoint="${MASTER_IP}:12345" \
   tune.py --layerType GNN
 
-'''
+srun torchrun \
+  --nproc_per_node=4 \
+  --nnodes=8 \
+  --rdzv_id="gnn_${SLURM_JOB_ID}" \
+  --rdzv_backend=c10d \
+  --rdzv_endpoint="${MASTER_IP}:12345" \
+  main.py #--layerType GNN
+
+
 srun torchrun \
   --nproc_per_node=4 \
   --nnodes=10 \

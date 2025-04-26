@@ -32,10 +32,13 @@ class Network(nn.Module):
             num_ranks_pooling = 1
         
         # Global feature size: x_0.shape[0], x_1.shape[0], x_2.shape[0], x_3.shape[0]
-        global_feature_size = 4 
+        if self.layerType == "GNN":
+            self.global_feature_size = 4
+        else:
+            self.global_feature_size = 4 
 
         # Fully-Connected Layers
-        self.fc1 = nn.Linear(penultimate_layer * num_ranks_pooling * num_aggregators + global_feature_size, 512)           
+        self.fc1 = nn.Linear(penultimate_layer * num_ranks_pooling * num_aggregators + self.global_feature_size, 512)           
         self.fc2 = nn.Linear(512, 128)
         self.fc3 = nn.Linear(128, 64)
         self.fc4 = nn.Linear(64, final_output_layer)
@@ -72,7 +75,7 @@ class Network(nn.Module):
         cci0_to_0, cci0_to_1, cci0_to_2, cci0_to_3, cci0_to_4, cci1_to_1, cci1_to_2, cci1_to_3, cci1_to_4, cci2_to_2, cci2_to_3, cci2_to_4, cci3_to_3, cci3_to_4, cci4_to_4 = values
 
         # Global Feature
-        global_feature = batch['global_feature']
+        global_feature = batch['global_feature'][:, :self.global_feature_size]
        
         # Forward pass through the base model
         x_0, x_1, x_2, x_3, x_4 = self.base_model(
