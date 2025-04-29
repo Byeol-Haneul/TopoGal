@@ -69,18 +69,22 @@ def fix_random_seed(seed):
     logging.info(f"Random seed fixed to {seed}.")
 
 def load_and_prepare_data(num_list, args, global_rank, world_size):
-    # Determine total samples
-    total_samples = len(num_list)
+    total_samples = CATALOG_SIZE
 
     # Handle Bench_Quijote_Coarse_Small case with fixed indices
-    if TYPE == "Bench_Quijote_Coarse_Small":
+    if BENCHMARK:
+        splits = np.load(BASE_DIR + "splits.npz")
+        train_indices = splits["train"]
+        val_indices = splits["val"]
+        test_indices = splits["test"]
+        assert len(train_indices) + len(val_indices) + len(test_indices) == total_samples
+
+    elif TYPE == "Bench_Quijote_Coarse_Small":
         if total_samples != 3072:
             raise ValueError(f"Expected 3072 samples, but got {total_samples}")
-        
         train_indices = list(range(2048))  # First 2048 for training
         val_indices = list(range(2048, 2560))  # Next 512 for validation
         test_indices = list(range(2560, 3072))  # Last 512 for test
-    # Handle Quijote_MG or fR case with fixed indices
     elif TYPE == "fR":
         if total_samples != 2048:
             raise ValueError(f"Expected 2048 samples, but got {total_samples}")
@@ -115,13 +119,16 @@ def load_and_prepare_data(num_list, args, global_rank, world_size):
 
     def split_indices(indices, rank, world_size):
         base_size = len(indices) // world_size
-        remainder = len(indices) % world_size  # Extra samples to distribute
-
-        # Each rank gets `base_size`, plus one extra if `rank < remainder`
-        start_idx = rank * base_size + min(rank, remainder)
-        end_idx = start_idx + base_size + (1 if rank < remainder else 0)
+        remainder = len(indices) % world_size
+        if rank < remainder:
+            start_idx = rank * (base_size + 1)
+            end_idx = start_idx + base_size + 1
+        else:
+            start_idx = remainder * (base_size + 1) + (rank - remainder) * base_size
+            end_idx = start_idx + base_size
 
         return indices[start_idx:end_idx]
+
 
     common_size = len(train_indices) // world_size
 
@@ -146,7 +153,7 @@ def load_and_prepare_data(num_list, args, global_rank, world_size):
 
     logging.info(f"Rank {global_rank}: Loading training tensors for {len(train_indices_rank)} samples.")
     train_tensor_dict = load_tensors(
-        [num_list[i] for i in train_indices_rank], data_dir, label_filename, args, target_labels, feature_sets
+        train_indices_rank, data_dir, label_filename, args, target_labels, feature_sets
     )
     train_tensor_dict['y'] = normalize_params(train_tensor_dict['y'], target_labels)
     train_data = {feature: train_tensor_dict[feature] for feature in feature_sets + ['y']}
@@ -156,7 +163,7 @@ def load_and_prepare_data(num_list, args, global_rank, world_size):
     # Load validation tensors
     logging.info(f"Rank {global_rank}: Loading validation tensors for {len(val_indices_rank)} samples.")
     val_tensor_dict = load_tensors(
-        [num_list[i] for i in val_indices_rank], data_dir, label_filename, args, target_labels, feature_sets
+        val_indices_rank, data_dir, label_filename, args, target_labels, feature_sets
     )
     val_tensor_dict['y'] = normalize_params(val_tensor_dict['y'], target_labels)
     val_data = {feature: val_tensor_dict[feature] for feature in feature_sets + ['y']}
@@ -167,7 +174,7 @@ def load_and_prepare_data(num_list, args, global_rank, world_size):
     if global_rank == 0:
         logging.info(f"Rank {global_rank}: Loading test tensors for {len(test_indices_rank)} samples.")
         test_tensor_dict = load_tensors(
-            [num_list[i] for i in test_indices_rank], data_dir, label_filename, args, target_labels, feature_sets
+            test_indices_rank, data_dir, label_filename, args, target_labels, feature_sets
         )
         test_tensor_dict['y'] = normalize_params(test_tensor_dict['y'], target_labels)
         test_data = {feature: test_tensor_dict[feature] for feature in feature_sets + ['y']}
@@ -230,8 +237,8 @@ def main(passed_args=None, dataset=None):
     
     if not args.tuning:
         gpu_setup(args, local_rank, world_size)
-
-    num_list = [i for i in range(CATALOG_SIZE)]
+        
+    num_list = None if BENCHMARK else [i for i in range(CATALOG_SIZE)]
 
     if dataset is None:
         train_dataset, val_dataset, test_dataset, common_size = load_and_prepare_data(num_list, args, global_rank, world_size)

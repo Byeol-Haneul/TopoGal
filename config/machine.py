@@ -4,8 +4,14 @@
 # - SUBGRID: Allows extensibility for different subgrid models in the future. Current option: "IllustrisTNG".
 
 MACHINE = "RUSTY"
-TYPE    = "Bench_Quijote_Coarse_Small" #"Bench_Quijote_Coarse_Large"
+TYPE    = "CAMELS-SAM_LH_gal_99_top5000"
 SUBGRID = "IllustrisTNG"
+
+BENCHMARK = TYPE in [
+    "Quijote_BSQ_rockstar_10_top5000",
+    "CAMELS-SAM_LH_rockstar_99_top5000",
+    "CAMELS-SAM_LH_gal_99_top5000"
+]
 
 if MACHINE == "HAPPINESS":
     BASE_DIR   = "/data2/jylee/topology/"
@@ -49,6 +55,13 @@ elif MACHINE=="RUSTY":
         HDF5_DATA_FILE = "/mnt/home/jlee2/ceph/benchmark/coarse_large/Quijote_BSQ_rockstar_10_top5000.hdf5"
         RESULT_DIR     = "/mnt/home/jlee2/ceph/benchmark/coarse_large/results/"
         LABEL_FILENAME = BASE_DIR + "BSQ_params.txt"
+
+        #############################
+    elif BENCHMARK:  
+        BASE_DIR       = f"/mnt/home/jlee2/ceph/benchmark/{TYPE}/"
+        DATA_DIR       = BASE_DIR
+        HDF5_DATA_FILE = f"/mnt/home/rstiskalek/ceph/graps4science/{TYPE}.hdf5"
+        RESULT_DIR     = BASE_DIR + "results/"
     else:
         raise Exception("Invalid Simulation Suite")
 else:
@@ -62,6 +75,12 @@ catalog_sizes = {
     "CAMELS_SB28": 2048,
     "CAMELS": 1000,
     "CAMELS_50": 1024,
+
+
+    ## BENCHMARKS ##
+    "Quijote_BSQ_rockstar_10_top5000": 32752,
+    "CAMELS-SAM_LH_rockstar_99_top5000": 1000,
+    "CAMELS-SAM_LH_gal_99_top5000": 1000
 }
 
 CATALOG_SIZE = catalog_sizes.get(TYPE)
@@ -69,3 +88,7 @@ CATALOG_SIZE = catalog_sizes.get(TYPE)
 if CATALOG_SIZE is None:
     raise ValueError(f"Unknown TYPE: {TYPE}")
 
+try:
+    LABEL_FILENAME
+except NameError:
+    LABEL_FILENAME = None

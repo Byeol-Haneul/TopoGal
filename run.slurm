@@ -1,7 +1,7 @@
 #!/bin/bash
 #SBATCH --job-name=run                         
-#SBATCH --output=stdout                        
-#SBATCH --error=stderr                         
+#SBATCH --output=stdout1                        
+#SBATCH --error=stderr1                         
 #SBATCH --nodes=8                           
 #SBATCH --ntasks=8                           
 #SBATCH --cpus-per-task=48                     
@@ -42,7 +42,8 @@ srun torchrun \
   --rdzv_id="gnn_${SLURM_JOB_ID}" \
   --rdzv_backend=c10d \
   --rdzv_endpoint="${MASTER_IP}:12345" \
-  eval.py
+  tune.py --layerType GNN
+
 
 '''
 srun torchrun \
@@ -51,7 +52,7 @@ srun torchrun \
   --rdzv_id="gnn_${SLURM_JOB_ID}" \
   --rdzv_backend=c10d \
   --rdzv_endpoint="${MASTER_IP}:12345" \
-  tune.py --layerType GNN
+  eval.py
 
 srun torchrun \
   --nproc_per_node=4 \

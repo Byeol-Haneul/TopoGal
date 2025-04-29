@@ -32,8 +32,10 @@ class HyperparameterTuner:
         self.dataset   = None 
 
     def create_base_args(self):
-        if TYPE == "Quijote" or TYPE == "Bench_Quijote_Coarse_Small" or TYPE == "Bench_Quijote_Coarse_Large":
+        if "Quijote" in TYPE:
             target_labels = ["Omega_m", "sigma_8"]
+        elif "CAMELS-SAM" in TYPE:
+            target_labels = ["Om0", "sigma8"]
         elif TYPE == "fR":
             target_labels = ["Omega_M", "m_nu", "f_R0"]
         elif TYPE == "CAMELS" or TYPE == "CAMELS_SB28":
@@ -47,7 +49,7 @@ class HyperparameterTuner:
             only_positions=self.only_positions,
 
             # Model Architecture
-            in_channels=[1, 3, 5, 7, 3],
+            in_channels=[3, 3, 5, 7, 3],
             attention_flag=False,
             residual_flag=True,
 
@@ -96,7 +98,11 @@ class HyperparameterTuner:
         else:
             layer_type = self.layerType
 
-        batch_size = trial.suggest_categorical('batch_size', [1,2,4,8,16])
+        if "CAMELS-SAM" in TYPE:
+            batch_size = trial.suggest_categorical('batch_size', [1,2,4,8])
+        else:
+            batch_size = trial.suggest_categorical('batch_size', [1,2,4,8,16])
+
         drop_prob = trial.suggest_float('drop_prob', 0, 0.2, log=False)
         T_max = trial.suggest_int('T_max', 10, 100)
         update_func = trial.suggest_categorical('update_func', ['tanh', 'relu'])
@@ -154,7 +160,7 @@ class HyperparameterTuner:
         return args
 
     def load_data(self):
-        num_list = [i for i in range(CATALOG_SIZE)]
+        num_list = None if BENCHMARK else [i for i in range(CATALOG_SIZE)]
         return load_and_prepare_data(num_list, self.base_args, self.global_rank, self.world_size)
 
     def train_and_evaluate(self, args):

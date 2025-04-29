@@ -14,8 +14,10 @@ Before running preprocessing scripts, please be aware that the master settings (
 # ---- CONSTANTS ---- #
 DIM = 3
 
-if TYPE == "Quijote" or TYPE == "Bench_Quijote_Coarse_Small" or TYPE == "fR" or TYPE == "Bench_Quijote_Coarse_Large":
+if "Quijote" in TYPE or TYPE == "fR":
     BOXSIZE = 1e3 
+elif "CAMELS-SAM" in TYPE:
+    BOXSIZE = 1e2
 elif TYPE == "CAMELS" or TYPE == "CAMELS_SB28":
     BOXSIZE = 25e3
 elif TYPE == "CAMELS_50":
@@ -46,7 +48,7 @@ print(f"THE NUMCUT IS SET AS {NUMCUT}", file=sys.stderr)
 MINCLUSTER = 5 
 NUMPOINTS  = -1
 NUMEDGES   = NUMCUT if (TYPE == "CAMELS_50" or TYPE == "CAMELS_SB28") else -1
-NUMTETRA   = NUMCUT if (TYPE == "Quijote" or TYPE == "Bench_Quijote_Coarse_Small" or TYPE == "fR" or TYPE == "CAMELS_50" or TYPE == "CAMELS_SB28") else -1
+NUMTETRA   = NUMCUT if ("Quijote" in TYPE or TYPE == "fR" or TYPE == "CAMELS_50" or TYPE == "CAMELS_SB28") else -1
 
 ## OPTIONS ##
 FLAG_HIGHER_ORDER = False
@@ -79,16 +81,21 @@ def load_catalog(num):
     arXiv:2204.13713
     https://github.com/PabloVD/CosmoGraphNet/
     '''
-    if TYPE == "Quijote" or TYPE == "Bench_Quijote_Coarse_Small" or TYPE == "fR":
+    if TYPE == "Quijote" or TYPE == "fR":
         in_filename = f"catalog_{num}.txt"
         pos = np.loadtxt(in_dir + in_filename)/BOXSIZE
-    elif TYPE == "Bench_Quijote_Coarse_Large":
+    elif BENCHMARK:
         f = h5py.File(HDF5_DATA_FILE, 'r')
-        data = f['BSQ'][f'BSQ_{num}']
+        if "Quijote" in TYPE:
+            data = f['BSQ'][f'BSQ_{num}']
+        elif "CAMELS-SAM" in TYPE:
+            data = f['LH'][f'LH_{num}']
+
         X = data['X'][:]
         Y = data['Y'][:]
         Z = data['Z'][:]
         pos = np.vstack((X,Y,Z)).T / BOXSIZE
+
         f.close()
     else:
         in_filename = f"data_{num}.hdf5"
@@ -105,8 +112,8 @@ def load_catalog(num):
     pos[np.where(pos<0.0)]+=1.0
     pos[np.where(pos>1.0)]-=1.0
 
-    if TYPE == "Quijote" or TYPE == "Bench_Quijote_Coarse_Small" or TYPE == "fR" or TYPE == "Bench_Quijote_Coarse_Large":
-        feat = np.zeros(pos.shape)
+    if BENCHMARK or "Quijote" in TYPE or TYPE == "fR":
+        feat = pos #np.zeros(pos.shape)
     else:
         indexes = np.where(Nstar>Nstar_th)[0]
         #indexes = np.where(Mstar>MASS_CUT)[0]
