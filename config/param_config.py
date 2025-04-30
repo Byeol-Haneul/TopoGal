@@ -13,12 +13,13 @@ if "Quijote" in TYPE:
     PARAM_ORDER = ["Omega_m", "Omega_b", "h", "n_s", "sigma_8"]
 elif "CAMELS-SAM" in TYPE:
     PARAM_STATS = {
-        "Om0": {"min": 0.1, "max": 0.5},
-        "sigma8": {"min": 0.6, "max": 1.0},
+        "Omega_m": {"min": 0.1, "max": 0.5},
+        "sigma_8": {"min": 0.6, "max": 1.0},
         "A_sn1": {"min": 0.25, "max": 4.0},
         "Aagn1": {"min": 0.25, "max": 4.0},
         "A_sn2": {"min": 0.5, "max": 2.0},
     }
+    PARAM_ORDER = None
 elif TYPE == "fR":
     PARAM_STATS = {
         "Omega_M": {"min": 0.1, "max": 0.5},

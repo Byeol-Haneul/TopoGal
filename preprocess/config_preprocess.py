@@ -81,10 +81,7 @@ def load_catalog(num):
     arXiv:2204.13713
     https://github.com/PabloVD/CosmoGraphNet/
     '''
-    if TYPE == "Quijote" or TYPE == "fR":
-        in_filename = f"catalog_{num}.txt"
-        pos = np.loadtxt(in_dir + in_filename)/BOXSIZE
-    elif BENCHMARK:
+    if BENCHMARK:
         f = h5py.File(HDF5_DATA_FILE, 'r')
         if "Quijote" in TYPE:
             data = f['BSQ'][f'BSQ_{num}']
@@ -97,6 +94,9 @@ def load_catalog(num):
         pos = np.vstack((X,Y,Z)).T / BOXSIZE
 
         f.close()
+    elif TYPE == "Quijote" or TYPE == "fR":
+        in_filename = f"catalog_{num}.txt"
+        pos = np.loadtxt(in_dir + in_filename)/BOXSIZE
     else:
         in_filename = f"data_{num}.hdf5"
         f = h5py.File(in_dir + in_filename, 'r')

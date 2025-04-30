@@ -56,7 +56,7 @@ elif MACHINE=="RUSTY":
         RESULT_DIR     = "/mnt/home/jlee2/ceph/benchmark/coarse_large/results/"
         LABEL_FILENAME = BASE_DIR + "BSQ_params.txt"
 
-        #############################
+        ############################# BENCHMARK ###############################
     elif BENCHMARK:  
         BASE_DIR       = f"/mnt/home/jlee2/ceph/benchmark/{TYPE}/"
         DATA_DIR       = BASE_DIR

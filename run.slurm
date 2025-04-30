@@ -1,14 +1,14 @@
 #!/bin/bash
 #SBATCH --job-name=run                         
-#SBATCH --output=stdout1                        
-#SBATCH --error=stderr1                         
-#SBATCH --nodes=8                           
-#SBATCH --ntasks=8                           
+#SBATCH --output=stdout2                        
+#SBATCH --error=stderr2                         
+#SBATCH --nodes=4                           
+#SBATCH --ntasks=4                           
 #SBATCH --cpus-per-task=48                     
 #SBATCH --time=120:00:00                       
 #SBATCH --partition=gpupreempt                 
 #SBATCH --qos=gpupreempt                       
-#SBATCH --gpus=a100-sxm4-40gb:32               
+#SBATCH --gpus=a100-sxm4-40gb:16               
 #SBATCH --mem=128G                             
 #SBATCH --mail-type=ALL                        
 #SBATCH --mail-user=toti010@naver.com          
@@ -38,7 +38,7 @@ echo "Master address for debugging: $MASTER_ADDR, IP: $MASTER_IP"
 
 srun torchrun \
   --nproc_per_node=4 \
-  --nnodes=8 \
+  --nnodes=4 \
   --rdzv_id="gnn_${SLURM_JOB_ID}" \
   --rdzv_backend=c10d \
   --rdzv_endpoint="${MASTER_IP}:12345" \

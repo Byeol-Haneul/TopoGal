@@ -32,10 +32,8 @@ class HyperparameterTuner:
         self.dataset   = None 
 
     def create_base_args(self):
-        if "Quijote" in TYPE:
+        if BENCHMARK:
             target_labels = ["Omega_m", "sigma_8"]
-        elif "CAMELS-SAM" in TYPE:
-            target_labels = ["Om0", "sigma8"]
         elif TYPE == "fR":
             target_labels = ["Omega_M", "m_nu", "f_R0"]
         elif TYPE == "CAMELS" or TYPE == "CAMELS_SB28":
