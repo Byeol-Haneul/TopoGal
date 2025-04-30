@@ -136,3 +136,20 @@ def load_catalog(num):
 def normalize(value, option):
     power = modes[option]
     return value / (r_link ** power)
+
+def get_splits():
+    modes = ["train", "val", "test"]
+    split_dict = {}
+
+    for mode in modes:
+        suffix = f"_{mode}_lhs.hdf5" if "CAMELS-SAM" in TYPE else f"_{mode}.hdf5"
+        filename = os.path.join(BENCH_PATH, TYPE + suffix)
+
+        with h5py.File(filename, "r") as f:
+            key_group = "LH" if "CAMELS-SAM" in TYPE else "BSQ"
+            num_list = list(f[key_group].keys())
+            nums = [int(k.split("_")[-1]) for k in num_list]
+            split_dict[mode] = np.array(nums)
+
+    os.makedirs(BASE_DIR, exist_ok=True)
+    np.savez(os.path.join(BASE_DIR, "splits.npz"), **split_dict)

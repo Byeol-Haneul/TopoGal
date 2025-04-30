@@ -493,6 +493,10 @@ def main(array):
     jobs_per_process = total_elements // size
     extra_jobs = total_elements % size
 
+    if BENCHMARK and rank == 0:
+        print(f"[LOG] GET SPLITS FOR TRAIN/VAL/TEST", file=sys.stderr)
+        get_splits()
+
     if rank < extra_jobs:
         start_idx = rank * (jobs_per_process + 1)
         end_idx = start_idx + jobs_per_process + 1

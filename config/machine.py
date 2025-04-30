@@ -13,6 +13,8 @@ BENCHMARK = TYPE in [
     "CAMELS-SAM_LH_gal_99_top5000"
 ]
 
+BENCH_PATH = "/mnt/home/rstiskalek/ceph/graps4science/"
+
 if MACHINE == "HAPPINESS":
     BASE_DIR   = "/data2/jylee/topology/"
     DATA_DIR   = BASE_DIR + "/IllustrisTNG/combinatorial/"
