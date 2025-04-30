@@ -4,10 +4,11 @@
 # - SUBGRID: Allows extensibility for different subgrid models in the future. Current option: "IllustrisTNG".
 
 MACHINE = "RUSTY"
-TYPE    = "CAMELS-SAM_LH_gal_99_top5000"
+TYPE    = "Subset_Quijote_BSQ_rockstar_10_top5000"
 SUBGRID = "IllustrisTNG"
 
 BENCHMARK = TYPE in [
+    "Subset_Quijote_BSQ_rockstar_10_top5000",
     "Quijote_BSQ_rockstar_10_top5000",
     "CAMELS-SAM_LH_rockstar_99_top5000",
     "CAMELS-SAM_LH_gal_99_top5000"
@@ -62,7 +63,7 @@ elif MACHINE=="RUSTY":
     elif BENCHMARK:  
         BASE_DIR       = f"/mnt/home/jlee2/ceph/benchmark/{TYPE}/"
         DATA_DIR       = BASE_DIR
-        HDF5_DATA_FILE = f"/mnt/home/rstiskalek/ceph/graps4science/{TYPE}.hdf5"
+        HDF5_DATA_FILE = f"/mnt/home/rstiskalek/ceph/graps4science/{TYPE.split("Subset_")[-1]}.hdf5"
         RESULT_DIR     = BASE_DIR + "results/"
     else:
         raise Exception("Invalid Simulation Suite")
@@ -80,6 +81,7 @@ catalog_sizes = {
 
 
     ## BENCHMARKS ##
+    "Subset_Quijote_BSQ_rockstar_10_top5000": 3072,
     "Quijote_BSQ_rockstar_10_top5000": 32752,
     "CAMELS-SAM_LH_rockstar_99_top5000": 1000,
     "CAMELS-SAM_LH_gal_99_top5000": 1000
