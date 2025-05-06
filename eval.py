@@ -29,14 +29,14 @@ args = Namespace(
     
     # Directories
     data_dir=DATA_DIR+"/tensors_dense/",
-    model_dir="/mnt/home/jlee2/ceph/benchmark/coarse_large/results/isolated_Bench_Quijote_Coarse_Large_GNN/trial_51",
+    model_dir="/mnt/home/jlee2/ceph/benchmark/Subset_Quijote_BSQ_rockstar_10_top5000/results/BENCHMARK_isolated_Subset_Quijote_BSQ_rockstar_10_top5000_GNN/trial_93/",
     checkpoint_dir=RESULT_DIR+"/zero_shot/",
     label_filename=LABEL_FILENAME,
     
     # Model Architecture
-    in_channels=[1, 3, 5, 7, 3],
-    hidden_dim=64,
-    num_layers=2,
+    in_channels=[3, 3, 5, 7, 3],
+    hidden_dim=128,
+    num_layers=6,
     layerType="GNN",
     attention_flag=False,
     residual_flag=True,
@@ -52,10 +52,10 @@ args = Namespace(
     T_max=64,
     learning_rate=0.0006335744983516634,
     weight_decay=1.1699938795572962e-06,
-    batch_size=1,
-    drop_prob=0.14649343490600586,
-    update_func="relu",
-    aggr_func="max",
+    batch_size=2,
+    drop_prob=0.09919276088476181,
+    update_func="tanh",
+    aggr_func="all",
     
     # Device
     #device_num="0,1",
@@ -67,7 +67,7 @@ args = Namespace(
     random_seed=1234,
     
     # Features & Neighborhood Functions
-    cci_mode="None",
+    cci_mode="hausdorff",
     
     feature_sets=[
     'x_0', 'x_1', 'x_2', 'x_3', 'x_4',
@@ -85,6 +85,7 @@ if args.cci_mode != 'None':
     cci_list = [f'{args.cci_mode}_{i}_to_{j}' 
                 for i in range(5) 
                 for j in range(i, 5)]
+    args.feature_sets.extend(cci_list)
 
 
 def main(passed_args=None, dataset=None):
@@ -102,7 +103,7 @@ def main(passed_args=None, dataset=None):
     model = initialize_model(args, local_rank)
 
     # Define checkpoint path
-    model_path = os.path.join(args.model_dir, 'model_checkpoint.pth')
+    model_path = os.path.join(args.model_dir, 'best_checkpoint.pth')
 
     # Define loss function and optimizer
     loss_fn = get_loss_fn(args.loss_fn_name)
@@ -110,7 +111,7 @@ def main(passed_args=None, dataset=None):
     scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(opt, T_max=args.T_max, eta_min=0)
     model, opt, start_epoch, _ = load_checkpoint(model, opt, model_path, args.device)
 
-    num_list = [i for i in range(CATALOG_SIZE)]
+    num_list = None if BENCHMARK else [i for i in range(CATALOG_SIZE)]
     train_dataset, val_dataset, test_dataset, common_size = load_and_prepare_data(num_list, args, global_rank, world_size)
 
     ### NEIGHBORHOOD DROPPING ###

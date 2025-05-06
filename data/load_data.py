@@ -70,6 +70,7 @@ def load_tensors(num_list, data_dir, label_filename, args, target_labels=None, f
                 tensor = tensor[:, :args.in_channels[feature_index]]  # Slice based on in_channels
 
                 #If we only use positions, x_0 will be filled with random vals from uniform distribution
+                #This might be misleading. We can use only_positions=False if we use raw positions (X,Y,Z)
                 if args.only_positions and feature_index == 0: 
                     tensor = torch.rand_like(tensor)
 

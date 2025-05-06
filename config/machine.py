@@ -4,14 +4,17 @@
 # - SUBGRID: Allows extensibility for different subgrid models in the future. Current option: "IllustrisTNG".
 
 MACHINE = "RUSTY"
-TYPE    = "Subset_Quijote_BSQ_rockstar_10_top5000"
+TYPE    = "tpcf_Quijote_BSQ_top5000"
 SUBGRID = "IllustrisTNG"
 
 BENCHMARK = TYPE in [
     "Subset_Quijote_BSQ_rockstar_10_top5000",
     "Quijote_BSQ_rockstar_10_top5000",
     "CAMELS-SAM_LH_rockstar_99_top5000",
-    "CAMELS-SAM_LH_gal_99_top5000"
+    "CAMELS-SAM_LH_gal_99_top5000",
+    "CAMELS-TNG_galaxy_90_ALL",
+    "tpcf_CAMELS-SAM_LH_gal_top5000_mstar_tpcf",
+    "tpcf_Quijote_BSQ_top5000",
 ]
 
 BENCH_PATH = "/mnt/home/rstiskalek/ceph/graps4science/"
@@ -62,8 +65,8 @@ elif MACHINE=="RUSTY":
         ############################# BENCHMARK ###############################
     elif BENCHMARK:  
         BASE_DIR       = f"/mnt/home/jlee2/ceph/benchmark/{TYPE}/"
-        DATA_DIR       = BASE_DIR
-        HDF5_DATA_FILE = f"/mnt/home/rstiskalek/ceph/graps4science/{TYPE.split("Subset_")[-1]}.hdf5"
+        DATA_DIR       = f"/mnt/home/jlee2/ceph/benchmark/{TYPE.split('Subset_')[-1]}/"
+        HDF5_DATA_FILE = f"/mnt/home/rstiskalek/ceph/graps4science/{TYPE.split('Subset_')[-1]}.hdf5"
         RESULT_DIR     = BASE_DIR + "results/"
     else:
         raise Exception("Invalid Simulation Suite")
@@ -84,7 +87,10 @@ catalog_sizes = {
     "Subset_Quijote_BSQ_rockstar_10_top5000": 3072,
     "Quijote_BSQ_rockstar_10_top5000": 32752,
     "CAMELS-SAM_LH_rockstar_99_top5000": 1000,
-    "CAMELS-SAM_LH_gal_99_top5000": 1000
+    "CAMELS-SAM_LH_gal_99_top5000": 1000,
+    "CAMELS-TNG_galaxy_90_ALL": 1000,
+
+    "tpcf_Quijote_BSQ_top5000": 32752,
 }
 
 CATALOG_SIZE = catalog_sizes.get(TYPE)
@@ -96,3 +102,12 @@ try:
     LABEL_FILENAME
 except NameError:
     LABEL_FILENAME = None
+
+if "tpcf" in TYPE:
+    TPCF = True
+    if "Quijote" in TYPE:
+        LABEL_FILENAME = "/mnt/home/rstiskalek/ceph/graps4science/Quijote_BSQ_rockstar_10_top5000.hdf5"
+    else:
+        raise Exception("Invalid Option")
+else:
+    TPCF = False

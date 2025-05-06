@@ -1,14 +1,14 @@
 #!/bin/bash
-#SBATCH --job-name=run                         
-#SBATCH --output=stdout3                       
-#SBATCH --error=stderr3                       
+#SBATCH --job-name=eval                         
+#SBATCH --output=stdout                      
+#SBATCH --error=stderr                       
 #SBATCH --nodes=8                           
-#SBATCH --ntasks=8                           
+#SBATCH --ntasks=8            
 #SBATCH --cpus-per-task=48                     
 #SBATCH --time=120:00:00                       
 #SBATCH --partition=gpupreempt                 
 #SBATCH --qos=gpupreempt                       
-#SBATCH --gpus=a100-sxm4-40gb:32               
+#SBATCH --gpus=a100-sxm4-40gb:32              
 #SBATCH --mem=128G                             
 #SBATCH --mail-type=ALL                        
 #SBATCH --mail-user=toti010@naver.com          
@@ -35,6 +35,7 @@ echo "Master address for debugging: $MASTER_ADDR, IP: $MASTER_IP"
 #squeue -p gpupreempt | sed -n 's/.*workergpu\([0-9]*\)/\1/p' | sed 's/\([0-9]*\)/'\''\1'\''/g' | paste -sd, - | sed 's/^/[ /;s/$/ ]/'
 
 #export CUDA_LAUNCH_BLOCKING=1
+export TORCH_NCCL_BLOCKING_WAIT=1
 
 srun torchrun \
   --nproc_per_node=4 \
@@ -42,4 +43,4 @@ srun torchrun \
   --rdzv_id="gnn_${SLURM_JOB_ID}" \
   --rdzv_backend=c10d \
   --rdzv_endpoint="${MASTER_IP}:12345" \
-  tune.py --layerType GNN
+  eval.py 

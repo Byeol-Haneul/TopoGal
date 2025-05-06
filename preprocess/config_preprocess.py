@@ -91,8 +91,12 @@ def load_catalog(num):
         X = data['X'][:]
         Y = data['Y'][:]
         Z = data['Z'][:]
-        pos = np.vstack((X,Y,Z)).T / BOXSIZE
 
+        VX = data['VX'][:]
+        VY = data['VY'][:]
+        VZ = data['VZ'][:]
+        pos = np.vstack((X,Y,Z)).T / BOXSIZE
+        vel = np.stack((VX, VY, VZ)).T
         f.close()
     elif TYPE == "Quijote" or TYPE == "fR":
         in_filename = f"catalog_{num}.txt"
@@ -113,6 +117,8 @@ def load_catalog(num):
     pos[np.where(pos>1.0)]-=1.0
 
     if BENCHMARK or "Quijote" in TYPE or TYPE == "fR":
+        feat = np.concatenate([pos, vel], axis=1)
+    elif "Quijote" in TYPE or TYPE == "fR":
         feat = pos #np.zeros(pos.shape)
     else:
         indexes = np.where(Nstar>Nstar_th)[0]
@@ -143,7 +149,7 @@ def get_splits():
 
     for mode in modes:
         suffix = f"_{mode}_lhs.hdf5" if "CAMELS-SAM" in TYPE else f"_{mode}.hdf5"
-        filename = os.path.join(BENCH_PATH, TYPE + suffix)
+        filename = os.path.join(BENCH_PATH, TYPE.split('Subset_')[-1] + suffix)
 
         with h5py.File(filename, "r") as f:
             key_group = "LH" if "CAMELS-SAM" in TYPE else "BSQ"

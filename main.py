@@ -4,6 +4,7 @@ import random
 import pandas as pd
 import numpy as np
 import socket 
+import datetime
 
 import torch
 from torch.utils.data import DataLoader
@@ -58,7 +59,7 @@ def gpu_setup(args, local_rank, world_size):
     os.environ['CUDA_VISIBLE_DEVICES'] = ",".join(str(i) for i in range(torch.cuda.device_count()))
     args.device = torch.device(f"cuda:{local_rank}")   
     torch.cuda.set_device(args.device)
-    dist.init_process_group(backend="nccl", init_method='env://') 
+    dist.init_process_group(backend="nccl", init_method='env://', timeout=datetime.timedelta(days=2)) 
     print(f"[GPU SETUP] Process {local_rank} set up on device {args.device}", file = sys.stderr)
 
 def fix_random_seed(seed):
@@ -184,9 +185,6 @@ def load_and_prepare_data(num_list, args, global_rank, world_size):
         test_dataset = None
 
     return train_dataset, val_dataset, test_dataset, common_size
-
-
-
 
 def initialize_model(args, local_rank):
     inout_channels = [args.hidden_dim] * len(args.in_channels)
