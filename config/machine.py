@@ -4,7 +4,7 @@
 # - SUBGRID: Allows extensibility for different subgrid models in the future. Current option: "IllustrisTNG".
 
 MACHINE = "RUSTY"
-TYPE    = "tpcf_Quijote_BSQ_top5000"
+TYPE    = "Quijote_BSQ_rockstar_10_top5000"
 SUBGRID = "IllustrisTNG"
 
 BENCHMARK = TYPE in [
@@ -13,8 +13,9 @@ BENCHMARK = TYPE in [
     "CAMELS-SAM_LH_rockstar_99_top5000",
     "CAMELS-SAM_LH_gal_99_top5000",
     "CAMELS-TNG_galaxy_90_ALL",
-    "tpcf_CAMELS-SAM_LH_gal_top5000_mstar_tpcf",
     "tpcf_Quijote_BSQ_top5000",
+    "tpcf_CAMELS-SAM_LH_gal_top5000_mstar_tpcf",
+    "tpcf_CAMELS-TNG_galaxy_90_ALL_mstar_tpcf",
 ]
 
 BENCH_PATH = "/mnt/home/rstiskalek/ceph/graps4science/"
@@ -91,6 +92,8 @@ catalog_sizes = {
     "CAMELS-TNG_galaxy_90_ALL": 1000,
 
     "tpcf_Quijote_BSQ_top5000": 32752,
+    "tpcf_CAMELS-SAM_LH_gal_top5000_mstar_tpcf": 1000,
+    "tpcf_CAMELS-TNG_galaxy_90_ALL_mstar_tpcf": 1000,
 }
 
 CATALOG_SIZE = catalog_sizes.get(TYPE)
@@ -105,9 +108,5 @@ except NameError:
 
 if "tpcf" in TYPE:
     TPCF = True
-    if "Quijote" in TYPE:
-        LABEL_FILENAME = "/mnt/home/rstiskalek/ceph/graps4science/Quijote_BSQ_rockstar_10_top5000.hdf5"
-    else:
-        raise Exception("Invalid Option")
 else:
     TPCF = False

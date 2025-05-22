@@ -110,7 +110,7 @@ class Network(nn.Module):
         x_3 = global_aggregations(x_3)
         x_4 = global_aggregations(x_4)
        
-        if self.layerType == "GNN" or self.layerType == "TetraTNN":
+        if "GNN" in self.layerType or self.layerType == "TetraTNN":
             x = torch.cat((x_0, global_feature), dim=1)
         elif self.layerType == "ClusterTNN":
             x = torch.cat((x_3, global_feature), dim=1)
@@ -160,6 +160,8 @@ class CustomHMC(torch.nn.Module):
 
         if layerType == "GNN":
             self.base_layer = GNNLayer
+        elif layerType == "SimpleGNN":
+            self.base_layer = SimpleGNNLayer
         elif layerType == "TetraTNN":
             self.base_layer = TetraTNNLayer
         elif layerType == "ClusterTNN":

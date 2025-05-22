@@ -10,17 +10,17 @@ from config.machine import *
 
 args = Namespace(
     tuning=False,
-    only_positions=True,
+    only_positions=False,
     
     # Directories
-    data_dir=DATA_DIR+"/tensors_dense/",
-    checkpoint_dir=RESULT_DIR+"/grok/",
+    data_dir=DATA_DIR+"/tensors/",
+    checkpoint_dir=RESULT_DIR+"/tuned/",
     label_filename=LABEL_FILENAME,
     
     # Model Architecture
-    in_channels=[1, 3, 5, 7, 3],
-    hidden_dim=64,
-    num_layers=2,
+    in_channels=[3, 3, 5, 7, 3],
+    hidden_dim=128,
+    num_layers=6,
     layerType="GNN",
     attention_flag=False,
     residual_flag=True,
@@ -29,29 +29,29 @@ args = Namespace(
     target_labels=["Omega_m", "sigma_8"],
     
     # Training Hyperparameters
-    num_epochs=2000,
+    num_epochs=300,
     test_interval=100,
     loss_fn_name="mse",
     
-    T_max=64,
-    learning_rate=0.0006335744983516634,
-    weight_decay=1.1699938795572962e-06,
+    T_max=94,
+    learning_rate=0.0009936826536431909,
+    weight_decay=1.1386466667318018e-06,
     batch_size=1,
-    drop_prob=0.1473127156496048,
-    update_func="relu",
-    aggr_func="max",
+    drop_prob=0.1573038399219513,
+    update_func="tanh",
+    aggr_func="all",
     
     # Device
     #device_num="0,1",
     device=None,
     
     # Dataset Split and Random Seed
-    val_size=0.1,
-    test_size=0.1,
+    val_size=None,
+    test_size=None,
     random_seed=1234,
     
     # Features & Neighborhood Functions
-    cci_mode="None",
+    cci_mode="hausdorff",
     
     feature_sets=[
     'x_0', 'x_1', 'x_2', 'x_3', 'x_4',

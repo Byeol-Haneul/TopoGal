@@ -47,7 +47,7 @@ class HyperparameterTuner:
             only_positions=self.only_positions,
 
             # Model Architecture
-            in_channels=[3, 3, 5, 7, 3],
+            in_channels=[3, 3, 5, 7, 3] if BENCHMARK else [4, 3, 5, 7, 3],
             attention_flag=False,
             residual_flag=True,
 
@@ -61,7 +61,7 @@ class HyperparameterTuner:
             # Training Hyperparameters
             num_epochs=300,
             test_interval=100,
-            loss_fn_name="mse",
+            loss_fn_name="mse" if BENCHMARK else 'implicit_likelihood',
 
             # Device
             device_num=self.device_num,
@@ -96,7 +96,7 @@ class HyperparameterTuner:
         else:
             layer_type = self.layerType
 
-        if "CAMELS-SAM" in TYPE:
+        if "CAMELS" in TYPE:
             batch_size = trial.suggest_categorical('batch_size', [1,2,4,8])
         else:
             batch_size = trial.suggest_categorical('batch_size', [1,2,4,8,16])

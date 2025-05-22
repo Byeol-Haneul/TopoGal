@@ -22,7 +22,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "--layerType", 
         type=str, 
-        choices=["GNN", "TetraTNN", "ClusterTNN", "TNN", "All"], 
+        choices=["GNN", "TetraTNN", "ClusterTNN", "TNN", "All", "SimpleGNN"], 
         required=True,
         help="Specify the model architecture for tuning. Choices are 'GNN', 'TetraTNN', 'ClusterTNN', 'TNN', or 'All'."
     )

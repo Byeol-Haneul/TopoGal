@@ -18,6 +18,8 @@ if "Quijote" in TYPE or TYPE == "fR":
     BOXSIZE = 1e3 
 elif "CAMELS-SAM" in TYPE:
     BOXSIZE = 1e2
+elif "CAMELS-TNG" in TYPE:
+    BOXSIZE = 25
 elif TYPE == "CAMELS" or TYPE == "CAMELS_SB28":
     BOXSIZE = 25e3
 elif TYPE == "CAMELS_50":
@@ -85,7 +87,7 @@ def load_catalog(num):
         f = h5py.File(HDF5_DATA_FILE, 'r')
         if "Quijote" in TYPE:
             data = f['BSQ'][f'BSQ_{num}']
-        elif "CAMELS-SAM" in TYPE:
+        elif "CAMELS" in TYPE:
             data = f['LH'][f'LH_{num}']
 
         X = data['X'][:]
@@ -152,10 +154,12 @@ def get_splits():
         filename = os.path.join(BENCH_PATH, TYPE.split('Subset_')[-1] + suffix)
 
         with h5py.File(filename, "r") as f:
-            key_group = "LH" if "CAMELS-SAM" in TYPE else "BSQ"
-            num_list = list(f[key_group].keys())
-            nums = [int(k.split("_")[-1]) for k in num_list]
-            split_dict[mode] = np.array(nums)
+            key_group = "LH" if "CAMELS" in TYPE else "BSQ"
+            #num_list = list(f[key_group].keys())
+            #nums = [int(k.split("_")[-1]) for k in num_list]
+            #split_dict[mode] = np.array(nums)
+            numList = f['original_ids'][:]
+            split_dict[mode] = np.array(numList)
 
     os.makedirs(BASE_DIR, exist_ok=True)
     np.savez(os.path.join(BASE_DIR, "splits.npz"), **split_dict)

@@ -11,7 +11,7 @@ if "Quijote" in TYPE:
         "sigma_8": {"min": 0.6, "max": 1.0}
     }
     PARAM_ORDER = ["Omega_m", "Omega_b", "h", "n_s", "sigma_8"]
-elif "CAMELS-SAM" in TYPE:
+elif "CAMELS-SAM" in TYPE or "CAMELS-TNG" in TYPE:
     PARAM_STATS = {
         "Omega_m": {"min": 0.1, "max": 0.5},
         "sigma_8": {"min": 0.6, "max": 1.0},

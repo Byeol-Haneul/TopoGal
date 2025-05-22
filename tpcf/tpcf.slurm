@@ -1,14 +1,14 @@
 #!/bin/bash
 #SBATCH --job-name=run                         
 #SBATCH --output=stdout                    
-#SBATCH --error=stderr                      
-#SBATCH --nodes=1                           
-#SBATCH --ntasks=1                           
+#SBATCH --error=stderr                     
+#SBATCH --nodes=4                           
+#SBATCH --ntasks=4                           
 #SBATCH --cpus-per-task=48                     
-#SBATCH --time=120:00:00                       
+#SBATCH --time=10:00:00                       
 #SBATCH --partition=gpupreempt                 
 #SBATCH --qos=gpupreempt                       
-#SBATCH --gpus=a100-sxm4-40gb:4               
+#SBATCH --gpus=a100-sxm4-40gb:16            
 #SBATCH --mem=128G                             
 #SBATCH --mail-type=ALL                        
 #SBATCH --mail-user=toti010@naver.com          
@@ -30,6 +30,7 @@ echo
 MASTER_ADDR=$(scontrol show hostname $SLURM_NODELIST | head -n 1)
 MASTER_IP=$(hostname -I | awk '{print $1}')
 
+
 echo "Master address for debugging: $MASTER_ADDR, IP: $MASTER_IP"
 #squeue -p gpu | sed -n 's/.*workergpu\([0-9]*\)/\1/p' | sed 's/\([0-9]*\)/'\''\1'\''/g' | paste -sd, - | sed 's/^/[ /;s/$/ ]/'
 #squeue -p gpupreempt | sed -n 's/.*workergpu\([0-9]*\)/\1/p' | sed 's/\([0-9]*\)/'\''\1'\''/g' | paste -sd, - | sed 's/^/[ /;s/$/ ]/'
@@ -38,7 +39,7 @@ echo "Master address for debugging: $MASTER_ADDR, IP: $MASTER_IP"
 
 srun torchrun \
   --nproc_per_node=4 \
-  --nnodes=1 \
+  --nnodes=4 \
   --rdzv_id="tpcf_${SLURM_JOB_ID}" \
   --rdzv_backend=c10d \
   --rdzv_endpoint="${MASTER_IP}:12345" \
